@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-stone-950 px-6 py-16 text-stone-50">
@@ -28,6 +30,14 @@ export default function Home() {
           <p className="text-sm text-stone-400">
             当前只是产品外壳。登录、数据配置和保存流程会在后续步骤中继续完成。
           </p>
+          <div className="pt-2">
+            <Link
+              href="/setup"
+              className="inline-flex rounded-full bg-stone-100 px-5 py-3 text-sm font-medium text-stone-950 transition hover:bg-white"
+            >
+              查看 Supabase 设置检查
+            </Link>
+          </div>
         </div>
       </section>
     </main>

@@ -17,5 +17,6 @@ This repository currently includes:
 - TypeScript configuration
 - Tailwind CSS setup
 - a simple Step 1 placeholder home page
+- a Step 2 Supabase setup check page at `/setup`
 
 Supabase setup, authentication, and restaurant features begin in later implementation steps.
