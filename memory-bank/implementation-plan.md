@@ -14,11 +14,16 @@ This plan is intentionally small and does not include V2 or V3 ideas.
 Product direction note:
 - The main V1 audience is Chinese users.
 - The default V1 UI language should be Simplified Chinese.
-- English can be added later as a secondary option.
+- English should be available later as a secondary language option.
 - Restaurant fields must support Chinese text input.
 - Cuisine choices should include Chinese-friendly categories.
 - The main discovery sources and examples are 小红书, 抖音, Google Maps, and ordinary public web pages.
 - Keep extraction realistic for 小红书 and 抖音 and best-effort only in V1.
+- The product should be mobile-first, closer to a mobile web app or PWA than a desktop-first tool.
+- Future UI should prioritize iPhone usability.
+- The visual direction should be clean, modern, vibrant, and card-based.
+- The main accent color should be vibrant orange close to `#FF5B00`, not purple.
+- Use the attached meal planner reference only as design direction for rounded cards, clear spacing, and strong mobile presentation.
 
 ## Working Rules
 - Keep one app and one codebase
@@ -27,6 +32,7 @@ Product direction note:
 - Do not add social login in V1
 - Do not add public discovery features in V1 unless needed for basic privacy settings
 - Do not build custom scraping infrastructure for 小红书 or 抖音 in V1
+- Do not build full translation infrastructure unless the current step specifically requires it
 - Finish and test one small step before starting the next
 
 ## Step 1: Project setup
@@ -143,6 +149,8 @@ Goal:
 - Suggested pages: home, login, sign up, add restaurant, saved list, map
 - Add simple navigation between them
 - Default the visible UI copy to Simplified Chinese
+- Keep layouts mobile-first and comfortable on iPhone screens
+- Start shaping the visual system toward rounded cards, clean spacing, and vibrant orange accents
 
 Why this step matters:
 - Users need a clear, stable path through the product before feature detail work
@@ -154,6 +162,7 @@ Test you can run:
 - Sign in
 - Visit each main page from the navigation
 - Confirm every page loads and the navigation flow feels complete
+- Confirm the main layouts feel natural on an iPhone-sized viewport
 
 ## Step 7: Manual restaurant creation
 Goal:
@@ -161,6 +170,7 @@ Goal:
 - Include name, city, address, cuisine, source URL, note, and privacy
 - Ensure all fields accept Chinese text input
 - Include cuisine choices that feel natural for Chinese users
+- Avoid hardcoding copy in a way that would make future English support unnecessarily difficult
 
 Why this step matters:
 - This is the fallback flow that keeps the product usable even before extraction is polished

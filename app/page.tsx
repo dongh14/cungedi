@@ -31,12 +31,32 @@ export default function Home() {
             当前只是产品外壳。登录、数据配置和保存流程会在后续步骤中继续完成。
           </p>
           <div className="pt-2">
-            <Link
-              href="/setup"
-              className="inline-flex rounded-full bg-stone-100 px-5 py-3 text-sm font-medium text-stone-950 transition hover:bg-white"
-            >
-              查看 Supabase 设置检查
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/setup"
+                className="inline-flex rounded-full bg-stone-100 px-5 py-3 text-sm font-medium text-stone-950 transition hover:bg-white"
+              >
+                查看 Supabase 设置检查
+              </Link>
+              <Link
+                href="/sign-up"
+                className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-stone-100 transition hover:bg-white/8"
+              >
+                注册账号
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-stone-100 transition hover:bg-white/8"
+              >
+                登录
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-stone-100 transition hover:bg-white/8"
+              >
+                打开受保护页面
+              </Link>
+            </div>
           </div>
         </div>
       </section>

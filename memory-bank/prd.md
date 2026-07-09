@@ -9,6 +9,7 @@ Help travelers save restaurants they discover online so they can easily find and
 The product starts as a simple web app where users paste links from social media or the web, review extracted restaurant details, save the places they care about, and browse them later in a personal list and on a world map.
 
 The app is Chinese-user-first and should support Chinese UI options from the beginning.
+The product should feel closer to a mobile web app or PWA than a desktop-first web tool.
 
 ## Primary User
 A Chinese user who enjoys traveling and frequently discovers restaurants through social media and web content, especially Xiaohongshu (RedNote), Douyin, Google Maps, and ordinary public web pages.
@@ -86,10 +87,20 @@ Restaurant fields must support Chinese text input in V1.
 
 ### Language And Localization
 - Default UI language in V1 should be Simplified Chinese.
-- English can be available later as a secondary option.
+- English should be available as a secondary language option.
 - Restaurant fields should support Chinese text input.
 - Cuisine options should include Chinese-friendly categories.
 - Source examples in the UI and product copy should use 小红书, 抖音, Google Maps, and public web pages.
+- Do not build full translation infrastructure yet unless it is part of the current implementation step.
+- Future UI should avoid hardcoding copy in a way that makes English support difficult later.
+
+### Visual And UI Direction
+- The product should be mobile-first, closer to a mobile web app or PWA than a desktop-first experience.
+- Future UI work should prioritize iPhone usability.
+- The visual style should be clean, modern, vibrant, and card-based.
+- The main accent color should be a vibrant orange close to `#FF5B00`, not purple.
+- The attached meal planner reference image is design direction only, not a screen to copy exactly.
+- Future screens should borrow the reference's strengths: clean mobile layouts, rounded cards, clear spacing, and a vibrant accent style.
 
 ### Browse Experience
 - Saved restaurants appear in an in-app list view.
@@ -114,8 +125,10 @@ Restaurant fields must support Chinese text input in V1.
 ## Functional Requirements
 - The system must support user authentication with email and password.
 - The system must default the V1 interface to Simplified Chinese.
+- The system should make English available later as a secondary language option.
 - The system must support Chinese text input for restaurant fields.
 - The system should use cuisine categories that are understandable and natural for Chinese users.
+- The system should be designed mobile-first with strong iPhone usability.
 - The system must allow a user to paste a URL as the starting point for creating restaurant records.
 - The system must show an editable confirmation step before any restaurant is saved.
 - The system must support one-to-many extraction from a single source URL.
@@ -131,6 +144,9 @@ Restaurant fields must support Chinese text input in V1.
 ## UX Principles
 - Keep the first version simple and lightweight.
 - Make the default experience feel natural for Simplified Chinese users.
+- Prefer mobile-first layouts and interactions over desktop-first composition.
+- Use a clean, vibrant, card-based visual system with strong spacing and rounded surfaces.
+- Prefer a vibrant orange accent near `#FF5B00` rather than purple.
 - Prefer review-and-confirm over aggressive automation.
 - Make manual correction easy because extraction quality will vary by source.
 - Preserve the user's original discovery source.

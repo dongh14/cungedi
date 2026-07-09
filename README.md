@@ -18,5 +18,6 @@ This repository currently includes:
 - Tailwind CSS setup
 - a simple Step 1 placeholder home page
 - a Step 2 Supabase setup check page at `/setup`
+- Step 3 email/password auth pages at `/sign-up`, `/login`, and `/dashboard`
 
 Supabase setup, authentication, and restaurant features begin in later implementation steps.

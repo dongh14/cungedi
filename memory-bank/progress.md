@@ -5,7 +5,9 @@ Step 1 is complete and has been validated.
 
 Step 2 is complete and has been validated.
 
-Step 3 has not started.
+Step 3 is complete and has been validated.
+
+Step 4 has not started.
 
 ## Completed In Step 1
 - Initialized the repository with Git version control.
@@ -27,15 +29,27 @@ Step 3 has not started.
 - Linked the home page to the `/setup` page.
 - Confirmed the current app shell can build and type-check with the Step 2 setup files in place.
 
+## Completed In Step 3
+- Added the official Supabase SSR helper dependency for cookie-based authentication.
+- Added server-side Supabase auth client support for Next.js requests.
+- Added a proxy layer to refresh auth cookies and protect authenticated routes.
+- Added email/password sign-up and login server actions.
+- Added logout support.
+- Added Chinese-first auth pages for sign up and login.
+- Added a protected `/dashboard` page that redirects signed-out users to login.
+- Linked the home page to the auth entry points and protected page.
+- Confirmed the Step 3 authentication layer can build and type-check successfully.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
 - A Supabase setup check page now exists at `/setup`.
 - Public Supabase environment-variable support has been added.
 - A basic Supabase connection check has been added.
-- No authentication has been added.
+- Email/password authentication has been added.
+- Protected page routing is in place for `/dashboard`.
 - No restaurant data model or save flow has been added.
-- No Step 3 work has been started.
+- No Step 4 work has been started.
 
 ## Step 1 Validation
 Validated checks completed:
@@ -56,8 +70,27 @@ Validation outcome:
 - The `/setup` page can report Supabase setup status.
 - The Step 2 setup layer is in place without starting authentication.
 
+## Step 3 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+
+Validation outcome:
+- A new user can register with email and password.
+- A returning user can log in and log out.
+- Signed-out users are redirected away from the protected page.
+- Signed-in users can open the protected dashboard page.
+
+## Docs-Only Product Direction Update
+Documented but not yet implemented in UI:
+- mobile-first product direction
+- vibrant orange accent near `#FF5B00`
+- Simplified Chinese as the default language
+- English as a later secondary language option
+
 ## Notes
 - The current `npm run lint` command uses TypeScript static checks.
 - The current build script uses `next build --webpack` for reliable local verification in this environment.
-- The current Supabase setup only covers project configuration and connection checking.
-- Authentication, protected routes, and database schema work remain for later steps.
+- The current UI direction is documented as mobile-first, card-based, and iPhone-friendly, but not fully implemented yet.
+- The current Supabase setup now includes authentication and protected route handling.
+- Database schema and restaurant data work remain for later steps.
