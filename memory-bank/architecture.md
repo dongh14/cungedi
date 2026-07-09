@@ -1,9 +1,9 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 4 only.
+This document describes the repository as it exists after validated Step 5 only.
 
-It does not include Step 5 or later architecture yet.
+It does not include Step 6 or later architecture yet.
 
 ## Current Structure
 
@@ -41,6 +41,7 @@ It does not include Step 5 or later architecture yet.
 
 ### Supabase Database Files
 - `supabase/migrations/20260709120000_create_restaurants_table.sql`: Step 4 migration that creates the initial V1 `restaurants` table, indexes, and `updated_at` trigger
+- `supabase/migrations/20260709130000_enable_restaurants_rls.sql`: Step 5 migration that enables RLS and adds owner-only access policies for restaurant records
 
 ### Request Protection
 - `proxy.ts`: request-time auth cookie refresh and protected-route handling
@@ -146,6 +147,16 @@ These are starter static assets from the base app scaffold. They are not product
 - Adds indexes on `user_id` and `city` to support expected access and browsing patterns.
 - Adds a trigger-backed `updated_at` maintenance function so the timestamp refreshes automatically on updates.
 
+### `supabase/migrations/20260709130000_enable_restaurants_rls.sql`
+- Enables Row Level Security on `public.restaurants`.
+- Restricts table access to authenticated users rather than anonymous access.
+- Restricts sequence usage for the identity primary key to authenticated users.
+- Adds an owner-only `select` policy so a user can only read rows where `user_id = auth.uid()`.
+- Adds an owner-only `insert` policy so a user can only create rows for their own `user_id`.
+- Adds an owner-only `update` policy so a user can only update their own rows and cannot reassign ownership.
+- Adds an owner-only `delete` policy so a user can only delete their own rows.
+- Keeps the V1 `privacy` field as stored metadata only and does not use it to expose restaurants to other users.
+
 ### `proxy.ts`
 - Runs on incoming app requests.
 - Refreshes and synchronizes auth cookies with Supabase SSR helpers.
@@ -178,10 +189,12 @@ These are starter static assets from the base app scaffold. They are not product
 - Email/password authentication is implemented before any restaurant data features.
 - Protected pages are enforced at request time with `getClaims()`-based auth checks.
 - Step 4 introduces the first database schema as a single Supabase migration.
+- Step 5 adds owner-only Row Level Security to the `restaurants` table.
 - The V1 restaurant schema is intentionally small and centered on one `restaurants` table.
 - `source_url` lives directly on the `restaurants` table in V1.
 - Coordinates are optional by design so restaurants can still be saved without map placement.
-- Access-control policies are intentionally deferred to Step 5.
+- V1 access control is enforced with owner-only RLS policies on `public.restaurants`.
+- The `privacy` field is stored for later product behavior but does not create cross-user visibility in V1.
 
 ## Restaurants Table Schema
 
@@ -220,6 +233,32 @@ These are starter static assets from the base app scaffold. They are not product
 - `set_restaurants_updated_at`: `before update` trigger on `public.restaurants`
 - This keeps update timestamps consistent without requiring each future app write path to manage `updated_at` manually
 
+## Restaurants Table RLS
+
+### RLS Status
+- Row Level Security is enabled on `public.restaurants`
+
+### Role Access
+- `authenticated` is granted `select`, `insert`, `update`, and `delete` on `public.restaurants`
+- `anon` is not granted direct table access for restaurant CRUD
+- `authenticated` is granted the required identity-sequence access for inserts
+
+### Owner-Only Policies
+- `Authenticated users can view their own restaurants`
+: allows `select` only when `auth.uid()` matches `user_id`
+- `Authenticated users can insert their own restaurants`
+: allows `insert` only when the new row `user_id` matches `auth.uid()`
+- `Authenticated users can update their own restaurants`
+: allows `update` only when the existing row belongs to the user and the updated row still keeps that same `user_id`
+- `Authenticated users can delete their own restaurants`
+: allows `delete` only when the row belongs to the current user
+
+### Privacy Behavior In V1
+- `privacy` is stored as `private` or `public` on each restaurant row
+- In V1 this flag does not override owner-only RLS
+- A restaurant marked `public` is still not readable by other users
+- No public discovery or cross-user browsing behavior exists yet
+
 ## Documented UI Direction
 These are documented product directions, not fully implemented UI work yet:
 - mobile-first layouts, closer to a mobile web app or PWA
@@ -237,4 +276,4 @@ These are documented product directions, not fully implemented UI work yet:
 - There is no map integration.
 - There is no multilingual switching yet, only Chinese-first copy with future English support planned.
 - Supabase setup depends on the user manually creating a Supabase project and filling `.env.local`.
-- Step 5 RLS and security policies have not been added yet.
+- Step 6 UI and navigation work have not been added yet.

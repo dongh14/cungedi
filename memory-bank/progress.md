@@ -9,6 +9,8 @@ Step 3 is complete and has been validated.
 
 Step 4 is complete and has been validated.
 
+Step 5 is complete and has been validated.
+
 ## Completed In Step 1
 - Initialized the repository with Git version control.
 - Created a single Next.js app in the project root using the App Router.
@@ -53,6 +55,20 @@ Step 4 is complete and has been validated.
 - Confirmed the migration was applied successfully in Supabase.
 - Confirmed Supabase accepted both a complete restaurant record and a restaurant record without latitude and longitude.
 
+## Completed In Step 5
+- Added a dedicated Supabase migration to enable Row Level Security on `public.restaurants`.
+- Granted restaurant table access only to authenticated users.
+- Added owner-only `select` policy for restaurant records.
+- Added owner-only `insert` policy so users can only create rows with their own `user_id`.
+- Added owner-only `update` policy so users can only modify their own rows.
+- Added owner-only `delete` policy so users can only remove their own rows.
+- Kept `privacy` as a stored per-record flag only in V1.
+- Kept `public` restaurants non-discoverable to other users in V1.
+- Confirmed RLS is enabled on `public.restaurants`.
+- Confirmed User A can insert their own restaurant.
+- Confirmed User B cannot read User A's restaurant.
+- Confirmed User B cannot update User A's restaurant.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
@@ -62,8 +78,9 @@ Step 4 is complete and has been validated.
 - Email/password authentication has been added.
 - Protected page routing is in place for `/dashboard`.
 - The initial Supabase restaurant data model has been added through a migration.
+- Owner-only RLS protection is now in place for `public.restaurants`.
 - No restaurant create, edit, list, or map UI has been added yet.
-- Step 5 security policies have not been started yet.
+- `privacy` remains a stored flag only and does not create cross-user visibility in V1.
 
 ## Step 1 Validation
 Validated checks completed:
@@ -109,6 +126,20 @@ Validation outcome:
 - A restaurant can also be saved without `latitude` and `longitude`.
 - The Step 4 schema is in place without starting Step 5 access policies.
 
+## Step 5 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+- Supabase RLS migration applied successfully
+- Manual RLS validation with two user accounts
+
+Validation outcome:
+- RLS is enabled on `public.restaurants`.
+- User A can insert their own restaurant record.
+- User B cannot read User A's restaurant record.
+- User B cannot update User A's restaurant record.
+- V1 `privacy` remains a stored flag only and does not expose records across users.
+
 ## Docs-Only Product Direction Update
 Documented but not yet implemented in UI:
 - mobile-first product direction
@@ -122,4 +153,5 @@ Documented but not yet implemented in UI:
 - The current UI direction is documented as mobile-first, card-based, and iPhone-friendly, but not fully implemented yet.
 - The current Supabase setup now includes authentication and protected route handling.
 - The initial restaurant schema is now in place in Supabase.
-- RLS and per-user database access policies still remain for Step 5.
+- Owner-only RLS policies are now in place for `public.restaurants`.
+- Step 6 UI and navigation work still remains for later.
