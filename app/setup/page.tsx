@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { PlaceholderCard } from "@/components/placeholder-card";
+import { PublicShell } from "@/components/public-shell";
+import { SurfaceCard } from "@/components/surface-card";
 import { getSupabaseSetupStatus } from "@/lib/supabase/health";
 
 export const metadata = {
@@ -17,104 +20,104 @@ export default async function SetupPage() {
   const status = await getSupabaseSetupStatus();
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-stone-950 px-6 py-16 text-stone-50">
-      <section className="w-full max-w-5xl space-y-6 rounded-3xl border border-white/10 bg-white/6 p-8 shadow-2xl shadow-black/20 backdrop-blur sm:p-12">
-        <div className="space-y-4">
-          <span className="inline-flex rounded-full border border-emerald-300/40 bg-emerald-300/12 px-4 py-1 text-sm font-medium tracking-[0.18em] text-emerald-100">
-            第二步设置检查
-          </span>
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            Supabase 项目连接状态
-          </h1>
-          <p className="max-w-3xl text-lg leading-8 text-stone-300">
-            这个页面只用于确认 Step 2 的基础配置是否完成。它不会开始登录功能，也不会创建任何业务数据。
+    <PublicShell
+      eyebrow="第二步设置检查"
+      title="Supabase 已接入，现在也拥有统一页面风格"
+      description="这个页面继续负责展示 Supabase 项目连接状态，同时已经切换到 Step 6 的移动端优先视觉系统。它不会创建任何业务数据。"
+      aside={
+        <PlaceholderCard
+          title="手动设置提醒"
+          description="如果项目还没配置完成，可以继续在这里检查环境变量、项目地址和 HTTP 返回状态。"
+          actionHref="/"
+          actionLabel="返回首页"
+        />
+      }
+    >
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <SurfaceCard className="p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-[var(--ink-muted)]">当前状态</p>
+              <h2 className="mt-2 [font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
+                {status.message}
+              </h2>
+            </div>
+            <span
+              className={`rounded-full px-4 py-2 text-sm font-medium ${
+                status.reachable
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              {status.reachable ? "已连接" : "待完成"}
+            </span>
+          </div>
+
+          <p className="mt-4 text-sm leading-7 text-[var(--ink-soft)]">
+            {status.details}
           </p>
-        </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-white/10 bg-black/20 p-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-stone-400">当前状态</p>
-                <h2 className="mt-2 text-2xl font-semibold">{status.message}</h2>
-              </div>
-              <span
-                className={`rounded-full px-4 py-2 text-sm font-medium ${
-                  status.reachable
-                    ? "bg-emerald-400/15 text-emerald-200"
-                    : "bg-amber-300/15 text-amber-100"
-                }`}
-              >
-                {status.reachable ? "已连接" : "待完成"}
-              </span>
+          <dl className="mt-6 grid gap-3 text-sm text-[var(--ink-soft)]">
+            <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4">
+              <dt className="text-[var(--ink-muted)]">环境变量</dt>
+              <dd className="mt-1">{status.configured ? "已检测到" : "未检测到"}</dd>
             </div>
+            <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4">
+              <dt className="text-[var(--ink-muted)]">项目地址</dt>
+              <dd className="mt-1 break-all">{status.url ?? "尚未提供"}</dd>
+            </div>
+            <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4">
+              <dt className="text-[var(--ink-muted)]">项目标识</dt>
+              <dd className="mt-1">{status.projectRef ?? "尚未识别"}</dd>
+            </div>
+            <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4">
+              <dt className="text-[var(--ink-muted)]">HTTP 状态</dt>
+              <dd className="mt-1">
+                {status.httpStatus ? String(status.httpStatus) : "暂无"}
+              </dd>
+            </div>
+          </dl>
+        </SurfaceCard>
 
-            <p className="mt-4 text-sm leading-7 text-stone-300">
-              {status.details}
+        <SurfaceCard className="p-5 sm:p-6">
+          <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
+            你需要手动完成的 Supabase 设置
+          </h2>
+          <ol className="mt-4 space-y-3 text-sm leading-7 text-[var(--ink-soft)]">
+            {steps.map((step, index) => (
+              <li key={step}>
+                {index + 1}. {step}
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-6 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--ink-soft)]">
+            <p className="font-medium text-[var(--ink-strong)]">需要填写的变量</p>
+            <p className="mt-2 break-all">
+              NEXT_PUBLIC_SUPABASE_URL
+              <br />
+              NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
             </p>
-
-            <dl className="mt-6 grid gap-3 text-sm text-stone-300">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <dt className="text-stone-400">环境变量</dt>
-                <dd className="mt-1">
-                  {status.configured ? "已检测到" : "未检测到"}
-                </dd>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <dt className="text-stone-400">项目地址</dt>
-                <dd className="mt-1 break-all">{status.url ?? "尚未提供"}</dd>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <dt className="text-stone-400">项目标识</dt>
-                <dd className="mt-1">{status.projectRef ?? "尚未识别"}</dd>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <dt className="text-stone-400">HTTP 状态</dt>
-                <dd className="mt-1">
-                  {status.httpStatus ? String(status.httpStatus) : "暂无"}
-                </dd>
-              </div>
-            </dl>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-black/20 p-6">
-            <h2 className="text-xl font-semibold">你需要手动完成的 Supabase 设置</h2>
-            <ol className="mt-4 space-y-3 text-sm leading-7 text-stone-300">
-              {steps.map((step, index) => (
-                <li key={step}>
-                  {index + 1}. {step}
-                </li>
-              ))}
-            </ol>
-
-            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-stone-300">
-              <p className="font-medium text-stone-100">需要填写的变量</p>
-              <p className="mt-2 break-all">
-                NEXT_PUBLIC_SUPABASE_URL
-                <br />
-                NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-              </p>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/"
-                className="rounded-full bg-stone-100 px-5 py-3 text-sm font-medium text-stone-950 transition hover:bg-white"
-              >
-                返回首页
-              </Link>
-              <a
-                href="https://supabase.com/dashboard/new/_"
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-stone-100 transition hover:bg-white/8"
-              >
-                打开 Supabase 控制台
-              </a>
-            </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/"
+              className="rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
+            >
+              返回首页
+            </Link>
+            <a
+              href="https://supabase.com/dashboard/new/_"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-[var(--border-soft)] bg-white px-5 py-3 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            >
+              打开 Supabase 控制台
+            </a>
           </div>
-        </div>
-      </section>
-    </main>
+        </SurfaceCard>
+      </div>
+    </PublicShell>
   );
 }

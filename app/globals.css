@@ -1,19 +1,58 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fff6ef;
+  --foreground: #2a160d;
+  --surface: rgba(255, 253, 250, 0.88);
+  --surface-muted: #fff0e7;
+  --border-soft: rgba(117, 66, 34, 0.12);
+  --ink-strong: #2a160d;
+  --ink-soft: #684938;
+  --ink-muted: #9c7a67;
+  --accent: #ff5b00;
+  --accent-deep: #df4d00;
+  --accent-soft: rgba(255, 91, 0, 0.12);
+  --accent-glow: rgba(255, 91, 0, 0.16);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-sans: "Avenir Next", "Trebuchet MS", sans-serif;
+  --font-display: "Gill Sans", "Avenir Next", sans-serif;
   --font-mono: "SFMono-Regular", "Consolas", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(255, 91, 0, 0.16), transparent 30%),
+    radial-gradient(circle at top right, rgba(255, 166, 106, 0.18), transparent 22%),
+    linear-gradient(180deg, #fff8f4 0%, #fff2e6 48%, #fff8f3 100%);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  background:
+    radial-gradient(circle at top left, rgba(255, 91, 0, 0.16), transparent 30%),
+    radial-gradient(circle at top right, rgba(255, 166, 106, 0.18), transparent 22%),
+    linear-gradient(180deg, #fff8f4 0%, #fff2e6 48%, #fff8f3 100%);
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(255, 91, 0, 0.2);
+  color: #2a160d;
 }

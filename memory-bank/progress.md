@@ -11,6 +11,8 @@ Step 4 is complete and has been validated.
 
 Step 5 is complete and has been validated.
 
+Step 6 is complete and has been validated.
+
 ## Completed In Step 1
 - Initialized the repository with Git version control.
 - Created a single Next.js app in the project root using the App Router.
@@ -69,6 +71,20 @@ Step 5 is complete and has been validated.
 - Confirmed User B cannot read User A's restaurant.
 - Confirmed User B cannot update User A's restaurant.
 
+## Completed In Step 6
+- Added the main V1 page structure and navigation shell without starting restaurant CRUD work.
+- Reworked the public pages into a shared mobile-first visual system.
+- Added a protected application shell for signed-in pages.
+- Added shared reusable UI components for brand display, surface cards, auth cards, placeholder cards, and navigation.
+- Added a reusable server-side helper for reading the current authenticated user on protected pages.
+- Added protected placeholder pages for the V1 add page, saved list page, and map page.
+- Updated the protected dashboard into a signed-in overview page for the new navigation flow.
+- Extended route protection so the new protected placeholder pages require login.
+- Updated the global visual style toward the documented orange-accent, rounded-card, Chinese-first mobile UI direction.
+- Kept visible UI copy in Simplified Chinese by default.
+- Kept English as a future secondary option without adding unnecessary translation infrastructure.
+- Confirmed the main Step 6 pages and navigation work in both mobile-sized and desktop browser windows.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
@@ -76,10 +92,12 @@ Step 5 is complete and has been validated.
 - Public Supabase environment-variable support has been added.
 - A basic Supabase connection check has been added.
 - Email/password authentication has been added.
-- Protected page routing is in place for `/dashboard`.
+- Protected page routing is in place for `/dashboard`, `/restaurants`, `/restaurants/new`, and `/map`.
 - The initial Supabase restaurant data model has been added through a migration.
 - Owner-only RLS protection is now in place for `public.restaurants`.
-- No restaurant create, edit, list, or map UI has been added yet.
+- A mobile-first public and protected page shell is now in place.
+- Protected placeholder pages now exist for add, list, and map flows.
+- No restaurant creation logic or real restaurant CRUD UI has been added yet.
 - `privacy` remains a stored flag only and does not create cross-user visibility in V1.
 
 ## Step 1 Validation
@@ -140,6 +158,20 @@ Validation outcome:
 - User B cannot update User A's restaurant record.
 - V1 `privacy` remains a stored flag only and does not expose records across users.
 
+## Step 6 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+- Manual UI validation in mobile-sized browser window
+- Manual UI validation in desktop browser window
+
+Validation outcome:
+- The main Step 6 public and protected pages load successfully.
+- The primary V1 navigation flow is now in place.
+- The layouts feel mobile-first and remain usable on larger desktop widths.
+- The visible UI defaults to Simplified Chinese.
+- The add, list, and map pages exist as protected placeholders without starting Step 7 logic.
+
 ## Docs-Only Product Direction Update
 Documented but not yet implemented in UI:
 - mobile-first product direction
@@ -150,8 +182,8 @@ Documented but not yet implemented in UI:
 ## Notes
 - The current `npm run lint` command uses TypeScript static checks.
 - The current build script uses `next build --webpack` for reliable local verification in this environment.
-- The current UI direction is documented as mobile-first, card-based, and iPhone-friendly, but not fully implemented yet.
+- The current UI direction is now partially implemented through the Step 6 page shell and navigation.
 - The current Supabase setup now includes authentication and protected route handling.
 - The initial restaurant schema is now in place in Supabase.
 - Owner-only RLS policies are now in place for `public.restaurants`.
-- Step 6 UI and navigation work still remains for later.
+- Step 7 restaurant creation logic still remains for later.

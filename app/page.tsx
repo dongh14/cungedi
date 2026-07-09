@@ -1,65 +1,68 @@
 import Link from "next/link";
+import { PlaceholderCard } from "@/components/placeholder-card";
+import { PublicShell } from "@/components/public-shell";
+import { SurfaceCard } from "@/components/surface-card";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-stone-950 px-6 py-16 text-stone-50">
-      <section className="w-full max-w-4xl rounded-3xl border border-white/10 bg-white/6 p-8 shadow-2xl shadow-black/20 backdrop-blur sm:p-12">
-        <div className="max-w-2xl space-y-6">
-          <span className="inline-flex rounded-full border border-amber-300/40 bg-amber-300/12 px-4 py-1 text-sm font-medium tracking-[0.18em] text-amber-100">
-            第一步占位页
-          </span>
-          <div className="space-y-4">
-            <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
-              Restaurant Information Collector 餐厅信息收集器
-            </h1>
-            <p className="text-lg leading-8 text-stone-300 sm:text-xl">
-              一个简单的起点，帮助你保存旅行中发现的餐厅链接，确认整理信息，并在之后轻松找回。
-            </p>
-          </div>
-          <div className="grid gap-3 text-sm text-stone-300 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              支持保存来自小红书、抖音、Google Maps 和公开网页的餐厅线索。
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              保存前先检查并编辑提取出的餐厅信息，不会自动入库。
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              之后可以在列表和世界地图中回看你收藏的餐厅。
-            </div>
-          </div>
-          <p className="text-sm text-stone-400">
-            当前只是产品外壳。登录、数据配置和保存流程会在后续步骤中继续完成。
-          </p>
-          <div className="pt-2">
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/setup"
-                className="inline-flex rounded-full bg-stone-100 px-5 py-3 text-sm font-medium text-stone-950 transition hover:bg-white"
-              >
-                查看 Supabase 设置检查
-              </Link>
-              <Link
-                href="/sign-up"
-                className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-stone-100 transition hover:bg-white/8"
-              >
-                注册账号
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-stone-100 transition hover:bg-white/8"
-              >
-                登录
-              </Link>
-              <Link
-                href="/dashboard"
-                className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-stone-100 transition hover:bg-white/8"
-              >
-                打开受保护页面
-              </Link>
-            </div>
-          </div>
+    <PublicShell
+      eyebrow="Step 6 导航外壳"
+      title="用更轻松的方式整理你看到的餐厅灵感"
+      description="这个版本先把主要页面与导航搭好，让你能在手机尺寸下顺畅地走完整体路径。手动创建、保存、地图与提取能力会在后续步骤接入。"
+      aside={
+        <>
+          <PlaceholderCard
+            title="V1 页面已经就位"
+            description="首页、登录、注册、添加入口、收藏列表和地图占位页都已经接入统一导航。"
+            items={[
+              "默认可见文案为简体中文。",
+              "整体布局优先适配 iPhone 竖屏。",
+              "主强调色使用接近 #FF5B00 的亮橙色。",
+            ]}
+          />
+          <PlaceholderCard
+            title="当前支持的主流程"
+            description="先完成账号与页面骨架，帮助你快速验证产品方向和操作路线。"
+            actionHref="/dashboard"
+            actionLabel="打开已登录主页面"
+          />
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/sign-up"
+            className="inline-flex justify-center rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
+          >
+            先注册账号
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex justify-center rounded-full border border-[var(--border-soft)] bg-white px-5 py-3.5 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            已有账号，去登录
+          </Link>
+          <Link
+            href="/setup"
+            className="inline-flex justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface-muted)] px-5 py-3.5 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            查看 Supabase 设置
+          </Link>
         </div>
-      </section>
-    </main>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            "支持围绕小红书、抖音、Google Maps 和公开网页建立收藏流程。",
+            "保存前先确认信息，避免不准确数据直接进入你的收藏列表。",
+            "后续会逐步接上手动录入、列表浏览和地图回看能力。",
+          ].map((item) => (
+            <SurfaceCard key={item} className="p-4 sm:p-5">
+              <p className="text-sm leading-7 text-[var(--ink-soft)]">{item}</p>
+            </SurfaceCard>
+          ))}
+        </div>
+      </div>
+    </PublicShell>
   );
 }

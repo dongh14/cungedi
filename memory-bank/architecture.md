@@ -1,9 +1,9 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 5 only.
+This document describes the repository as it exists after validated Step 6 only.
 
-It does not include Step 6 or later architecture yet.
+It does not include Step 7 or later architecture yet.
 
 ## Current Structure
 
@@ -23,21 +23,37 @@ It does not include Step 6 or later architecture yet.
 - `README.md`: current project overview and available scripts
 
 ### App Router Files
-- `app/layout.tsx`: root HTML layout, shared page wrapper, and metadata
-- `app/page.tsx`: Step 1 placeholder home page
-- `app/sign-up/page.tsx`: Step 3 sign-up page
-- `app/login/page.tsx`: Step 3 login page
-- `app/dashboard/page.tsx`: Step 3 protected authenticated page
-- `app/setup/page.tsx`: Step 2 Supabase setup and health-check page
+- `app/layout.tsx`: root HTML layout, shared metadata, and global document setup
+- `app/page.tsx`: Step 6 public home page in the new shared shell
+- `app/sign-up/page.tsx`: Step 6 sign-up page using the shared auth presentation
+- `app/login/page.tsx`: Step 6 login page using the shared auth presentation
+- `app/dashboard/page.tsx`: Step 6 protected overview page inside the signed-in app shell
+- `app/setup/page.tsx`: Step 6 Supabase setup page in the shared public shell
+- `app/restaurants/new/page.tsx`: Step 6 protected add-restaurant placeholder page
+- `app/restaurants/page.tsx`: Step 6 protected saved-list placeholder page
+- `app/map/page.tsx`: Step 6 protected map placeholder page
 - `app/auth/actions.ts`: Step 3 server actions for auth flows
 - `app/globals.css`: global styles and Tailwind import
 - `app/favicon.ico`: site icon
+
+### Shared UI Components
+- `components/app-shell.tsx`: protected application shell with desktop and mobile navigation
+- `components/auth-card.tsx`: shared card for sign-up and login forms
+- `components/navigation.ts`: shared navigation definitions and active-route helpers
+- `components/placeholder-card.tsx`: reusable content card for Step 6 placeholder pages
+- `components/public-shell.tsx`: public-page shell for home, auth, and setup pages
+- `components/site-brand.tsx`: reusable product brand block
+- `components/surface-card.tsx`: shared rounded card wrapper used across the UI
 
 ### Supabase Setup Files
 - `lib/supabase/env.ts`: reads and validates public Supabase environment variables
 - `lib/supabase/client.ts`: creates a minimal Supabase client instance for setup checks
 - `lib/supabase/health.ts`: performs the Step 2 Supabase connection status check
 - `lib/supabase/server.ts`: creates a cookie-aware server Supabase client for auth flows
+
+### Auth Utilities
+- `lib/auth/require-user.ts`: shared helper for protected pages that require a signed-in user
+- `lib/utils.ts`: small class-name helper for reusable UI composition
 
 ### Supabase Database Files
 - `supabase/migrations/20260709120000_create_restaurants_table.sql`: Step 4 migration that creates the initial V1 `restaurants` table, indexes, and `updated_at` trigger
@@ -72,38 +88,55 @@ These are starter static assets from the base app scaffold. They are not product
 
 ### `app/layout.tsx`
 - Defines the root document shell for the app.
-- Sets page metadata such as the title and description.
-- Sets the document language to `zh-CN` to match the current Chinese-first placeholder.
+- Sets Chinese-first page metadata such as the title and description.
+- Sets the document language to `zh-CN`.
+- Hosts the global document classes used by the Step 6 mobile-first UI.
 
 ### `app/page.tsx`
-- Renders the Step 1 placeholder screen.
-- Shows the current product shell only.
-- Uses Simplified Chinese as the default visible UI copy.
-- Communicates the product direction without implementing features yet.
-- Links users to the Supabase setup check page introduced in Step 2.
-- Links users to the Step 3 auth entry points and protected page.
+ - Renders the Step 6 public home page.
+ - Introduces the shared public shell and the current main CTA paths.
+ - Uses Simplified Chinese as the default visible UI copy.
+ - Points users to sign up, login, setup, and the signed-in flow.
 
 ### `app/sign-up/page.tsx`
-- Renders the Step 3 email/password sign-up screen.
-- Submits to a server action rather than handling auth in the browser directly.
-- Shows success or error messages through URL query parameters.
+ - Renders the sign-up page inside the shared public shell.
+ - Uses the shared auth card rather than a one-off page layout.
+ - Submits to the existing Step 3 server action.
+ - Shows success or error messages through URL query parameters.
 
 ### `app/login/page.tsx`
-- Renders the Step 3 email/password login screen.
-- Submits to a server action for password sign-in.
-- Shows auth success and error feedback in a Chinese-first UI.
+ - Renders the login page inside the shared public shell.
+ - Uses the shared auth card component.
+ - Submits to the existing Step 3 login server action.
+ - Shows auth success and error feedback in a Chinese-first UI.
 
 ### `app/dashboard/page.tsx`
-- Serves as the current protected page example.
-- Confirms that authenticated users can reach protected content.
-- Reads the current user identity from Supabase on the server.
-- Provides the logout action entry point.
+ - Serves as the signed-in Step 6 overview page.
+ - Confirms that authenticated users can reach the new protected shell.
+ - Reads the current user identity through a shared auth helper.
+ - Links users into the add, list, and map placeholder pages.
+ - Provides the logout action entry point through the shared app shell.
 
 ### `app/setup/page.tsx`
-- Renders the Step 2 Supabase setup screen.
-- Shows whether the required environment variables are present.
-- Shows the configured Supabase URL, detected project ref, and connection result.
-- Gives manual setup instructions without starting any authentication flow.
+ - Renders the Supabase setup screen inside the shared public shell.
+ - Shows whether the required environment variables are present.
+ - Shows the configured Supabase URL, detected project ref, and connection result.
+ - Gives manual setup instructions without starting any authentication flow.
+
+### `app/restaurants/new/page.tsx`
+- Provides the protected placeholder page for the future manual-create flow.
+- Establishes where Step 7 will attach the real form.
+- Keeps the page navigable without adding restaurant creation logic yet.
+
+### `app/restaurants/page.tsx`
+- Provides the protected placeholder page for the future saved-list flow.
+- Establishes the list page location in the signed-in navigation.
+- Shows an intentional empty-state structure rather than real data.
+
+### `app/map/page.tsx`
+- Provides the protected placeholder page for the future map flow.
+- Establishes the map page location in the signed-in navigation.
+- Shows layout-only placeholder content rather than a real map integration.
 
 ### `app/auth/actions.ts`
 - Contains the Step 3 server actions for sign up, login, and logout.
@@ -112,8 +145,39 @@ These are starter static assets from the base app scaffold. They are not product
 
 ### `app/globals.css`
 - Imports Tailwind CSS.
-- Defines the global color variables and font settings used by the placeholder.
-- Applies site-wide base styles.
+ - Defines the Step 6 visual tokens for the orange-accent, rounded-card UI.
+ - Sets the mobile-first background treatment, colors, and typography stack.
+ - Applies site-wide base styles for the new shell layout.
+
+### `components/app-shell.tsx`
+- Provides the shared protected-page shell for signed-in routes.
+- Renders desktop navigation, mobile bottom navigation, account context, and logout action.
+- Keeps protected placeholder pages visually consistent and reusable.
+
+### `components/auth-card.tsx`
+- Provides the shared card UI for the login and sign-up forms.
+- Handles consistent display of auth messages, inputs, and action buttons.
+
+### `components/navigation.ts`
+- Stores the shared protected-route navigation items.
+- Defines labels, short mobile labels, and per-page descriptions.
+- Exposes a helper for determining the active route.
+
+### `components/placeholder-card.tsx`
+- Provides a reusable content card used throughout the Step 6 placeholder pages.
+- Keeps future page placeholders visually consistent while functionality is still pending.
+
+### `components/public-shell.tsx`
+- Provides the shared public-page shell used by home, login, sign-up, and setup.
+- Combines brand presentation, hero copy, and a secondary aside area in one reusable layout.
+
+### `components/site-brand.tsx`
+- Renders the shared product brand lockup.
+- Keeps English and Chinese product naming consistent across public and protected pages.
+
+### `components/surface-card.tsx`
+- Provides the base rounded card surface used throughout the Step 6 UI.
+- Keeps spacing and border treatment consistent across many pages.
 
 ### `lib/supabase/env.ts`
 - Reads the public Supabase environment variables from the runtime.
@@ -135,6 +199,13 @@ These are starter static assets from the base app scaffold. They are not product
 - Creates a request-scoped Supabase server client using Next.js cookies.
 - Supports server actions and protected pages in the Step 3 auth flow.
 - Lets Supabase Auth read and write cookies for session management.
+
+### `lib/auth/require-user.ts`
+- Centralizes the protected-page user lookup and redirect behavior.
+- Lets multiple Step 6 signed-in pages share the same auth gate.
+
+### `lib/utils.ts`
+- Provides a minimal shared helper for joining CSS class names in reusable components.
 
 ### `supabase/migrations/20260709120000_create_restaurants_table.sql`
 - Creates the initial V1 `public.restaurants` table in Supabase.
@@ -162,6 +233,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Refreshes and synchronizes auth cookies with Supabase SSR helpers.
 - Redirects signed-out users away from protected routes.
 - Redirects signed-in users away from guest-only auth screens.
+- Protects the Step 6 signed-in routes for dashboard, add placeholder, list placeholder, and map placeholder.
 
 ### `next.config.ts`
 - Holds the current Next.js project configuration.
@@ -190,11 +262,15 @@ These are starter static assets from the base app scaffold. They are not product
 - Protected pages are enforced at request time with `getClaims()`-based auth checks.
 - Step 4 introduces the first database schema as a single Supabase migration.
 - Step 5 adds owner-only Row Level Security to the `restaurants` table.
+- Step 6 adds the first cohesive product UI shell and route structure.
 - The V1 restaurant schema is intentionally small and centered on one `restaurants` table.
 - `source_url` lives directly on the `restaurants` table in V1.
 - Coordinates are optional by design so restaurants can still be saved without map placement.
 - V1 access control is enforced with owner-only RLS policies on `public.restaurants`.
 - The `privacy` field is stored for later product behavior but does not create cross-user visibility in V1.
+- The app now has separate public and signed-in layout patterns built from reusable components.
+- Step 6 keeps the app mobile-first and iPhone-friendly without introducing unnecessary translation infrastructure.
+- Step 6 establishes the add, list, and map routes as placeholders only, so later steps can attach feature logic without reworking navigation.
 
 ## Restaurants Table Schema
 
@@ -259,21 +335,41 @@ These are starter static assets from the base app scaffold. They are not product
 - A restaurant marked `public` is still not readable by other users
 - No public discovery or cross-user browsing behavior exists yet
 
-## Documented UI Direction
-These are documented product directions, not fully implemented UI work yet:
-- mobile-first layouts, closer to a mobile web app or PWA
-- strong iPhone usability
+## Current UI Structure
+
+### Public Structure
+- Public pages use `components/public-shell.tsx`
+- The shared public shell is used by `/`, `/login`, `/sign-up`, and `/setup`
+- Public pages use the same brand block, hero area, rounded cards, and orange-accent CTA treatment
+
+### Signed-In Structure
+- Signed-in pages use `components/app-shell.tsx`
+- Desktop view uses a top navigation bar plus a left-side support column
+- Mobile view uses a fixed bottom navigation for thumb-friendly switching
+- The signed-in shell also shows account context and logout access
+
+### Protected Placeholder Pages
+- `/dashboard` acts as the signed-in overview page
+- `/restaurants/new` is the placeholder for the future manual-create page
+- `/restaurants` is the placeholder for the future saved-list page
+- `/map` is the placeholder for the future map page
+- These pages are navigable now but intentionally do not contain restaurant creation or CRUD logic
+
+### Visual Direction Now In Use
+- mobile-first layouts, closer to a mobile web app than a desktop-first site
+- strong iPhone usability and tap-friendly spacing
 - clean, modern, vibrant, card-based screens
-- orange accent color near `#FF5B00`, not purple
-- Simplified Chinese as the default language
-- English as a later secondary option
+- orange accent color near `#FF5B00`
+- Simplified Chinese as the default visible language
+- English remains a later secondary option
 
 ## Current Limitations
 - The app is still mostly a shell plus setup and auth screens.
-- The restaurant schema exists, but there is no restaurant create, edit, list, or map UI yet.
-- There is no saved restaurant flow.
+- The restaurant schema exists, but the Step 6 pages for add, list, and map are still placeholders only.
+- There is no restaurant creation logic yet.
+- There is no saved restaurant data rendering yet.
 - There is no extraction logic.
 - There is no map integration.
 - There is no multilingual switching yet, only Chinese-first copy with future English support planned.
 - Supabase setup depends on the user manually creating a Supabase project and filling `.env.local`.
-- Step 6 UI and navigation work have not been added yet.
+- Step 7 restaurant creation work has not been added yet.
