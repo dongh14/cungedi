@@ -7,7 +7,7 @@ Step 2 is complete and has been validated.
 
 Step 3 is complete and has been validated.
 
-Step 4 has not started.
+Step 4 is complete and has been validated.
 
 ## Completed In Step 1
 - Initialized the repository with Git version control.
@@ -40,6 +40,19 @@ Step 4 has not started.
 - Linked the home page to the auth entry points and protected page.
 - Confirmed the Step 3 authentication layer can build and type-check successfully.
 
+## Completed In Step 4
+- Added a Supabase migration directory for database schema changes.
+- Added the initial V1 `restaurants` table migration.
+- Used `source_url` directly on the `restaurants` table as required by the product documents.
+- Added the required V1 fields: `name`, `city`, `source_url`, and `privacy`.
+- Added the optional V1 fields: `address`, `cuisine`, `note`, `latitude`, and `longitude`.
+- Added supporting fields for maintainable storage: `id`, `user_id`, `created_at`, and `updated_at`.
+- Added database constraints for non-blank required text fields, valid privacy values, and valid latitude and longitude ranges.
+- Added indexes for `user_id` and `city`.
+- Added an `updated_at` trigger so update timestamps are maintained automatically.
+- Confirmed the migration was applied successfully in Supabase.
+- Confirmed Supabase accepted both a complete restaurant record and a restaurant record without latitude and longitude.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
@@ -48,8 +61,9 @@ Step 4 has not started.
 - A basic Supabase connection check has been added.
 - Email/password authentication has been added.
 - Protected page routing is in place for `/dashboard`.
-- No restaurant data model or save flow has been added.
-- No Step 4 work has been started.
+- The initial Supabase restaurant data model has been added through a migration.
+- No restaurant create, edit, list, or map UI has been added yet.
+- Step 5 security policies have not been started yet.
 
 ## Step 1 Validation
 Validated checks completed:
@@ -81,6 +95,20 @@ Validation outcome:
 - Signed-out users are redirected away from the protected page.
 - Signed-in users can open the protected dashboard page.
 
+## Step 4 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+- Supabase migration applied successfully
+- Manual insert test with a complete restaurant record
+- Manual insert test with a restaurant record without latitude and longitude
+
+Validation outcome:
+- The `restaurants` table exists in Supabase with the intended V1 schema.
+- A restaurant can be saved with all supported V1 fields, including coordinates.
+- A restaurant can also be saved without `latitude` and `longitude`.
+- The Step 4 schema is in place without starting Step 5 access policies.
+
 ## Docs-Only Product Direction Update
 Documented but not yet implemented in UI:
 - mobile-first product direction
@@ -93,4 +121,5 @@ Documented but not yet implemented in UI:
 - The current build script uses `next build --webpack` for reliable local verification in this environment.
 - The current UI direction is documented as mobile-first, card-based, and iPhone-friendly, but not fully implemented yet.
 - The current Supabase setup now includes authentication and protected route handling.
-- Database schema and restaurant data work remain for later steps.
+- The initial restaurant schema is now in place in Supabase.
+- RLS and per-user database access policies still remain for Step 5.
