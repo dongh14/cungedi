@@ -13,6 +13,8 @@ Step 5 is complete and has been validated.
 
 Step 6 is complete and has been validated.
 
+Step 7 is complete and has been validated.
+
 ## Completed In Step 1
 - Initialized the repository with Git version control.
 - Created a single Next.js app in the project root using the App Router.
@@ -85,6 +87,23 @@ Step 6 is complete and has been validated.
 - Kept English as a future secondary option without adding unnecessary translation infrastructure.
 - Confirmed the main Step 6 pages and navigation work in both mobile-sized and desktop browser windows.
 
+## Completed In Step 7
+- Added a signed-in manual restaurant creation flow at `/restaurants/new`.
+- Added a server action that creates restaurant records in Supabase using the validated V1 schema and existing owner-only RLS rules.
+- Added a mobile-first Chinese-first restaurant form component for the Step 7 create flow.
+- Added support for saving a complete restaurant record with required and optional Step 7 form fields.
+- Added support for saving a restaurant with only the required fields: `name`, `city`, `source_url`, and `privacy`.
+- Kept latitude and longitude out of the user-facing form as required for Step 7.
+- Added Chinese-friendly cuisine suggestions while still allowing free text input.
+- Confirmed restaurant fields support Chinese text input.
+- Added generic source URL extraction so the source input can accept either a direct URL or a longer block of sharing text.
+- Added extraction of the first valid `http` or `https` URL from pasted 小红书, 抖音, Google Maps, and public web sharing text.
+- Added validation that preserves the pasted form input when no valid URL can be extracted.
+- Shortened the visible Simplified Chinese validation error copy for invalid source input.
+- Added focused automated tests for direct URLs, 小红书 sharing text, 抖音 sharing text, no-URL text, and multiple-URL text.
+- Added a minimal `/restaurants` confirmation page that shows the current user's saved restaurant cards and highlights the just-created record.
+- Kept Step 7 intentionally smaller than Step 8 by not adding edit, delete, filters, or a full saved-list experience.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
@@ -96,8 +115,10 @@ Step 6 is complete and has been validated.
 - The initial Supabase restaurant data model has been added through a migration.
 - Owner-only RLS protection is now in place for `public.restaurants`.
 - A mobile-first public and protected page shell is now in place.
-- Protected placeholder pages now exist for add, list, and map flows.
-- No restaurant creation logic or real restaurant CRUD UI has been added yet.
+- Signed-in users can now manually create restaurant records at `/restaurants/new`.
+- `/restaurants` now provides a minimal save-confirmation view for the current user's records.
+- The map page remains a protected placeholder.
+- No edit, delete, geocoding, extraction review, or map rendering logic has been added yet.
 - `privacy` remains a stored flag only and does not create cross-user visibility in V1.
 
 ## Step 1 Validation
@@ -172,6 +193,25 @@ Validation outcome:
 - The visible UI defaults to Simplified Chinese.
 - The add, list, and map pages exist as protected placeholders without starting Step 7 logic.
 
+## Step 7 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+- Manual creation of a complete restaurant record
+- Manual creation of a restaurant record with only required fields
+- Manual validation of Chinese text input
+- Manual validation of full 小红书 sharing text URL extraction
+- Manual validation of full 抖音 sharing text URL extraction
+- Manual validation of the no-URL error state
+- Manual validation of the shortened source-input error copy
+
+Validation outcome:
+- A signed-in user can manually create restaurant records that respect the validated V1 schema.
+- The create form supports both English and Chinese restaurant content, with Simplified Chinese as the default visible UI.
+- The source input accepts either a direct URL or a longer sharing message and saves only the first valid `http` or `https` URL.
+- Invalid sharing text without a URL is rejected with clear Simplified Chinese validation feedback while preserving the pasted input.
+- After a successful save, `/restaurants` provides a minimal confirmation view without prematurely starting Step 8 list work.
+
 ## Docs-Only Product Direction Update
 Documented but not yet implemented in UI:
 - mobile-first product direction
@@ -186,4 +226,6 @@ Documented but not yet implemented in UI:
 - The current Supabase setup now includes authentication and protected route handling.
 - The initial restaurant schema is now in place in Supabase.
 - Owner-only RLS policies are now in place for `public.restaurants`.
-- Step 7 restaurant creation logic still remains for later.
+- Step 7 manual restaurant creation is now in place and validated.
+- The source input now supports generic share-text URL extraction without starting restaurant-information extraction.
+- Step 8 saved-list work still remains for later.

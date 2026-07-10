@@ -10,19 +10,19 @@ export const appNavigation: AppNavigationItem[] = [
     href: "/dashboard",
     label: "总览",
     shortLabel: "总览",
-    description: "查看当前 V1 页面结构和下一步入口。",
+    description: "查看当前账号概览、保存入口和后续主路径。",
   },
   {
     href: "/restaurants/new",
     label: "添加餐厅",
     shortLabel: "添加",
-    description: "手动创建页面入口已经准备好，表单会在 Step 7 接上。",
+    description: "手动创建餐厅并保存到你自己的账号。",
   },
   {
     href: "/restaurants",
     label: "收藏列表",
     shortLabel: "收藏",
-    description: "用户自己的餐厅列表页面占位，方便验证后续导航流。",
+    description: "用最小结果视图确认刚刚保存的记录已经入库。",
   },
   {
     href: "/map",

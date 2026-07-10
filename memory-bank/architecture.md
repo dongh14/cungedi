@@ -1,9 +1,9 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 6 only.
+This document describes the repository as it exists after validated Step 7 only.
 
-It does not include Step 7 or later architecture yet.
+It does not include Step 8 or later architecture yet.
 
 ## Current Structure
 
@@ -29,8 +29,9 @@ It does not include Step 7 or later architecture yet.
 - `app/login/page.tsx`: Step 6 login page using the shared auth presentation
 - `app/dashboard/page.tsx`: Step 6 protected overview page inside the signed-in app shell
 - `app/setup/page.tsx`: Step 6 Supabase setup page in the shared public shell
-- `app/restaurants/new/page.tsx`: Step 6 protected add-restaurant placeholder page
-- `app/restaurants/page.tsx`: Step 6 protected saved-list placeholder page
+- `app/restaurants/new/page.tsx`: Step 7 protected manual-create page
+- `app/restaurants/page.tsx`: Step 7 protected minimal save-confirmation page
+- `app/restaurants/actions.ts`: Step 7 server action for validating and creating restaurant records
 - `app/map/page.tsx`: Step 6 protected map placeholder page
 - `app/auth/actions.ts`: Step 3 server actions for auth flows
 - `app/globals.css`: global styles and Tailwind import
@@ -42,6 +43,7 @@ It does not include Step 7 or later architecture yet.
 - `components/navigation.ts`: shared navigation definitions and active-route helpers
 - `components/placeholder-card.tsx`: reusable content card for Step 6 placeholder pages
 - `components/public-shell.tsx`: public-page shell for home, auth, and setup pages
+- `components/restaurant-form-card.tsx`: Step 7 reusable restaurant create form card
 - `components/site-brand.tsx`: reusable product brand block
 - `components/surface-card.tsx`: shared rounded card wrapper used across the UI
 
@@ -54,6 +56,13 @@ It does not include Step 7 or later architecture yet.
 ### Auth Utilities
 - `lib/auth/require-user.ts`: shared helper for protected pages that require a signed-in user
 - `lib/utils.ts`: small class-name helper for reusable UI composition
+
+### Restaurant Utilities
+- `lib/restaurants/constants.ts`: Step 7 cuisine and privacy option definitions for the restaurant form
+- `lib/restaurants/types.ts`: shared TypeScript types for restaurant inserts and minimal list items
+- `lib/restaurants/queries.ts`: Step 7 user-scoped restaurant read helper for the confirmation page
+- `lib/restaurants/source-url.ts`: generic Step 7 source URL extraction utility for direct links and sharing text
+- `lib/restaurants/source-url.test.ts`: focused automated tests for URL extraction behavior
 
 ### Supabase Database Files
 - `supabase/migrations/20260709120000_create_restaurants_table.sql`: Step 4 migration that creates the initial V1 `restaurants` table, indexes, and `updated_at` trigger
@@ -124,14 +133,24 @@ These are starter static assets from the base app scaffold. They are not product
  - Gives manual setup instructions without starting any authentication flow.
 
 ### `app/restaurants/new/page.tsx`
-- Provides the protected placeholder page for the future manual-create flow.
-- Establishes where Step 7 will attach the real form.
-- Keeps the page navigable without adding restaurant creation logic yet.
+- Provides the protected Step 7 manual-create page for signed-in users.
+- Uses the shared signed-in shell and the new restaurant form card.
+- Explains the current Step 7 scope: manual save now, geocoding and coordinates later.
+- Links users to the minimal saved-results page and the future map page.
 
 ### `app/restaurants/page.tsx`
-- Provides the protected placeholder page for the future saved-list flow.
-- Establishes the list page location in the signed-in navigation.
-- Shows an intentional empty-state structure rather than real data.
+- Provides the protected Step 7 minimal save-confirmation page.
+- Reads the current user's restaurant records through a small shared query helper.
+- Highlights the just-created restaurant when a `created` query parameter is present.
+- Deliberately stops short of a full Step 8 saved-list experience by omitting edit, delete, filters, and pagination.
+
+### `app/restaurants/actions.ts`
+- Contains the Step 7 server action that validates and creates restaurant records.
+- Normalizes required and optional form fields before writing to Supabase.
+- Uses the existing server Supabase client and authenticated user session.
+- Extracts the first valid `http` or `https` URL from the pasted source input before saving `source_url`.
+- Preserves form input in the redirect URL when validation fails.
+- Redirects successful saves to `/restaurants` with a simple confirmation message and created record id.
 
 ### `app/map/page.tsx`
 - Provides the protected placeholder page for the future map flow.
@@ -145,9 +164,9 @@ These are starter static assets from the base app scaffold. They are not product
 
 ### `app/globals.css`
 - Imports Tailwind CSS.
- - Defines the Step 6 visual tokens for the orange-accent, rounded-card UI.
- - Sets the mobile-first background treatment, colors, and typography stack.
- - Applies site-wide base styles for the new shell layout.
+- Defines the Step 6 visual tokens for the orange-accent, rounded-card UI.
+- Sets the mobile-first background treatment, colors, and typography stack.
+- Applies site-wide base styles for the new shell layout.
 
 ### `components/app-shell.tsx`
 - Provides the shared protected-page shell for signed-in routes.
@@ -170,6 +189,14 @@ These are starter static assets from the base app scaffold. They are not product
 ### `components/public-shell.tsx`
 - Provides the shared public-page shell used by home, login, sign-up, and setup.
 - Combines brand presentation, hero copy, and a secondary aside area in one reusable layout.
+
+### `components/restaurant-form-card.tsx`
+- Provides the main Step 7 restaurant form UI inside a reusable card.
+- Keeps the visible form copy Simplified Chinese by default.
+- Supports Chinese text input, Chinese-friendly cuisine suggestions, and free-text optional fields.
+- Accepts either a direct URL or a longer 小红书, 抖音, Google Maps, or public-web sharing message in the source input.
+- Preserves the pasted source text and the rest of the form values when validation fails.
+- Intentionally excludes latitude and longitude inputs in Step 7.
 
 ### `components/site-brand.tsx`
 - Renders the shared product brand lockup.
@@ -203,6 +230,30 @@ These are starter static assets from the base app scaffold. They are not product
 ### `lib/auth/require-user.ts`
 - Centralizes the protected-page user lookup and redirect behavior.
 - Lets multiple Step 6 signed-in pages share the same auth gate.
+
+### `lib/restaurants/constants.ts`
+- Defines the Step 7 cuisine suggestions used by the form.
+- Keeps cuisine choices Chinese-friendly while still allowing custom user input.
+- Defines the `private` and `public` privacy radio options and their user-facing descriptions.
+
+### `lib/restaurants/types.ts`
+- Defines the minimal shared insert type used by the Step 7 server action.
+- Defines the minimal list-item type used by the Step 7 confirmation page.
+
+### `lib/restaurants/queries.ts`
+- Fetches the current user's restaurant records for `/restaurants`.
+- Returns only the fields needed for Step 7 confirmation cards.
+- Relies on the already-validated owner-only RLS rules for user scoping.
+
+### `lib/restaurants/source-url.ts`
+- Extracts the first valid `http` or `https` URL from direct input or longer share text.
+- Trims common trailing ASCII and Chinese punctuation from pasted links.
+- Uses standard URL parsing so non-URL fragments like `qrr:/` or `Z@M.jp` are not mistaken for valid links.
+- Keeps the logic generic so it works across 小红书, 抖音, Google Maps, and public web sharing text.
+
+### `lib/restaurants/source-url.test.ts`
+- Covers the focused Step 7 URL-extraction cases with automated tests.
+- Verifies direct URL handling, 小红书 share-text extraction, 抖音 share-text extraction, no-URL validation input, and first-URL-wins behavior.
 
 ### `lib/utils.ts`
 - Provides a minimal shared helper for joining CSS class names in reusable components.
@@ -263,6 +314,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Step 4 introduces the first database schema as a single Supabase migration.
 - Step 5 adds owner-only Row Level Security to the `restaurants` table.
 - Step 6 adds the first cohesive product UI shell and route structure.
+- Step 7 adds the first restaurant write path through a server action and protected manual-create page.
 - The V1 restaurant schema is intentionally small and centered on one `restaurants` table.
 - `source_url` lives directly on the `restaurants` table in V1.
 - Coordinates are optional by design so restaurants can still be saved without map placement.
@@ -270,7 +322,10 @@ These are starter static assets from the base app scaffold. They are not product
 - The `privacy` field is stored for later product behavior but does not create cross-user visibility in V1.
 - The app now has separate public and signed-in layout patterns built from reusable components.
 - Step 6 keeps the app mobile-first and iPhone-friendly without introducing unnecessary translation infrastructure.
-- Step 6 establishes the add, list, and map routes as placeholders only, so later steps can attach feature logic without reworking navigation.
+- Step 7 keeps the mobile-first, orange-accent Chinese-first visual direction while adding the first restaurant form.
+- Step 7 accepts direct links and longer sharing text in one generic source input, but only persists the first valid `http` or `https` URL.
+- Step 7 intentionally omits latitude, longitude, geocoding, extraction review, edit, and delete behavior.
+- `/restaurants` is now a minimal save-confirmation page rather than the full Step 8 saved-list experience.
 
 ## Restaurants Table Schema
 
@@ -350,10 +405,10 @@ These are starter static assets from the base app scaffold. They are not product
 
 ### Protected Placeholder Pages
 - `/dashboard` acts as the signed-in overview page
-- `/restaurants/new` is the placeholder for the future manual-create page
-- `/restaurants` is the placeholder for the future saved-list page
+- `/restaurants/new` is now the real Step 7 manual-create page
+- `/restaurants` is now the minimal Step 7 save-confirmation page
 - `/map` is the placeholder for the future map page
-- These pages are navigable now but intentionally do not contain restaurant creation or CRUD logic
+- These pages are navigable now, but only Step 7 manual creation has been added so far
 
 ### Visual Direction Now In Use
 - mobile-first layouts, closer to a mobile web app than a desktop-first site
@@ -364,12 +419,12 @@ These are starter static assets from the base app scaffold. They are not product
 - English remains a later secondary option
 
 ## Current Limitations
-- The app is still mostly a shell plus setup and auth screens.
-- The restaurant schema exists, but the Step 6 pages for add, list, and map are still placeholders only.
-- There is no restaurant creation logic yet.
-- There is no saved restaurant data rendering yet.
-- There is no extraction logic.
+- The app is still intentionally narrow in scope beyond setup, auth, and basic restaurant creation.
+- The restaurant create flow exists, but there is no edit or delete flow yet.
+- `/restaurants` shows only a minimal confirmation view, not the full Step 8 list experience.
+- There is no restaurant-information extraction yet beyond extracting the first valid source URL from pasted text.
 - There is no map integration.
+- There is no geocoding or coordinate input in the user-facing create flow yet.
 - There is no multilingual switching yet, only Chinese-first copy with future English support planned.
 - Supabase setup depends on the user manually creating a Supabase project and filling `.env.local`.
-- Step 7 restaurant creation work has not been added yet.
+- Step 8 saved-list work has not been added yet.
