@@ -19,6 +19,8 @@ Step 8 is complete and has been validated.
 
 Step 9 is complete and has been validated.
 
+Step 10 is complete and has been validated.
+
 ## Completed In Step 1
 - Initialized the repository with Git version control.
 - Created a single Next.js app in the project root using the App Router.
@@ -136,6 +138,19 @@ Step 9 is complete and has been validated.
 - Kept validation and update errors on the edit page instead of redirecting away on failure.
 - Kept Step 9 scoped to saved-record editing only without starting Step 10 URL intake, extraction, cuisine inference, geocoding, or maps.
 
+## Completed In Step 10
+- Added a new source intake flow on `/restaurants/new` while keeping the validated Step 7 manual-create form available on the same page.
+- Added a dedicated Step 10 source-intake card so signed-in users can paste either a direct URL or a longer share message.
+- Reused the existing generic first-`http` or first-`https` URL extraction logic instead of adding source-specific parsing.
+- Confirmed the source intake flow accepts a direct URL and moves into the extraction-review starting point.
+- Confirmed the source intake flow accepts full 小红书 sharing text and extracts only the first valid URL.
+- Confirmed the source intake flow accepts full 抖音 sharing text and extracts only the first valid URL.
+- Confirmed invalid text without any valid `http` or `https` URL shows a clear Simplified Chinese validation error and preserves the pasted input.
+- Added a protected source-review route at `/restaurants/review`.
+- Added a source review card that shows the normalized source URL, source host, and the V1 source-policy boundary.
+- Added the handoff from source review back to the existing manual form so `source_url` is prefilled with the normalized URL.
+- Kept Step 10 intentionally narrow: no page fetching, no restaurant-field extraction, no cuisine inference, no candidate generation, no geocoding, and no map work.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
@@ -148,10 +163,11 @@ Step 9 is complete and has been validated.
 - Owner-only RLS protection is now in place for `public.restaurants`.
 - A mobile-first public and protected page shell is now in place.
 - Signed-in users can now manually create restaurant records at `/restaurants/new`.
+- Signed-in users can now begin a source intake flow at `/restaurants/new` and continue to `/restaurants/review` before choosing manual completion.
 - `/restaurants` now provides the full saved restaurant list experience for the current user's records.
 - Signed-in users can now edit `cuisine`, `note`, and `privacy` for their own saved restaurant records.
 - The map page remains a protected placeholder.
-- No edit, delete, geocoding, extraction review, or map rendering logic has been added yet.
+- A source review entry point now exists, but no page fetching or restaurant-field extraction has been added yet.
 - `privacy` remains a stored flag only and does not create cross-user visibility in V1.
 
 ## Step 1 Validation
@@ -258,6 +274,41 @@ Validation outcome:
 - A signed-in user can open `/restaurants` and see their saved restaurant list in newest-first order.
 - The list only shows records accessible to the current user through the existing RLS rules.
 - The successful-save confirmation banner still appears after a create redirect.
+
+## Step 9 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+- Manual validation of editable `cuisine`, `note`, and `privacy`
+- Manual validation that optional `cuisine` and `note` can be cleared
+- Manual validation of owner-only RLS behavior for editing
+- Manual validation of successful update redirect to `/restaurants`
+- Manual validation of the `餐厅信息已更新` success message
+- Manual validation that update errors stay on the edit page
+
+Validation outcome:
+- A signed-in user can edit only `cuisine`, `note`, and `privacy` for their own restaurant records.
+- Successful updates persist in Supabase and redirect back to `/restaurants`.
+- The restaurant list reflects updated values after redirect.
+- Validation and update failures stay on the edit page so the user can correct them.
+- Owner-only RLS still prevents cross-user access during the edit flow.
+
+## Step 10 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+- Manual validation of direct URL intake
+- Manual validation of full 小红书 sharing-text intake
+- Manual validation of full 抖音 sharing-text intake
+- Manual validation of invalid text without a URL
+- Manual validation of the handoff from source review back to the manual form
+
+Validation outcome:
+- A signed-in user can paste either a direct URL or a longer sharing message to start the Step 10 source flow.
+- The app reuses the generic first-valid-URL extraction behavior and moves accepted input into `/restaurants/review`.
+- Invalid text without a valid `http` or `https` URL is rejected with clear Simplified Chinese feedback while preserving the pasted text.
+- The source review page can hand the normalized URL back into the existing manual form with `source_url` prefilled.
+- Step 10 stops at URL intake and review only; it does not fetch pages or extract restaurant fields yet.
 - The newly-created restaurant is still visually highlighted after save.
 - Missing optional fields are handled cleanly without breaking the card layout.
 - The saved-list page remains mobile-first and usable on larger desktop widths.

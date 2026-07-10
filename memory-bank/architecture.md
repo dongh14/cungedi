@@ -1,9 +1,9 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 9 only.
+This document describes the repository as it exists after validated Step 10 only.
 
-It does not include Step 10 or later architecture yet.
+It does not include Step 11 or later architecture yet.
 
 ## Current Structure
 
@@ -30,9 +30,10 @@ It does not include Step 10 or later architecture yet.
 - `app/dashboard/page.tsx`: Step 6 protected overview page inside the signed-in app shell
 - `app/setup/page.tsx`: Step 6 Supabase setup page in the shared public shell
 - `app/restaurants/new/page.tsx`: Step 7 protected manual-create page
+- `app/restaurants/review/page.tsx`: Step 10 protected source review page
 - `app/restaurants/page.tsx`: Step 8 protected full saved-list page
 - `app/restaurants/[id]/edit/page.tsx`: Step 9 protected restaurant edit page
-- `app/restaurants/actions.ts`: Step 7 and Step 9 server actions for creating and updating restaurant records
+- `app/restaurants/actions.ts`: Step 7, Step 9, and Step 10 server actions for create, update, and source-intake flow control
 - `app/map/page.tsx`: Step 6 protected map placeholder page
 - `app/auth/actions.ts`: Step 3 server actions for auth flows
 - `app/globals.css`: global styles and Tailwind import
@@ -48,6 +49,8 @@ It does not include Step 10 or later architecture yet.
 - `components/restaurant-list.tsx`: Step 8 reusable saved-list summary and list wrapper
 - `components/restaurant-list-card.tsx`: Step 8 reusable saved-restaurant card
 - `components/restaurant-edit-form-card.tsx`: Step 9 reusable restaurant edit form card
+- `components/source-intake-card.tsx`: Step 10 reusable source intake card for `/restaurants/new`
+- `components/source-review-card.tsx`: Step 10 reusable source review card for `/restaurants/review`
 - `components/site-brand.tsx`: reusable product brand block
 - `components/surface-card.tsx`: shared rounded card wrapper used across the UI
 
@@ -128,6 +131,7 @@ These are starter static assets from the base app scaffold. They are not product
  - Confirms that authenticated users can reach the new protected shell.
  - Reads the current user identity through a shared auth helper.
  - Links users into the add, list, and map placeholder pages.
+ - Reflects the Step 10 positioning that the add page now supports both source intake and manual save.
  - Provides the logout action entry point through the shared app shell.
 
 ### `app/setup/page.tsx`
@@ -137,10 +141,16 @@ These are starter static assets from the base app scaffold. They are not product
  - Gives manual setup instructions without starting any authentication flow.
 
 ### `app/restaurants/new/page.tsx`
-- Provides the protected Step 7 manual-create page for signed-in users.
-- Uses the shared signed-in shell and the new restaurant form card.
-- Explains the current manual-save scope: manual save now, geocoding and coordinates later.
-- Links users to the full saved-list page and the future map page.
+- Provides the protected Step 10 add page for signed-in users.
+- Uses the shared signed-in shell to combine the new source intake flow with the already validated manual-create form.
+- Lets the user either start from a pasted source link or skip directly to manual save.
+- Keeps the Step 7 manual-save path intact while introducing the Step 10 extraction-review starting point.
+
+### `app/restaurants/review/page.tsx`
+- Provides the protected Step 10 source review page after accepted URL intake.
+- Reads the normalized `source_url` from the query string and rejects missing or malformed values by redirecting back to `/restaurants/new`.
+- Uses the shared signed-in shell and the Step 10 source review card.
+- Makes the Step 10 boundary explicit: this page confirms only the source link and does not fetch the page or extract restaurant fields yet.
 
 ### `app/restaurants/page.tsx`
 - Provides the protected Step 8 full saved restaurant list page.
@@ -148,13 +158,13 @@ These are starter static assets from the base app scaffold. They are not product
 - Keeps the successful-save confirmation banner through the shared `AppShell` message area.
 - Highlights the just-created restaurant when a `created` query parameter is present after a successful redirect from the create flow.
 - Also displays the Step 9 short success message `餐厅信息已更新` after a successful edit redirect.
-- Continues to stop short of Step 10 and later work by omitting URL intake, extraction review, geocoding, and map integration.
+- Continues to stop short of Step 11 and later work by omitting page fetching, restaurant extraction, geocoding, and map integration.
 
 ### `app/restaurants/[id]/edit/page.tsx`
 - Provides the protected Step 9 edit page for one saved restaurant.
 - Loads exactly one current-user restaurant record through the shared query helper and owner-only RLS protection.
 - Uses `notFound()` when the route id is invalid or the current user cannot access the requested restaurant.
-- Keeps the route focused on editing saved records only and does not start any Step 10+ source or extraction flow.
+- Keeps the route focused on editing saved records only and does not start any Step 10+ page fetching or extraction behavior.
 
 ### `app/restaurants/actions.ts`
 - Contains the Step 7 server action that validates and creates restaurant records.
@@ -167,6 +177,11 @@ These are starter static assets from the base app scaffold. They are not product
 - Keeps the editable-field boundary limited to `cuisine`, `note`, and `privacy`.
 - Preserves validation and update errors on the edit page.
 - Redirects successful updates back to `/restaurants` with the short success message `餐厅信息已更新`.
+- Also contains the Step 10 `startSourceIntakeAction` server action for the new source intake flow.
+- Reuses the existing generic first-`http` or first-`https` extraction logic instead of adding source-specific parsing.
+- Accepts direct URLs, 小红书 share text, 抖音 share text, Google Maps share text, and ordinary public-web share text as long as a valid URL can be extracted.
+- Redirects accepted source input into `/restaurants/review` with the normalized URL.
+- Redirects invalid source input back to `/restaurants/new` with Simplified Chinese validation feedback while preserving the pasted input.
 
 ### `app/map/page.tsx`
 - Provides the protected placeholder page for the future map flow.
@@ -196,6 +211,7 @@ These are starter static assets from the base app scaffold. They are not product
 ### `components/navigation.ts`
 - Stores the shared protected-route navigation items.
 - Defines labels, short mobile labels, and per-page descriptions.
+- Reflects that `/restaurants/new` is now both the source intake entry and the manual-save entry.
 - Exposes a helper for determining the active route.
 
 ### `components/placeholder-card.tsx`
@@ -212,6 +228,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Supports Chinese text input, Chinese-friendly cuisine suggestions, and free-text optional fields.
 - Accepts either a direct URL or a longer 小红书, 抖音, Google Maps, or public-web sharing message in the source input.
 - Preserves the pasted source text and the rest of the form values when validation fails.
+- Receives the Step 10 handoff from `/restaurants/review` by accepting a prefilled `source_url` value through `source_input`.
 - Intentionally excludes latitude and longitude inputs in Step 7.
 
 ### `components/restaurant-list.tsx`
@@ -234,6 +251,19 @@ These are starter static assets from the base app scaffold. They are not product
 - Limits editable fields to `cuisine`, `note`, and `privacy`.
 - Supports clearing optional `cuisine` and `note` values back to blank.
 - Keeps validation and update errors on the edit page so the user can correct and resubmit.
+
+### `components/source-intake-card.tsx`
+- Provides the main Step 10 source intake UI on `/restaurants/new`.
+- Uses a textarea so the user can paste either a clean URL or a full sharing message.
+- Shows clear Simplified Chinese guidance about V1 source support: public web pages and Google Maps are official, while 小红书 and 抖音 are best-effort.
+- Preserves pasted intake text and shows validation feedback when no valid `http` or `https` URL can be extracted.
+
+### `components/source-review-card.tsx`
+- Provides the main Step 10 source review UI on `/restaurants/review`.
+- Displays the normalized source URL and a lightweight host label for quick confirmation.
+- States the current V1 source-policy boundary so supported and best-effort sources are visible in the UI.
+- Hands the normalized URL back to `/restaurants/new` so the existing manual form opens with `source_url` prefilled.
+- Keeps the Step 10 boundary explicit by not rendering any extracted restaurant fields yet.
 
 ### `components/site-brand.tsx`
 - Renders the shared product brand lockup.
@@ -291,10 +321,12 @@ These are starter static assets from the base app scaffold. They are not product
 - Trims common trailing ASCII and Chinese punctuation from pasted links.
 - Uses standard URL parsing so non-URL fragments like `qrr:/` or `Z@M.jp` are not mistaken for valid links.
 - Keeps the logic generic so it works across 小红书, 抖音, Google Maps, and public web sharing text.
+- Is reused by both the Step 7 manual-save flow and the Step 10 source intake flow.
 
 ### `lib/restaurants/source-url.test.ts`
 - Covers the focused Step 7 URL-extraction cases with automated tests.
 - Verifies direct URL handling, 小红书 share-text extraction, 抖音 share-text extraction, no-URL validation input, and first-URL-wins behavior.
+- Supports the Step 10 intake guarantees for direct URLs, full share text, and invalid text without requiring new source-specific parsing code.
 
 ### `lib/utils.ts`
 - Provides a minimal shared helper for joining CSS class names in reusable components.
@@ -325,7 +357,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Refreshes and synchronizes auth cookies with Supabase SSR helpers.
 - Redirects signed-out users away from protected routes.
 - Redirects signed-in users away from guest-only auth screens.
-- Protects the Step 6 signed-in routes for dashboard, add placeholder, list placeholder, and map placeholder.
+- Protects the signed-in routes for dashboard, add flow, source review, saved list, edit flow, and map placeholder through the `/restaurants` route prefix plus the other protected paths.
 
 ### `next.config.ts`
 - Holds the current Next.js project configuration.
@@ -358,6 +390,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Step 7 adds the first restaurant write path through a server action and protected manual-create page.
 - Step 8 adds the first complete saved-list experience for the current user.
 - Step 9 adds the first saved-record edit flow.
+- Step 10 adds the first URL-intake and source-review entry into the future extraction flow.
 - The V1 restaurant schema is intentionally small and centered on one `restaurants` table.
 - `source_url` lives directly on the `restaurants` table in V1.
 - Coordinates are optional by design so restaurants can still be saved without map placement.
@@ -372,7 +405,8 @@ These are starter static assets from the base app scaffold. They are not product
 - Step 9 keeps the editable boundary intentionally small: `cuisine`, `note`, and `privacy` only.
 - Step 9 preserves owner-only editing through the existing Supabase RLS model.
 - Step 9 redirects successful updates back to `/restaurants` with a short success message, while keeping validation and update errors on the edit page.
-- Step 9 still avoids starting Step 10 URL intake, extraction, cuisine inference, geocoding, or map implementation.
+- Step 10 reuses the same generic first-valid-URL extraction logic for direct URLs and longer sharing text instead of introducing source-specific parsing.
+- Step 10 stops at URL intake and source review only; it does not fetch source pages, infer cuisine, generate restaurant candidates, or extract restaurant fields yet.
 - A future extraction step should attempt to infer cuisine from source content when possible, but inferred cuisine must remain editable and should stay blank when confidence is low.
 
 ## Restaurants Table Schema
@@ -453,11 +487,12 @@ These are starter static assets from the base app scaffold. They are not product
 
 ### Protected Placeholder Pages
 - `/dashboard` acts as the signed-in overview page
-- `/restaurants/new` is now the real Step 7 manual-create page
+- `/restaurants/new` is now the Step 10 add page with both source intake and manual-create paths
+- `/restaurants/review` is now the Step 10 source review page
 - `/restaurants` is now the real Step 8 saved restaurant list page
 - `/restaurants/[id]/edit` is now the real Step 9 saved-record edit page
 - `/map` is the placeholder for the future map page
-- These pages are navigable now, with manual creation, the saved list, and saved-record editing in place while map and Step 10+ flows remain for later steps
+- These pages are navigable now, with source intake, source review, manual creation, the saved list, and saved-record editing in place while map and Step 11+ flows remain for later steps
 
 ### Visual Direction Now In Use
 - mobile-first layouts, closer to a mobile web app than a desktop-first site
@@ -469,11 +504,11 @@ These are starter static assets from the base app scaffold. They are not product
 
 ## Current Limitations
 - The app is still intentionally narrow in scope beyond setup, auth, and basic restaurant creation.
-- The restaurant create flow and Step 9 edit flow exist, but there is still no delete flow.
+- The restaurant create flow, Step 10 source intake flow, and Step 9 edit flow exist, but there is still no delete flow.
 - `/restaurants` shows the full saved-list experience, but it does not yet support deleting, filtering, or pagination.
 - There is no restaurant-information extraction yet beyond extracting the first valid source URL from pasted text.
 - There is no map integration.
 - There is no geocoding or coordinate input in the user-facing create flow yet.
 - There is no multilingual switching yet, only Chinese-first copy with future English support planned.
 - Supabase setup depends on the user manually creating a Supabase project and filling `.env.local`.
-- Step 10 URL intake and extraction work has not been added yet.
+- Step 10 now covers URL intake and source review only; Step 11 page fetching and extraction work has not been added yet.

@@ -47,6 +47,22 @@ function buildNewRestaurantRedirect(
   });
 }
 
+function buildSourceIntakeRedirect(
+  values: {
+    sourceInput: string;
+  },
+  state: {
+    sourceError?: string;
+    sourceMessage?: string;
+  },
+) {
+  return buildRedirect("/restaurants/new", {
+    ...(state.sourceError ? { source_error: state.sourceError } : {}),
+    ...(state.sourceMessage ? { source_message: state.sourceMessage } : {}),
+    intake_input: values.sourceInput,
+  });
+}
+
 function buildEditRestaurantRedirect(
   restaurantId: number,
   values: {
@@ -148,6 +164,36 @@ function parseRestaurantUpdateForm(formData: FormData): RestaurantUpdateInput {
   };
 }
 
+function parseSourceIntakeForm(formData: FormData) {
+  const sourceInput = getFormValue(formData, "source_input");
+  const values = {
+    sourceInput,
+  };
+
+  if (!sourceInput) {
+    redirect(
+      buildSourceIntakeRedirect(values, {
+        sourceError: "请先粘贴有效的链接，或包含有效链接的分享文案",
+      }),
+    );
+  }
+
+  const sourceUrl = extractFirstHttpUrl(sourceInput);
+
+  if (!sourceUrl) {
+    redirect(
+      buildSourceIntakeRedirect(values, {
+        sourceError: "请先粘贴有效的链接，或包含有效链接的分享文案",
+      }),
+    );
+  }
+
+  return {
+    sourceInput,
+    sourceUrl,
+  };
+}
+
 export async function createRestaurantAction(formData: FormData) {
   const restaurant = parseRestaurantForm(formData);
   const supabase = await createServerSupabaseClient();
@@ -240,6 +286,16 @@ export async function updateRestaurantAction(formData: FormData) {
   redirect(
     buildRedirect("/restaurants", {
       message: "餐厅信息已更新",
+    }),
+  );
+}
+
+export async function startSourceIntakeAction(formData: FormData) {
+  const { sourceUrl } = parseSourceIntakeForm(formData);
+
+  redirect(
+    buildRedirect("/restaurants/review", {
+      source_url: sourceUrl,
     }),
   );
 }

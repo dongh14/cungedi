@@ -16,7 +16,7 @@ export const appNavigation: AppNavigationItem[] = [
     href: "/restaurants/new",
     label: "添加餐厅",
     shortLabel: "添加",
-    description: "手动创建餐厅并保存到你自己的账号。",
+    description: "粘贴来源链接进入确认起点，或继续手动补全并保存到你自己的账号。",
   },
   {
     href: "/restaurants",
