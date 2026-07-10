@@ -1,9 +1,11 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 11 only.
+This document describes the repository as it exists after validated Step 12.
 
-It does not include Step 12 or later architecture yet.
+It does not include Step 13 or later architecture yet.
+
+The product is currently paused before Step 13 so the restaurant-only app can be generalized into `存个地`, a Chinese-first personal place collection app.
 
 ## Current Structure
 
@@ -30,10 +32,10 @@ It does not include Step 12 or later architecture yet.
 - `app/dashboard/page.tsx`: Step 6 protected overview page inside the signed-in app shell
 - `app/setup/page.tsx`: Step 6 Supabase setup page in the shared public shell
 - `app/restaurants/new/page.tsx`: Step 7 protected manual-create page
-- `app/restaurants/review/page.tsx`: Step 11 protected source review and extraction page
+- `app/restaurants/review/page.tsx`: Step 12 protected source review, extraction preview, and explicit confirmation page
 - `app/restaurants/page.tsx`: Step 8 protected full saved-list page
 - `app/restaurants/[id]/edit/page.tsx`: Step 9 protected restaurant edit page
-- `app/restaurants/actions.ts`: Step 7, Step 9, and Step 10 server actions for create, update, and source-intake flow control
+- `app/restaurants/actions.ts`: Step 7, Step 9, Step 10, and Step 12 server actions for create, update, source-intake flow control, and review-confirmation save handling
 - `app/map/page.tsx`: Step 6 protected map placeholder page
 - `app/auth/actions.ts`: Step 3 server actions for auth flows
 - `app/globals.css`: global styles and Tailwind import
@@ -46,10 +48,13 @@ It does not include Step 12 or later architecture yet.
 - `components/placeholder-card.tsx`: reusable content card for Step 6 placeholder pages
 - `components/public-shell.tsx`: public-page shell for home, auth, and setup pages
 - `components/restaurant-form-card.tsx`: Step 7 reusable restaurant create form card
+- `components/restaurant-form-fields.tsx`: Step 12 shared restaurant form fields used by manual create and extraction confirmation
+- `components/cuisine-field.tsx`: Step 12 reusable cuisine picker used by create, review confirmation, and saved-record edit forms
 - `components/restaurant-list.tsx`: Step 8 reusable saved-list summary and list wrapper
 - `components/restaurant-list-card.tsx`: Step 8 reusable saved-restaurant card
 - `components/restaurant-edit-form-card.tsx`: Step 9 reusable restaurant edit form card
 - `components/extraction-preview-card.tsx`: Step 11 reusable extraction-result card for accepted fields, fallback messaging, and manual-form handoff
+- `components/extraction-confirmation-card.tsx`: Step 12 reusable confirmation form that lets users edit, complete, and save extraction results
 - `components/source-intake-card.tsx`: Step 10 reusable source intake card for `/restaurants/new`
 - `components/source-review-card.tsx`: Step 11 reusable source review card for `/restaurants/review`
 - `components/site-brand.tsx`: reusable product brand block
@@ -80,6 +85,8 @@ It does not include Step 12 or later architecture yet.
 - `lib/restaurants/cuisine-inference.ts`: Step 11 conservative cuisine inference helper with low-confidence blank behavior
 - `lib/restaurants/source-extraction.ts`: Step 11 orchestration for fetching, parsing, validation, candidate acceptance, diagnostics, and fallback decisions
 - `lib/restaurants/source-extraction.test.ts`: focused Step 11 regression tests for extraction behavior
+- `lib/restaurants/review-form.ts`: Step 12 helper for turning accepted extraction results plus URL overrides into editable confirmation-form values
+- `lib/restaurants/review-form.test.ts`: focused Step 12 tests for accepted-field prefills, user overrides, missing fields, and fallback-mode manual completion
 
 ### Supabase Database Files
 - `supabase/migrations/20260709120000_create_restaurants_table.sql`: Step 4 migration that creates the initial V1 `restaurants` table, indexes, and `updated_at` trigger
@@ -157,11 +164,12 @@ These are starter static assets from the base app scaffold. They are not product
 - Keeps the Step 7 manual-save path intact while introducing the Step 10 extraction-review starting point.
 
 ### `app/restaurants/review/page.tsx`
-- Provides the protected Step 11 source review and extraction page after accepted URL intake.
+- Provides the protected Step 12 source review, extraction preview, and explicit confirmation page after accepted URL intake.
 - Reads the normalized `source_url` from the query string and rejects missing or malformed values by redirecting back to `/restaurants/new`.
 - Calls the Step 11 extraction service for the normalized source URL.
-- Uses the shared signed-in shell together with the source review card and extraction preview card.
-- Keeps the Step 11 boundary explicit by showing draft extraction results without auto-saving anything.
+- Uses the shared signed-in shell together with the source review card, extraction preview card, and extraction confirmation card.
+- Shows accepted extraction results first, then requires explicit user confirmation before saving anything.
+- Keeps the Step 12 boundary explicit by supporting only single-candidate confirmation and not starting Step 13 multi-candidate work.
 
 ### `app/restaurants/page.tsx`
 - Provides the protected Step 8 full saved restaurant list page.
@@ -169,7 +177,8 @@ These are starter static assets from the base app scaffold. They are not product
 - Keeps the successful-save confirmation banner through the shared `AppShell` message area.
 - Highlights the just-created restaurant when a `created` query parameter is present after a successful redirect from the create flow.
 - Also displays the Step 9 short success message `餐厅信息已更新` after a successful edit redirect.
-- Continues to stop short of Step 12 and later work by omitting extracted-candidate editing, multi-candidate confirmation, geocoding, and map integration.
+- Receives successful saves from both the manual create path and the Step 12 extraction confirmation path.
+- Continues to stop short of Step 13 and later work by omitting multi-candidate confirmation, geocoding, and map integration.
 
 ### `app/restaurants/[id]/edit/page.tsx`
 - Provides the protected Step 9 edit page for one saved restaurant.
@@ -184,6 +193,8 @@ These are starter static assets from the base app scaffold. They are not product
 - Extracts the first valid `http` or `https` URL from the pasted source input before saving `source_url`.
 - Preserves form input in the redirect URL when validation fails.
 - Redirects successful saves to `/restaurants` with a simple confirmation message and created record id.
+- Also supports the Step 12 review confirmation form by preserving review-entered values on validation errors and redirecting back to `/restaurants/review`.
+- Keeps Step 12 confirmation saves on the same validated create path as manual saves.
 - Also contains the Step 9 `updateRestaurantAction` server action for editing existing restaurant records.
 - Keeps the editable-field boundary limited to `cuisine`, `note`, and `privacy`.
 - Preserves validation and update errors on the edit page.
@@ -236,11 +247,22 @@ These are starter static assets from the base app scaffold. They are not product
 ### `components/restaurant-form-card.tsx`
 - Provides the main Step 7 restaurant form UI inside a reusable card.
 - Keeps the visible form copy Simplified Chinese by default.
-- Supports Chinese text input, Chinese-friendly cuisine suggestions, and free-text optional fields.
+- Uses the shared Step 12 restaurant form field component so manual create and review confirmation stay aligned.
+- Supports Chinese text input, the reusable cuisine picker, and free-text optional fields.
 - Accepts either a direct URL or a longer 小红书, 抖音, Google Maps, or public-web sharing message in the source input.
 - Preserves the pasted source text and the rest of the form values when validation fails.
 - Receives the Step 10 handoff from `/restaurants/review` by accepting a prefilled `source_url` value through `source_input`.
 - Intentionally excludes latitude and longitude inputs in Step 7.
+
+### `components/restaurant-form-fields.tsx`
+- Provides the shared V1 restaurant field controls for both manual creation and Step 12 extraction confirmation.
+- Renders name, city, source input, address, cuisine, privacy, and note fields in one reusable component.
+- Lets the review confirmation path customize source labels and guidance without changing the underlying save contract.
+
+### `components/cuisine-field.tsx`
+- Provides the reusable cuisine picker used by manual create, extraction confirmation, and saved-record edit forms.
+- Supports free-text cuisine entry plus Chinese-friendly quick-pick suggestions.
+- Keeps inferred or saved cuisine editable instead of treating suggestions as fixed values.
 
 ### `components/restaurant-list.tsx`
 - Provides the main Step 8 saved-list presentation wrapper.
@@ -260,15 +282,25 @@ These are starter static assets from the base app scaffold. They are not product
 - Provides the main Step 9 edit UI inside a reusable card.
 - Shows the non-editable restaurant context fields `name`, `city`, `address`, and `source_url`.
 - Limits editable fields to `cuisine`, `note`, and `privacy`.
+- Uses the same reusable cuisine picker as create and review confirmation.
 - Supports clearing optional `cuisine` and `note` values back to blank.
 - Keeps validation and update errors on the edit page so the user can correct and resubmit.
 
 ### `components/extraction-preview-card.tsx`
 - Provides the main Step 11 extraction-result UI on `/restaurants/review`.
-- Shows only accepted extracted fields plus explicit missing-field fallbacks such as `需要手动补全`.
+- Shows only accepted extracted fields and never displays rejected or unaccepted field candidates.
 - Avoids rendering giant low-confidence page-text blocks by never displaying rejected or unaccepted field candidates.
 - Explains whether the current result is an accepted draft candidate or a fallback to manual completion.
-- Hands accepted fields back into `/restaurants/new` so the existing manual form opens with prefilled values and remains the final save path.
+- Leaves the actual save decision to the Step 12 confirmation form on the same review page.
+
+### `components/extraction-confirmation-card.tsx`
+- Provides the main Step 12 explicit confirmation UI on `/restaurants/review`.
+- Prefills the shared V1 form fields from accepted extraction results only.
+- Lets users edit accepted extracted values before saving.
+- Lets users manually complete partial candidates or fallback results before saving.
+- Preserves user-entered values after validation errors by reading review query parameters.
+- Submits to the existing `createRestaurantAction` and writes nothing until the user confirms.
+- Successful saves redirect to `/restaurants` with the existing success message and newly-created highlight.
 
 ### `components/source-intake-card.tsx`
 - Provides the main Step 10 source intake UI on `/restaurants/new`.
@@ -325,6 +357,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Defines the minimal shared insert type used by the Step 7 server action.
 - Defines the shared list-item type used by the Step 8 saved-list components.
 - Defines the Step 9 update input and edit-item types used by the edit route and update action.
+- Includes the Step 12 review-return fields that let the create action preserve confirmation-form state on validation errors.
 
 ### `lib/restaurants/queries.ts`
 - Fetches the current user's restaurant records for `/restaurants`.
@@ -396,6 +429,16 @@ These are starter static assets from the base app scaffold. They are not product
 - Verifies success and fallback behavior for structured-data restaurant pages, directory pages, generic pages, malformed JSON-LD, partial candidates, metadata-based address extraction, low-confidence cuisine, and limited-fetch Google Maps fallback.
 - Locks in the validated Step 11 requirement that weak pages should fall back cleanly and that missing data is preferred over incorrect data.
 
+### `lib/restaurants/review-form.ts`
+- Converts the Step 11 extraction result into Step 12 editable confirmation-form values.
+- Prefills only accepted extracted fields for successful candidates.
+- Lets URL query overrides win after validation errors so user-entered values are preserved.
+- Reports missing required and optional fields so partial candidates and fallback results can be manually completed.
+
+### `lib/restaurants/review-form.test.ts`
+- Covers the focused Step 12 confirmation-form state behavior.
+- Verifies accepted-field prefills, user-entered overrides, partial-candidate missing fields, and fallback-mode manual completion labels.
+
 ### `lib/utils.ts`
 - Provides a minimal shared helper for joining CSS class names in reusable components.
 
@@ -460,6 +503,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Step 9 adds the first saved-record edit flow.
 - Step 10 adds the first URL-intake and source-review entry into the future extraction flow.
 - Step 11 adds the first bounded server-side extraction flow and review result layer on top of the Step 10 intake path.
+- Step 12 adds explicit confirmation after extraction, editable accepted fields, manual completion for partial candidates, and confirm-before-save behavior.
 - The V1 restaurant schema is intentionally small and centered on one `restaurants` table.
 - `source_url` lives directly on the `restaurants` table in V1.
 - Coordinates are optional by design so restaurants can still be saved without map placement.
@@ -477,10 +521,14 @@ These are starter static assets from the base app scaffold. They are not product
 - Step 10 reuses the same generic first-valid-URL extraction logic for direct URLs and longer sharing text instead of introducing source-specific parsing.
 - Step 11 adds page-type detection, structured-data-first extraction, strict field validation, field-level evidence and confidence, candidate acceptance rules, development-only diagnostics, and focused extraction regression tests.
 - Step 11 prefers missing data over incorrect data and never accepts large raw page-text blocks as restaurant fields.
-- Step 11 never auto-saves extracted results and always routes accepted fields back through the existing manual completion flow.
+- Step 11 never auto-saves extracted results.
+- Step 12 keeps extracted results editable and routes confirmed saves through the existing validated create action.
+- Step 12 preserves entered values on validation errors and returns the user to `/restaurants/review`.
+- Step 12 successful saves redirect to `/restaurants` with the existing success message and highlight behavior.
 - The planning documents now define a China-first direction where 高德地图 / Amap is the primary future V1 map, POI, and geocoding provider.
 - The planning documents now define the source stance as: 高德 links and share text are official V1 sources; 大众点评, 小红书, and 抖音 are best-effort; 百度地图 is secondary input only; Google Maps is optional overseas support.
-- A future extraction step may expand candidate editing and multi-candidate confirmation, but inferred cuisine must remain editable and should stay blank when confidence is low.
+- Inferred cuisine remains editable and should stay blank when confidence is low.
+- Step 13 multi-candidate work is paused while the product direction generalizes into `存个地`.
 
 ## Restaurants Table Schema
 
@@ -561,11 +609,11 @@ These are starter static assets from the base app scaffold. They are not product
 ### Protected Placeholder Pages
 - `/dashboard` acts as the signed-in overview page
 - `/restaurants/new` is now the Step 10 add page with both source intake and manual-create paths
-- `/restaurants/review` is now the Step 11 source review and extraction page
+- `/restaurants/review` is now the Step 12 source review, extraction preview, and explicit confirmation page
 - `/restaurants` is now the real Step 8 saved restaurant list page
 - `/restaurants/[id]/edit` is now the real Step 9 saved-record edit page
 - `/map` is the placeholder for the future Amap-based map page
-- These pages are navigable now, with source intake, extraction review, manual creation, the saved list, and saved-record editing in place while Step 12+ confirmation editing, geocoding, and map integration remain for later steps
+- These pages are navigable now, with source intake, extraction review, explicit confirmation, manual creation, the saved list, and saved-record editing in place while Step 13+ multi-candidate confirmation, geocoding, and map integration remain for later steps
 
 ### Visual Direction Now In Use
 - mobile-first layouts, closer to a mobile web app than a desktop-first site
@@ -579,10 +627,11 @@ These are starter static assets from the base app scaffold. They are not product
 - The app is still intentionally narrow in scope beyond setup, auth, and basic restaurant creation.
 - The restaurant create flow, Step 10 source intake flow, and Step 9 edit flow exist, but there is still no delete flow.
 - `/restaurants` shows the full saved-list experience, but it does not yet support deleting, filtering, or pagination.
-- Step 11 extraction exists, but there is still no Step 12 extracted-candidate editing screen or Step 13 multi-candidate extraction flow yet.
+- Step 12 explicit single-candidate confirmation exists, but there is still no Step 13 multi-candidate extraction flow yet.
 - There is no map integration yet.
 - There is no 高德地图 / Amap integration yet; the China-first provider decision is documented, but map, POI, and geocoding implementation still belongs to later steps.
 - There is no geocoding or coordinate input in the user-facing create flow yet.
 - There is no multilingual switching yet, only Chinese-first copy with future English support planned.
 - Supabase setup depends on the user manually creating a Supabase project and filling `.env.local`.
 - The current extraction path remains intentionally conservative: unsupported or weak pages fall back instead of forcing questionable field values.
+- The product is intentionally paused before Step 13 while the restaurant-only model is generalized into `存个地`.

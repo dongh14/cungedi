@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import type { RestaurantPrivacy } from "@/lib/restaurants/constants";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type {
@@ -23,6 +24,14 @@ function normalizeOptionalField(value: string) {
   return value ? value : null;
 }
 
+function getPrivacyValue(value: string): RestaurantPrivacy | null {
+  if (value === "private" || value === "public") {
+    return value;
+  }
+
+  return null;
+}
+
 function buildNewRestaurantRedirect(
   values: {
     name: string;
@@ -37,6 +46,36 @@ function buildNewRestaurantRedirect(
 ) {
   return buildRedirect("/restaurants/new", {
     error,
+    name: values.name,
+    city: values.city,
+    source_input: values.sourceInput,
+    privacy: values.privacy,
+    address: values.address,
+    cuisine: values.cuisine,
+    note: values.note,
+  });
+}
+
+function buildReviewRestaurantRedirect(
+  values: {
+    sourceUrl: string;
+    name: string;
+    city: string;
+    sourceInput: string;
+    privacy: string;
+    address: string;
+    cuisine: string;
+    note: string;
+  },
+  state: {
+    error?: string;
+    message?: string;
+  },
+) {
+  return buildRedirect("/restaurants/review", {
+    source_url: values.sourceUrl,
+    ...(state.error ? { error: state.error } : {}),
+    ...(state.message ? { message: state.message } : {}),
     name: values.name,
     city: values.city,
     source_input: values.sourceInput,
@@ -92,6 +131,10 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const address = getFormValue(formData, "address");
   const cuisine = getFormValue(formData, "cuisine");
   const note = getFormValue(formData, "note");
+  const returnTo = getFormValue(formData, "return_to");
+  const reviewSourceInput = getFormValue(formData, "review_source_url");
+  const reviewSourceUrl =
+    extractFirstHttpUrl(reviewSourceInput) ?? extractFirstHttpUrl(sourceInput);
   const values = {
     name,
     city,
@@ -101,34 +144,51 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     cuisine,
     note,
   };
+  const redirectToDraft = (error: string): never => {
+    if (returnTo === "review" && reviewSourceUrl) {
+      redirect(
+        buildReviewRestaurantRedirect(
+          {
+            sourceUrl: reviewSourceUrl,
+            ...values,
+          },
+          { error },
+        ),
+      );
+    }
+
+    redirect(buildNewRestaurantRedirect(values, error));
+  };
 
   if (!name || !city || !sourceInput || !privacy) {
-    redirect(buildNewRestaurantRedirect(values, "请先填写所有必填项：餐厅名称、城市、来源输入和可见范围。"));
+    redirectToDraft("请先填写所有必填项：餐厅名称、城市、来源输入和可见范围。");
   }
 
   const sourceUrl = extractFirstHttpUrl(sourceInput);
 
   if (!sourceUrl) {
-    redirect(
-      buildNewRestaurantRedirect(
-        values,
-        "请粘贴有效的链接，或包含有效链接的分享文案",
-      ),
-    );
+    redirectToDraft("请粘贴有效的链接，或包含有效链接的分享文案");
   }
 
-  if (privacy !== "private" && privacy !== "public") {
-    redirect(buildNewRestaurantRedirect(values, "可见范围只支持 private 或 public。"));
+  const parsedPrivacy = getPrivacyValue(privacy);
+
+  if (!parsedPrivacy) {
+    redirectToDraft("可见范围只支持 private 或 public。");
   }
+
+  const finalSourceUrl = sourceUrl as string;
+  const finalPrivacy = parsedPrivacy as RestaurantPrivacy;
 
   return {
     name,
     city,
-    sourceUrl,
-    privacy,
+    sourceUrl: finalSourceUrl,
+    privacy: finalPrivacy,
     address: normalizeOptionalField(address),
     cuisine: normalizeOptionalField(cuisine),
     note: normalizeOptionalField(note),
+    returnTo: returnTo === "review" ? "review" : "new",
+    reviewSourceUrl: reviewSourceUrl || finalSourceUrl,
   };
 }
 
@@ -221,20 +281,31 @@ export async function createRestaurantAction(formData: FormData) {
     .single();
 
   if (error || !data) {
-    redirect(
-      buildNewRestaurantRedirect(
-        {
-          name: restaurant.name,
-          city: restaurant.city,
-          sourceInput: restaurant.sourceUrl,
-          privacy: restaurant.privacy,
-          address: restaurant.address ?? "",
-          cuisine: restaurant.cuisine ?? "",
-          note: restaurant.note ?? "",
-        },
-        error?.message ?? "保存失败，请稍后重试。",
-      ),
-    );
+    const redirectValues = {
+      name: restaurant.name,
+      city: restaurant.city,
+      sourceInput: restaurant.sourceUrl,
+      privacy: restaurant.privacy,
+      address: restaurant.address ?? "",
+      cuisine: restaurant.cuisine ?? "",
+      note: restaurant.note ?? "",
+    };
+
+    if (restaurant.returnTo === "review" && restaurant.reviewSourceUrl) {
+      redirect(
+        buildReviewRestaurantRedirect(
+          {
+            sourceUrl: restaurant.reviewSourceUrl,
+            ...redirectValues,
+          },
+          {
+            error: error?.message ?? "保存失败，请稍后重试。",
+          },
+        ),
+      );
+    }
+
+    redirect(buildNewRestaurantRedirect(redirectValues, error?.message ?? "保存失败，请稍后重试。"));
   }
 
   redirect(

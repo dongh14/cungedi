@@ -23,6 +23,10 @@ Step 10 is complete and has been validated.
 
 Step 11 is complete and has been validated.
 
+Step 12 is complete and has been validated.
+
+The product is now paused before Step 13 so the restaurant-only direction can be generalized into `存个地`, a Chinese-first personal place collection app.
+
 ## Completed In Step 1
 - Initialized the repository with Git version control.
 - Created a single Next.js app in the project root using the App Router.
@@ -170,6 +174,21 @@ Step 11 is complete and has been validated.
 - Added focused Step 11 extraction regression tests and confirmed they pass `17/17`.
 - Documented the China-first direction update alongside Step 11 planning: 高德地图 / Amap is the primary V1 map, POI, and geocoding provider; 高德 links and sharing text are officially supported V1 sources; 大众点评, 小红书, and 抖音 are best-effort sources; 百度地图 is secondary input only; Google Maps is optional overseas support.
 
+## Completed In Step 12
+- Added an explicit extraction confirmation section on `/restaurants/review` after the Step 11 extraction preview.
+- Connected accepted extracted fields into an editable confirmation form before save.
+- Reused the existing restaurant creation server action so Step 12 saves through the same validated create path as manual creation.
+- Added reusable shared restaurant form fields so manual create and extraction confirmation use the same V1 field controls.
+- Added a reusable cuisine picker and wired it into manual create, extraction confirmation, and saved-record edit forms.
+- Kept accepted extracted fields editable before save, including inferred cuisine.
+- Kept partial candidates usable by letting users manually complete missing required or optional fields before saving.
+- Preserved user-entered values on validation errors when the confirmation form redirects back to `/restaurants/review`.
+- Kept the explicit no-auto-save boundary: nothing is written to Supabase until the user confirms and submits the form.
+- Kept successful saves redirecting to `/restaurants` with the success message and newly-created record highlight.
+- Added focused Step 12 review-form tests for accepted-field prefills, user overrides, partial-candidate missing fields, and fallback-mode manual completion.
+- Confirmed Step 12 is complete and validated before starting any Step 13 multi-candidate work.
+- Paused product work before Step 13 so the app can be generalized from a restaurant-only collector into `存个地`.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
@@ -184,11 +203,15 @@ Step 11 is complete and has been validated.
 - Signed-in users can now manually create restaurant records at `/restaurants/new`.
 - Signed-in users can now begin a source intake flow at `/restaurants/new` and continue to `/restaurants/review` before choosing manual completion.
 - Signed-in users can now run a simple extraction-review flow at `/restaurants/review` that either returns an editable draft candidate or falls back cleanly to manual completion.
+- Signed-in users can now explicitly confirm, edit, complete, and save extraction results from `/restaurants/review`.
 - `/restaurants` now provides the full saved restaurant list experience for the current user's records.
 - Signed-in users can now edit `cuisine`, `note`, and `privacy` for their own saved restaurant records.
+- The reusable cuisine picker now works in create, review confirmation, and saved-record edit forms.
 - The map page remains a protected placeholder.
 - Step 11 page fetching, structured-data-first extraction, candidate review, and graceful fallback are now in place.
+- Step 12 explicit confirmation, editable accepted fields, manual completion for partial candidates, validation-error value preservation, and confirm-before-save behavior are now in place.
 - `privacy` remains a stored flag only and does not create cross-user visibility in V1.
+- Product implementation is paused before Step 13 while the new `存个地` place-collection direction is planned.
 
 ## Step 1 Validation
 Validated checks completed:
@@ -352,6 +375,30 @@ Validation outcome:
 - Step 11 now includes page-type detection, structured-data-first extraction, field validation, field-level confidence and evidence tracking, candidate acceptance rules, bounded fetching, development-only diagnostics, and focused regression tests.
 - Extracted values still require manual confirmation and are never automatically saved.
 
+## Step 12 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+- Focused Step 12 review-form tests
+- Manual validation that accepted extracted fields prefill the confirmation form
+- Manual validation that accepted extracted fields remain editable before save
+- Manual validation that partial candidates can be manually completed before save
+- Manual validation that validation errors preserve user-entered values on `/restaurants/review`
+- Manual validation that extraction results are not saved before explicit confirmation
+- Manual validation that successful confirmation saves redirect to `/restaurants`
+- Manual validation that the success message and newly-created record highlight appear after save
+- Manual validation that the reusable cuisine picker works in create, review confirmation, and saved-record edit forms
+
+Validation outcome:
+- Step 12 extraction review and explicit confirmation flow is complete and validated.
+- Accepted extracted fields can be edited before saving.
+- Partial extraction candidates support manual completion.
+- Validation errors preserve the user's entered values instead of reverting to extracted defaults.
+- Nothing saves before the user explicitly confirms.
+- Successful saves still use the existing `/restaurants` redirect, success message, and highlight behavior.
+- The reusable cuisine picker is shared across create, review confirmation, and saved-record edit forms.
+- Step 13 has not started.
+
 ## Docs-Only Product Direction Update
 Documented but not yet implemented in UI:
 - mobile-first product direction
@@ -360,6 +407,7 @@ Documented but not yet implemented in UI:
 - English as a later secondary language option
 - future extraction should attempt to infer cuisine when possible, keep it editable, and leave it blank when confidence is low
 - China-first location-provider direction is now documented in the planning set: 高德地图 / Amap is primary for V1 map, POI, and geocoding; 高德 links/share text are official sources; 大众点评, 小红书, and 抖音 are best-effort; 百度地图 is secondary input only; Google Maps is optional overseas support
+- the product is pausing before Step 13 to generalize from a restaurant-only collector into `存个地`, a Chinese-first personal place collection app
 
 ## Notes
 - The current `npm run lint` command uses TypeScript static checks.
@@ -372,4 +420,6 @@ Documented but not yet implemented in UI:
 - The source input now supports generic share-text URL extraction without starting restaurant-information extraction.
 - Step 8 saved-list work is now in place and validated.
 - Step 9 saved-record editing is now in place and validated.
-- A future extraction step should try to infer cuisine from source content, but it must remain editable and should stay blank when confidence is low.
+- Step 10 source intake, Step 11 extraction preview, and Step 12 explicit confirmation are now in place and validated.
+- Inferred cuisine remains editable and should stay blank when confidence is low.
+- Step 13 multi-candidate work is paused until the `存个地` generalization direction is planned.

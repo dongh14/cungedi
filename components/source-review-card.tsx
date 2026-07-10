@@ -28,7 +28,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               来源链接已经进入提取流程
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步会先用受限的服务端抓取尝试读取公开页面元数据和正文文本，再生成一个 best-effort 草稿。提取失败时会直接回退到手动补全。
+              这一步会先用受限的服务端抓取尝试读取公开页面元数据和正文文本，再生成一个 best-effort 草稿。提取结果仍然需要你手动确认后才能保存。
             </p>
           </div>
         </div>
@@ -74,7 +74,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
             href={`/restaurants/new?source_input=${encodeURIComponent(sourceUrl)}&message=${encodeURIComponent("已带入来源链接，你可以先继续手动补全并保存。")}`}
             className="inline-flex justify-center rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
-            继续手动补全
+            改为普通手动补全
           </Link>
           <a
             href={sourceUrl}

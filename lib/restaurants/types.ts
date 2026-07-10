@@ -6,6 +6,8 @@ export type RestaurantInsertInput = {
   address: string | null;
   cuisine: string | null;
   note: string | null;
+  returnTo?: "new" | "review";
+  reviewSourceUrl?: string;
 };
 
 export type RestaurantUpdateInput = {

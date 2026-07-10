@@ -2,15 +2,17 @@ import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ExtractionConfirmationCard } from "@/components/extraction-confirmation-card";
 import { ExtractionPreviewCard } from "@/components/extraction-preview-card";
 import { PlaceholderCard } from "@/components/placeholder-card";
 import { SourceReviewCard } from "@/components/source-review-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
 import { extractRestaurantDraftFromSource } from "@/lib/restaurants/source-extraction";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
+import type { ReviewSearchParams } from "@/lib/restaurants/review-form";
 
 type RestaurantReviewPageProps = {
-  searchParams?: Promise<{
+  searchParams?: Promise<ReviewSearchParams & {
     source_url?: string;
   }>;
 };
@@ -63,25 +65,26 @@ export default async function RestaurantReviewPage({
         <div className="space-y-4">
           <SourceReviewCard sourceUrl={normalizedSourceUrl} />
           <ExtractionPreviewCard result={extractionResult} />
+          <ExtractionConfirmationCard result={extractionResult} searchParams={params} />
         </div>
 
         <div className="space-y-4">
           <PlaceholderCard
-            title="这一步现在已经做到什么"
-            description="Step 11 已经接入了受限抓取、元数据读取和正文文本解析，但仍保持 V1 的轻量边界。"
+            title="这一步现在重点做什么"
+            description="Step 12 把单餐厅草稿正式接上“确认后保存”体验，但仍然保持 Step 11 的保守提取边界。"
             items={[
-              "官方支持普通公开网页和 Google Maps。",
-              "小红书 / 抖音只做 best-effort，不会接入定制抓取系统。",
-              "提取结果不会直接保存，仍然需要进入手动表单确认。",
+              "只显示已被接受的提取字段，不展示被拒绝或低置信度内容。",
+              "所有 V1 字段都仍可手动修改，包括推断出来的菜系。",
+              "点击保存前不会写入任何餐厅记录。",
             ]}
           />
           <PlaceholderCard
             title="这一步还没有做什么"
-            description="为了不越过 Step 12，当前页面还只是生成草稿或回退到手动补全，不会直接在这里完成最终编辑保存。"
+            description="为了不越过 Step 12，这里仍然只处理单个餐厅候选确认，不会提前进入多候选或后续地图能力。"
             items={[
-              "不会自动保存任何提取结果。",
-              "不会提前做多餐厅候选列表。",
-              "不会提前进入地理编码或地图流程。",
+              "不会提前做多餐厅候选列表或多选保存。",
+              "不会做 POI enrichment、地理编码或坐标补全。",
+              "不会启动地图展示或 Step 13 之后的流程。",
             ]}
           />
         </div>

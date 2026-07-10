@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { updateRestaurantAction } from "@/app/restaurants/actions";
+import { CuisineField } from "@/components/cuisine-field";
 import { SurfaceCard } from "@/components/surface-card";
-import { cuisineSuggestions, privacyOptions } from "@/lib/restaurants/constants";
+import { privacyOptions } from "@/lib/restaurants/constants";
 import type { RestaurantEditItem } from "@/lib/restaurants/types";
 
 type RestaurantEditFormCardProps = {
@@ -104,19 +105,12 @@ export function RestaurantEditFormCard({
 
           <div className="space-y-2">
             <FieldLabel htmlFor="cuisine" label="菜系或类型" />
-            <input
+            <CuisineField
               id="cuisine"
               name="cuisine"
-              list="edit-cuisine-suggestions"
-              defaultValue={cuisineValue}
-              className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
+              initialValue={cuisineValue}
               placeholder="例如：川菜、火锅、咖啡馆"
             />
-            <datalist id="edit-cuisine-suggestions">
-              {cuisineSuggestions.map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
             <p className="text-xs leading-6 text-[var(--ink-muted)]">
               可以改成更准确的菜系，也可以先留空。
             </p>
