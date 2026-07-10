@@ -91,10 +91,10 @@ export default async function DashboardPage({
         <div className="space-y-4">
           <PlaceholderCard
             title="接下来可进入的三个页面"
-            description="现在可以直接进入手动添加页完成保存；收藏页已经升级为完整的 Step 8 列表体验。"
+            description="现在可以直接进入手动添加页完成保存；收藏页也已经支持进入编辑页，方便你修正已保存记录。"
             items={[
               "添加餐厅：已经接入 Step 7 的手动录入表单。",
-              "收藏列表：展示当前账号已保存的餐厅记录。",
+              "收藏列表：展示当前账号已保存的餐厅记录，并提供编辑入口。",
               "地图视图：用于承接后续的地图与位置展示。",
             ]}
           />

@@ -1,4 +1,5 @@
 import type { RestaurantListItem } from "@/lib/restaurants/types";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 type RestaurantListCardProps = {
@@ -107,6 +108,12 @@ export function RestaurantListCard({
         >
           打开来源链接
         </a>
+        <Link
+          href={`/restaurants/${restaurant.id}/edit`}
+          className="inline-flex rounded-full border border-[var(--border-soft)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+        >
+          编辑记录
+        </Link>
       </div>
     </article>
   );

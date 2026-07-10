@@ -17,6 +17,8 @@ Step 7 is complete and has been validated.
 
 Step 8 is complete and has been validated.
 
+Step 9 is complete and has been validated.
+
 ## Completed In Step 1
 - Initialized the repository with Git version control.
 - Created a single Next.js app in the project root using the App Router.
@@ -119,6 +121,21 @@ Step 8 is complete and has been validated.
 - Preserved the validated mobile-first, orange-accent, Simplified-Chinese visual direction while expanding the saved-list experience.
 - Kept Step 8 intentionally focused on listing only, without starting edit, delete, map, geocoding, or extraction-review work.
 
+## Completed In Step 9
+- Added a protected restaurant edit route at `/restaurants/[id]/edit`.
+- Added a reusable `restaurant-edit-form-card.tsx` component for the Step 9 edit flow.
+- Added `updateRestaurantAction` to update saved restaurant records through the existing authenticated Supabase server client.
+- Added `getCurrentUserRestaurantById` so the edit page can read exactly one user-owned restaurant record.
+- Kept the editable-field scope intentionally narrow: only `cuisine`, `note`, and `privacy`.
+- Kept `name`, `city`, `address`, and `source_url` visible as context on the edit page without making them editable in Step 9.
+- Added edit entry points from the saved restaurant list.
+- Preserved owner-only editing through the existing Supabase RLS model, so users can only edit their own restaurant records.
+- Confirmed that clearing optional `cuisine` or `note` still works and persists correctly.
+- Updated the final Step 9 UX so successful edits now redirect back to `/restaurants`.
+- Added the short success message `餐厅信息已更新` on `/restaurants` after a successful update redirect.
+- Kept validation and update errors on the edit page instead of redirecting away on failure.
+- Kept Step 9 scoped to saved-record editing only without starting Step 10 URL intake, extraction, cuisine inference, geocoding, or maps.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
@@ -132,6 +149,7 @@ Step 8 is complete and has been validated.
 - A mobile-first public and protected page shell is now in place.
 - Signed-in users can now manually create restaurant records at `/restaurants/new`.
 - `/restaurants` now provides the full saved restaurant list experience for the current user's records.
+- Signed-in users can now edit `cuisine`, `note`, and `privacy` for their own saved restaurant records.
 - The map page remains a protected placeholder.
 - No edit, delete, geocoding, extraction review, or map rendering logic has been added yet.
 - `privacy` remains a stored flag only and does not create cross-user visibility in V1.
@@ -244,6 +262,27 @@ Validation outcome:
 - Missing optional fields are handled cleanly without breaking the card layout.
 - The saved-list page remains mobile-first and usable on larger desktop widths.
 
+## Step 9 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+- Manual validation of editing `cuisine`, `note`, and `privacy`
+- Manual validation that changes persist in Supabase
+- Manual validation that clearing optional `cuisine` or `note` works
+- Manual validation that owner-only RLS prevents cross-user edit access
+- Manual validation of successful-update redirect back to `/restaurants`
+- Manual validation that the list shows updated values after redirect
+- Manual validation that `餐厅信息已更新` appears after redirect
+- Manual validation that validation and update errors remain on the edit page
+
+Validation outcome:
+- A signed-in user can open a saved restaurant record and update `cuisine`, `note`, and `privacy`.
+- Updated values persist correctly in Supabase and appear on the saved restaurant list.
+- Optional `cuisine` and `note` fields can be cleared back to blank successfully.
+- Owner-only RLS continues to block cross-user edit access.
+- Successful updates now redirect back to `/restaurants` and show the short success message `餐厅信息已更新`.
+- Validation and update errors still stay on the edit page so the user can correct and resubmit.
+
 ## Docs-Only Product Direction Update
 Documented but not yet implemented in UI:
 - mobile-first product direction
@@ -262,4 +301,5 @@ Documented but not yet implemented in UI:
 - Step 7 manual restaurant creation is now in place and validated.
 - The source input now supports generic share-text URL extraction without starting restaurant-information extraction.
 - Step 8 saved-list work is now in place and validated.
+- Step 9 saved-record editing is now in place and validated.
 - A future extraction step should try to infer cuisine from source content, but it must remain editable and should stay blank when confidence is low.

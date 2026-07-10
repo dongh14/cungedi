@@ -88,11 +88,11 @@ export default async function RestaurantsPage({
         <div className="space-y-4">
           <PlaceholderCard
             title="这一步现在已经是完整列表页"
-            description="Step 8 的重点是让你稳定查看自己保存过的餐厅，而不是只确认单次保存是否成功。"
+            description="列表页现在不仅能稳定展示已保存餐厅，也可以作为进入 Step 9 编辑页的入口。"
             items={[
               "只显示当前登录用户在现有 RLS 下可访问的餐厅。",
               "继续保留刚保存成功后的顶部提示和高亮状态。",
-              "这一步仍然不会加入编辑、删除、地图或提取流程。",
+              "当前已经支持编辑入口，但仍不会加入删除、地图或提取流程。",
             ]}
           />
           <PlaceholderCard

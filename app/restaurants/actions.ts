@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import type { RestaurantInsertInput } from "@/lib/restaurants/types";
+import type {
+  RestaurantInsertInput,
+  RestaurantUpdateInput,
+} from "@/lib/restaurants/types";
 
 function buildRedirect(pathname: string, params: Record<string, string>) {
   const searchParams = new URLSearchParams(params);
@@ -40,6 +43,27 @@ function buildNewRestaurantRedirect(
     privacy: values.privacy,
     address: values.address,
     cuisine: values.cuisine,
+    note: values.note,
+  });
+}
+
+function buildEditRestaurantRedirect(
+  restaurantId: number,
+  values: {
+    cuisine: string;
+    privacy: string;
+    note: string;
+  },
+  state: {
+    error?: string;
+    message?: string;
+  },
+) {
+  return buildRedirect(`/restaurants/${restaurantId}/edit`, {
+    ...(state.error ? { error: state.error } : {}),
+    ...(state.message ? { message: state.message } : {}),
+    cuisine: values.cuisine,
+    privacy: values.privacy,
     note: values.note,
   });
 }
@@ -92,6 +116,38 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   };
 }
 
+function parseRestaurantUpdateForm(formData: FormData): RestaurantUpdateInput {
+  const restaurantIdValue = getFormValue(formData, "restaurant_id");
+  const privacy = getFormValue(formData, "privacy");
+  const cuisine = getFormValue(formData, "cuisine");
+  const note = getFormValue(formData, "note");
+  const restaurantId = Number(restaurantIdValue);
+  const values = {
+    cuisine,
+    privacy,
+    note,
+  };
+
+  if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
+    redirect("/restaurants");
+  }
+
+  if (privacy !== "private" && privacy !== "public") {
+    redirect(
+      buildEditRestaurantRedirect(restaurantId, values, {
+        error: "可见范围只支持 private 或 public。",
+      }),
+    );
+  }
+
+  return {
+    id: restaurantId,
+    privacy,
+    cuisine: normalizeOptionalField(cuisine),
+    note: normalizeOptionalField(note),
+  };
+}
+
 export async function createRestaurantAction(formData: FormData) {
   const restaurant = parseRestaurantForm(formData);
   const supabase = await createServerSupabaseClient();
@@ -139,6 +195,51 @@ export async function createRestaurantAction(formData: FormData) {
     buildRedirect("/restaurants", {
       message: "餐厅已成功保存。",
       created: String(data.id),
+    }),
+  );
+}
+
+export async function updateRestaurantAction(formData: FormData) {
+  const restaurant = parseRestaurantUpdateForm(formData);
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect(buildRedirect("/login", { error: "请先登录后再编辑餐厅。" }));
+  }
+
+  const { data, error } = await supabase
+    .from("restaurants")
+    .update({
+      cuisine: restaurant.cuisine,
+      note: restaurant.note,
+      privacy: restaurant.privacy,
+    })
+    .eq("id", restaurant.id)
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    redirect(
+      buildEditRestaurantRedirect(
+        restaurant.id,
+        {
+          cuisine: restaurant.cuisine ?? "",
+          privacy: restaurant.privacy,
+          note: restaurant.note ?? "",
+        },
+        {
+          error: error?.message ?? "更新失败，请稍后重试。",
+        },
+      ),
+    );
+  }
+
+  redirect(
+    buildRedirect("/restaurants", {
+      message: "餐厅信息已更新",
     }),
   );
 }
