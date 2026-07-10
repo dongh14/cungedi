@@ -6,13 +6,13 @@ Restaurant Information Collector
 ## Product Vision
 Help travelers save restaurants they discover online so they can easily find and revisit them later when they travel.
 
-The product starts as a simple web app where users paste links from social media or the web, review extracted restaurant details, save the places they care about, and browse them later in a personal list and on a world map.
+The product starts as a simple web app where users paste links from social media or the web, review extracted restaurant details, save the places they care about, and browse them later in a personal list and on a map.
 
 The app is Chinese-user-first and should support Chinese UI options from the beginning.
 The product should feel closer to a mobile web app or PWA than a desktop-first web tool.
 
 ## Primary User
-A Chinese user who enjoys traveling and frequently discovers restaurants through social media and web content, especially Xiaohongshu (RedNote), Douyin, Google Maps, and ordinary public web pages.
+A Chinese user who enjoys traveling and frequently discovers restaurants through social media, China-first map products, and web content, especially 小红书, 抖音, 高德地图, 大众点评, and ordinary public web pages.
 
 ## Core User Problem
 Users often see restaurants they want to visit in the future, but those discoveries are scattered across social platforms, hard to organize, and easy to forget by the time they actually travel.
@@ -39,7 +39,7 @@ Let a user sign up, paste a source URL, review and edit extracted restaurant inf
 ## Key Use Cases
 
 ### 1. Save a restaurant from a social post
-A user pastes a 小红书, 抖音, Google Maps, or public web page link. The app extracts possible restaurant entries and shows them in an editable confirmation step before save.
+A user pastes a 高德地图, 小红书, 抖音, 大众点评, 百度地图, Google Maps, or public web page link. The app extracts possible restaurant entries and shows them in an editable confirmation step before save.
 
 ### 2. Save multiple restaurants from one source
 If a source references multiple restaurants, such as a 抖音 or 小红书 post listing five places, the app shows multiple restaurant candidates. The user can select one, several, or all of them and edit them together before saving.
@@ -63,8 +63,11 @@ A user can decide whether a saved restaurant is private or public.
 - User can paste a source URL into the app.
 - App attempts to extract restaurant information from the URL or its public page metadata.
 - Extraction should never silently auto-save.
-- V1 officially supports ordinary public web pages and Google Maps links.
+- V1 officially supports ordinary public web pages and 高德地图 links or sharing text.
+- 大众点评 is an important China-first source and should be handled on a best-effort basis unless reliable official API access is available later.
 - 小红书 and 抖音 links are accepted on a best-effort basis only.
+- 百度地图 can be accepted as a secondary best-effort input source, but V1 should not integrate a second map provider around it.
+- Google Maps is optional support for overseas restaurants, not part of the core mainland-China V1 promise.
 - TikTok and Instagram are future or best-effort sources, not part of the main V1 promise.
 
 ### Confirmation And Editing
@@ -94,7 +97,7 @@ Restaurant fields must support Chinese text input in V1.
 - English should be available as a secondary language option.
 - Restaurant fields should support Chinese text input.
 - Cuisine options should include Chinese-friendly categories.
-- Source examples in the UI and product copy should use 小红书, 抖音, Google Maps, and public web pages.
+- Source examples in the UI and product copy should use 高德地图, 小红书, 抖音, 大众点评, and public web pages.
 - Do not build full translation infrastructure yet unless it is part of the current implementation step.
 - Future UI should avoid hardcoding copy in a way that makes English support difficult later.
 
@@ -116,6 +119,8 @@ Restaurant fields must support Chinese text input in V1.
 - If the app can determine location, it should place the restaurant on the map.
 - If the exact location cannot be determined, the restaurant can still be saved and shown in the list.
 - City is a required field even when precise coordinates are missing.
+- The primary V1 map, POI search, and geocoding provider should be 高德地图 / Amap.
+- V1 should not integrate a second map provider for mainland-China use cases.
 
 ## User Flow
 1. User signs up or logs in.
@@ -134,6 +139,11 @@ Restaurant fields must support Chinese text input in V1.
 - The system should use cuisine categories that are understandable and natural for Chinese users.
 - The system should be designed mobile-first with strong iPhone usability.
 - The system must allow a user to paste a URL as the starting point for creating restaurant records.
+- The system must treat 高德地图 / Amap as the primary V1 map, POI search, and geocoding provider.
+- The system must officially support 高德地图 links and sharing text in V1.
+- The system should treat 大众点评 as an important China-first best-effort source unless reliable official API access becomes available.
+- The system may accept 百度地图 as a secondary best-effort input source, but must not require integrating a second map provider in V1.
+- The system may support Google Maps for overseas restaurants, but it is not part of the core mainland-China V1 promise.
 - The system must show an editable confirmation step before any restaurant is saved.
 - The system must support one-to-many extraction from a single source URL.
 - The system must allow users to save multiple restaurants from a single source flow.
@@ -161,10 +171,10 @@ Restaurant fields must support Chinese text input in V1.
 - Help users feel confident they will not forget places they want to visit.
 
 ## Risks And Unknowns
-- Extraction quality will vary significantly across 小红书, 抖音, Google Maps, and arbitrary web pages.
+- Extraction quality will vary significantly across 高德地图 sharing text, 大众点评, 小红书, 抖音, Google Maps, and arbitrary web pages.
 - Some sources may contain multiple restaurants with incomplete or ambiguous details.
 - Geocoding and map placement may fail for partial addresses or international locations.
-- 小红书 and 抖音 may expose limited public metadata or page text, so extraction can fail or return incomplete drafts more often than ordinary web pages or Google Maps.
+- 大众点评, 小红书, and 抖音 may expose limited public metadata or page text, so extraction can fail or return incomplete drafts more often than ordinary public web pages or 高德地图 links.
 - Public vs private sharing may need clearer rules later if public discovery features expand.
 
 ## Future Direction

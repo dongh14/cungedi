@@ -17,8 +17,11 @@ Product direction note:
 - English should be available later as a secondary language option.
 - Restaurant fields must support Chinese text input.
 - Cuisine choices should include Chinese-friendly categories.
-- The main discovery sources and examples are 小红书, 抖音, Google Maps, and ordinary public web pages.
-- Keep extraction realistic for 小红书 and 抖音 and best-effort only in V1.
+- 高德地图 / Amap should be the primary V1 map, POI search, and geocoding provider.
+- The main mainland-China discovery sources and examples are 高德地图, 大众点评, 小红书, 抖音, and ordinary public web pages.
+- Keep extraction realistic for 大众点评, 小红书, and 抖音 and best-effort only in V1.
+- 百度地图 may be accepted as a secondary best-effort input source, but V1 should not integrate a second map provider around it.
+- Google Maps is optional support for overseas restaurants, not part of the core mainland-China V1 promise.
 - The product should be mobile-first, closer to a mobile web app or PWA than a desktop-first tool.
 - Future UI should prioritize iPhone usability.
 - The visual direction should be clean, modern, vibrant, and card-based.
@@ -224,11 +227,14 @@ Goal:
 - Start the extraction flow from there
 
 V1 source policy:
-- Officially support ordinary public web pages and Google Maps
+- Officially support ordinary public web pages and 高德地图 links or sharing text
+- Treat 大众点评 as an important China-first best-effort source unless reliable official API access becomes available later
 - Accept 小红书 and 抖音 on a best-effort basis
-- Do not promise reliable extraction for 小红书 or 抖音 in V1
+- 百度地图 may be accepted as a secondary best-effort input source
+- Google Maps is optional support for overseas restaurants, not part of the core mainland-China V1 promise
+- Do not promise reliable extraction for 大众点评, 小红书, or 抖音 in V1
 - TikTok and Instagram are not part of the main V1 promise
-- Use 小红书, 抖音, Google Maps, and public web pages in source examples and placeholder text
+- Use 高德地图, 大众点评, 小红书, 抖音, and public web pages in source examples and placeholder text
 
 Why this step matters:
 - URL-based save flow is the main product behavior in V1
@@ -257,7 +263,8 @@ Implementation rule:
 - Any inferred cuisine must remain editable by the user before save
 - Manual cuisine entry must still be available in the extraction confirmation flow
 - Do not add browser automation, login-required access, or source-specific scraping systems
-- Expect stronger results from ordinary public web pages and Google Maps than from 小红书 or 抖音
+- Expect stronger results from ordinary public web pages and 高德地图 links than from 大众点评, 小红书, or 抖音
+- Keep Google Maps support optional and overseas-focused rather than central to the mainland-China V1 promise
 
 Done when:
 - A pasted URL returns at least one draft candidate for a straightforward page
@@ -269,7 +276,8 @@ Test you can run:
 - Paste a simple public restaurant-related URL
 - Confirm the app returns at least one draft restaurant candidate
 - Confirm extraction failure shows a graceful fallback instead of crashing
-- Paste a 小红书 or 抖音 URL and confirm the app handles weak extraction gracefully without blocking manual save
+- Paste a 高德地图 link or sharing text and confirm the app handles it as an officially supported V1 source
+- Paste a 大众点评, 小红书, or 抖音 URL and confirm the app handles weak extraction gracefully without blocking manual save
 
 ## Step 12: Confirmation and edit step after extraction
 Goal:
@@ -332,6 +340,7 @@ Test you can run:
 Goal:
 - Convert address or city information into coordinates when possible
 - Keep coordinates optional
+- Use 高德地图 / Amap as the primary V1 geocoding provider
 
 Why this step matters:
 - The map needs location data, but the PRD also requires saving without coordinates
@@ -340,6 +349,7 @@ Implementation rule:
 - Save the restaurant first
 - Attempt geocoding immediately after save
 - If geocoding fails, keep the restaurant without coordinates
+- Do not add a second map or geocoding provider for the main mainland-China V1 flow
 
 Done when:
 - Restaurants with enough location data get coordinates
@@ -351,9 +361,10 @@ Test you can run:
 
 ## Step 16: Map view
 Goal:
-- Show saved restaurants on a simple world map
+- Show saved restaurants on a simple map
 - Support basic zoom in and out
 - Let the user inspect restaurants by city
+- Use 高德地图 / Amap as the primary V1 map provider
 
 V1 map rule:
 - Show restaurant pins for records with coordinates

@@ -1,0 +1,952 @@
+import { inferCuisineFromSourceContent } from "./cuisine-inference";
+import {
+  buildEmptyField,
+  formatStructuredAddress,
+  validateAddress,
+  validateCity,
+  validateCuisine,
+  validateRestaurantName,
+} from "./field-validation";
+import { classifyRestaurantPageType } from "./page-type";
+import type {
+  ExtractedRestaurantField,
+  RestaurantExtractionCandidate,
+  RestaurantExtractionDiagnostics,
+  RestaurantExtractionResult,
+  RestaurantFieldConfidence,
+  RestaurantFieldEvidenceSource,
+  RestaurantPageType,
+  RestaurantSourceKind,
+  StructuredDataNode,
+} from "./extraction-types";
+import { classifyRestaurantSource, getSourceSupportLevel } from "./source-classification";
+import { fetchSourceDocument } from "./source-fetch";
+import { extractSourceDocumentContent } from "./source-html";
+
+type ExtractRestaurantCandidateOptions = {
+  fetchImpl?: typeof fetch;
+};
+
+type FieldProposal = {
+  value: string | null;
+  confidence: RestaurantFieldConfidence;
+  evidenceSource: RestaurantFieldEvidenceSource;
+};
+
+type CandidateFieldKey = "name" | "city" | "address" | "cuisine";
+
+const relevantStructuredTypes = new Set([
+  "restaurant",
+  "localbusiness",
+  "foodestablishment",
+  "cafeorcoffeeshop",
+  "barorpub",
+  "bakery",
+  "fastfoodrestaurant",
+  "icecreamshop",
+]);
+
+const restaurantKeywordPattern =
+  /(restaurant|bistro|cafe|café|coffee|brunch|dining|eatery|kitchen|bar|ramen|noodle|pizza|sushi|hot pot|steakhouse|omakase|chef|tasting|火锅|咖啡|餐厅|酒馆|面馆|寿司|烤肉|甜品)/i;
+const genericFallbackNamePattern =
+  /\b(locations?|menu|home|restaurants?|contact|about|order online|gift cards?|newsletter|careers|privacy)\b/i;
+const addressPattern =
+  /(?:路|街|道|大道|巷|号|广场|商场|里|弄|floor|fl\.|street|st\b|road|rd\b|avenue|ave\b|boulevard|blvd\b|lane|ln\b|drive|dr\b|suite|ste\b|building|bldg\b|plaza|center|centre)/i;
+const cityStateZipPattern =
+  /\b[a-z .'-]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/;
+const noisyContentPattern =
+  /\b(newsletter|subscribe|privacy|cookie|terms|careers|gift card|sign up|follow us|order online|book now|reserve now|view menu)\b/i;
+const addressLabelPattern = /\b(address|location|visit us|find us|contact)\b/i;
+const likelyContactHeadingPattern =
+  /\b(contact|location|find us|visit us|get here|hours & location|our location)\b/i;
+const likelyAddressSnippetPattern =
+  /([A-Za-z0-9#.,'\- ]{4,80}(?:street|st\b|road|rd\b|avenue|ave\b|boulevard|blvd\b|lane|ln\b|drive|dr\b|plaza|place|suite|ste\b|floor|fl\b)[A-Za-z0-9#.,'\- ]{0,40}(?:,\s*[A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)?)/i;
+const chineseAddressSnippetPattern =
+  /([\u4e00-\u9fa5A-Za-z0-9#（）()\- ]{3,40}(?:路|街|道|大道|巷|弄|号)[\u4e00-\u9fa5A-Za-z0-9#（）()\- ]{0,30})/;
+const labeledAddressSnippetPattern =
+  /(?:located at|address[:：]?|location[:：]?|visit us at)\s*([^.!?。！？]{6,100})/i;
+
+const knownCities = [
+  { city: "上海", patterns: ["上海", "上海市", "shanghai"] },
+  { city: "北京", patterns: ["北京", "北京市", "beijing"] },
+  { city: "广州", patterns: ["广州", "广州市", "guangzhou"] },
+  { city: "深圳", patterns: ["深圳", "深圳市", "shenzhen"] },
+  { city: "杭州", patterns: ["杭州", "杭州市", "hangzhou"] },
+  { city: "成都", patterns: ["成都", "成都市", "chengdu"] },
+  { city: "南京", patterns: ["南京", "南京市", "nanjing"] },
+  { city: "苏州", patterns: ["苏州", "苏州市", "suzhou"] },
+  { city: "重庆", patterns: ["重庆", "chongqing"] },
+  { city: "武汉", patterns: ["武汉", "武汉市", "wuhan"] },
+  { city: "西安", patterns: ["西安", "西安市", "xian", "xi'an"] },
+  { city: "长沙", patterns: ["长沙", "长沙市", "changsha"] },
+  { city: "青岛", patterns: ["青岛", "青岛市", "qingdao"] },
+  { city: "厦门", patterns: ["厦门", "厦门市", "xiamen"] },
+  { city: "香港", patterns: ["香港", "hong kong"] },
+  { city: "东京", patterns: ["东京", "tokyo"] },
+  { city: "首尔", patterns: ["首尔", "seoul"] },
+  { city: "曼谷", patterns: ["曼谷", "bangkok"] },
+  { city: "新加坡", patterns: ["新加坡", "singapore"] },
+  { city: "巴黎", patterns: ["巴黎", "paris"] },
+  { city: "伦敦", patterns: ["伦敦", "london"] },
+  { city: "纽约", patterns: ["纽约", "new york"] },
+  { city: "洛杉矶", patterns: ["洛杉矶", "los angeles"] },
+];
+
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function cleanRestaurantName(value: string, sourceKind: RestaurantSourceKind) {
+  let cleanedValue = normalizeWhitespace(value)
+    .replace(/^[「『“"'《【]+/, "")
+    .replace(/[」』”"'》】]+$/, "");
+
+  const suffixPatterns = [
+    /\s*[-|·•]\s*Google Maps$/i,
+    /\s*[-|·•]\s*Google 地图$/i,
+    /\s*[-|·•]\s*小红书$/i,
+    /\s*[-|·•]\s*抖音$/i,
+    /\s*[-|·•]\s*Douyin$/i,
+  ];
+
+  for (const pattern of suffixPatterns) {
+    cleanedValue = cleanedValue.replace(pattern, "");
+  }
+
+  if (sourceKind === "google-maps") {
+    cleanedValue = cleanedValue.split(/\s[-|·•]\s/)[0] ?? cleanedValue;
+  }
+
+  return normalizeWhitespace(cleanedValue);
+}
+
+function splitIntoSegments(value: string) {
+  return value
+    .split(/[|｜·•\n]/)
+    .map((segment) => normalizeWhitespace(segment))
+    .filter(Boolean);
+}
+
+function relevantStructuredNodes(nodes: StructuredDataNode[]) {
+  return nodes.filter((node) => node.types.some((type) => relevantStructuredTypes.has(type)));
+}
+
+function extractCity(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedValue = value.toLowerCase();
+
+  for (const city of knownCities) {
+    if (city.patterns.some((pattern) => normalizedValue.includes(pattern.toLowerCase()))) {
+      return city.city;
+    }
+  }
+
+  const chineseCityMatch = value.match(/([\u4e00-\u9fa5]{2,8})市/);
+
+  if (chineseCityMatch?.[1]) {
+    return chineseCityMatch[1];
+  }
+
+  const usCityMatch = value.match(/\b([A-Za-z .'-]+),\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/);
+
+  if (usCityMatch?.[1]) {
+    return normalizeWhitespace(usCityMatch[1]);
+  }
+
+  return null;
+}
+
+function createDiagnostics(input: {
+  sourceKind: RestaurantSourceKind;
+  finalFetchedUrl: string | null;
+  httpStatus: number | null;
+  contentType: string | null;
+  pageType: RestaurantPageType;
+  structuredNodes: StructuredDataNode[];
+}) {
+  const structuredDataTypes = [...new Set(input.structuredNodes.flatMap((node) => node.types))];
+
+  return {
+    finalFetchedUrl: input.finalFetchedUrl,
+    sourceKind: input.sourceKind,
+    httpStatus: input.httpStatus,
+    contentType: input.contentType,
+    pageType: input.pageType,
+    structuredDataTypes,
+    hasRestaurantOrLocalBusiness: input.structuredNodes.some((node) =>
+      node.types.some((type) => type === "restaurant" || type === "localbusiness"),
+    ),
+    hasPostalAddress: input.structuredNodes.some(
+      (node) => Boolean(node.address?.streetAddress || node.address?.addressLocality),
+    ),
+    acceptedFieldEvidence: {},
+    rejectedFieldCandidates: [],
+    finalDecision: "",
+  } satisfies RestaurantExtractionDiagnostics;
+}
+
+function recordRejectedProposal(
+  diagnostics: RestaurantExtractionDiagnostics,
+  field: CandidateFieldKey,
+  proposal: FieldProposal,
+  rejectionReason: string | null | undefined,
+) {
+  if (!proposal.value || !rejectionReason) {
+    return;
+  }
+
+  diagnostics.rejectedFieldCandidates.push({
+    field,
+    value: proposal.value,
+    evidenceSource: proposal.evidenceSource,
+    reason: rejectionReason,
+  });
+}
+
+function pickStructuredNode(nodes: StructuredDataNode[]) {
+  return (
+    nodes.find(
+      (node) =>
+        Boolean(node.name) &&
+        (Boolean(node.address?.streetAddress) || Boolean(node.address?.addressLocality)),
+    ) ??
+    nodes.find((node) => Boolean(node.name)) ??
+    null
+  );
+}
+
+function detectRestaurantSpecificHeuristic(input: {
+  sourceKind: RestaurantSourceKind;
+  title: string | null;
+  description: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  structuredNodes: StructuredDataNode[];
+}) {
+  if (input.structuredNodes.length > 0) {
+    return true;
+  }
+
+  if (input.sourceKind === "google-maps") {
+    return false;
+  }
+
+  const headlineText = [
+    input.ogTitle,
+    input.title,
+    input.ogDescription,
+    input.description,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const descriptorText = [input.ogDescription, input.description].filter(Boolean).join(" ");
+
+  const cleanedTitle = cleanRestaurantName(input.ogTitle ?? input.title ?? "", input.sourceKind);
+  const validTitle = validateRestaurantName({
+    value: cleanedTitle,
+    confidence: "medium",
+    evidenceSource: input.ogTitle ? "open_graph" : "page_title",
+  });
+
+  return (
+    validTitle.accepted &&
+    !genericFallbackNamePattern.test(cleanedTitle.toLowerCase()) &&
+    restaurantKeywordPattern.test(headlineText) &&
+    restaurantKeywordPattern.test(descriptorText)
+  );
+}
+
+function determinePageType(input: {
+  sourceKind: RestaurantSourceKind;
+  title: string | null;
+  description: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  structuredNodes: StructuredDataNode[];
+  visibleTextSegments: string[];
+}) {
+  const initialPageType = classifyRestaurantPageType({
+    sourceKind: input.sourceKind,
+    title: input.ogTitle ?? input.title,
+    description: input.ogDescription ?? input.description,
+    structuredData: input.structuredNodes,
+    visibleTextSegments: input.visibleTextSegments,
+  });
+
+  if (
+    initialPageType === "unknown" &&
+    detectRestaurantSpecificHeuristic({
+      sourceKind: input.sourceKind,
+      title: input.title,
+      description: input.description,
+      ogTitle: input.ogTitle,
+      ogDescription: input.ogDescription,
+      structuredNodes: input.structuredNodes,
+    })
+  ) {
+    return "single_restaurant" satisfies RestaurantPageType;
+  }
+
+  return initialPageType;
+}
+
+function evaluateProposals(
+  field: CandidateFieldKey,
+  proposals: FieldProposal[],
+  diagnostics: RestaurantExtractionDiagnostics,
+  validator: (proposal: FieldProposal) => ExtractedRestaurantField,
+) {
+  for (const proposal of proposals) {
+    const validatedField = validator(proposal);
+
+    if (validatedField.accepted) {
+      diagnostics.acceptedFieldEvidence[field] = proposal.evidenceSource;
+      return validatedField;
+    }
+
+    recordRejectedProposal(
+      diagnostics,
+      field,
+      proposal,
+      validatedField.rejectionReason ?? null,
+    );
+  }
+
+  return buildEmptyField();
+}
+
+function extractAddressSnippetFromText(text: string) {
+  if (!text || noisyContentPattern.test(text)) {
+    return null;
+  }
+
+  const normalizedText = normalizeWhitespace(text);
+  const labeledMatch = normalizedText.match(labeledAddressSnippetPattern);
+
+  if (labeledMatch?.[1]) {
+    return normalizeWhitespace(labeledMatch[1]);
+  }
+
+  const englishMatch = normalizedText.match(likelyAddressSnippetPattern);
+
+  if (englishMatch?.[1]) {
+    return normalizeWhitespace(englishMatch[1]);
+  }
+
+  const chineseMatch = normalizedText.match(chineseAddressSnippetPattern);
+
+  if (chineseMatch?.[1]) {
+    return normalizeWhitespace(chineseMatch[1]);
+  }
+
+  return null;
+}
+
+function extractAddressFromMetadataSegments(
+  segments: string[],
+  confidence: RestaurantFieldConfidence,
+  evidenceSource: RestaurantFieldEvidenceSource,
+) {
+  const proposals: FieldProposal[] = [];
+
+  for (const segment of segments) {
+    if (!segment || segment.length > 160 || noisyContentPattern.test(segment)) {
+      continue;
+    }
+
+    const extractedSnippet = extractAddressSnippetFromText(segment);
+
+    if (extractedSnippet) {
+      proposals.push({
+        value: extractedSnippet,
+        confidence,
+        evidenceSource,
+      });
+      continue;
+    }
+
+    if (addressPattern.test(segment) || cityStateZipPattern.test(segment)) {
+      proposals.push({
+        value: segment,
+        confidence,
+        evidenceSource,
+      });
+    }
+  }
+
+  return proposals;
+}
+
+function extractAddressFromVisibleSections(segments: string[]) {
+  const proposals: FieldProposal[] = [];
+
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index];
+
+    if (segment.length > 120 || noisyContentPattern.test(segment)) {
+      continue;
+    }
+
+    const nextSegment = segments[index + 1] ?? "";
+    const nextNextSegment = segments[index + 2] ?? "";
+
+    if (likelyContactHeadingPattern.test(segment)) {
+      for (const candidate of [nextSegment, `${nextSegment}, ${nextNextSegment}`]) {
+        const trimmedCandidate = normalizeWhitespace(candidate);
+
+        if (!trimmedCandidate) {
+          continue;
+        }
+
+        const extractedSnippet = extractAddressSnippetFromText(trimmedCandidate);
+
+        if (extractedSnippet) {
+          proposals.push({
+            value: extractedSnippet,
+            confidence: "low",
+            evidenceSource: "visible_text",
+          });
+        }
+      }
+
+      continue;
+    }
+
+    if (addressLabelPattern.test(segment)) {
+      const extractedSnippet = extractAddressSnippetFromText(nextSegment);
+
+      if (extractedSnippet) {
+        proposals.push({
+          value: extractedSnippet,
+          confidence: "low",
+          evidenceSource: "visible_text",
+        });
+      }
+
+      continue;
+    }
+
+    if (segment.length <= 80 && (addressPattern.test(segment) || cityStateZipPattern.test(segment))) {
+      const combined = cityStateZipPattern.test(nextSegment)
+        ? `${segment}, ${nextSegment}`
+        : segment;
+
+      const extractedSnippet = extractAddressSnippetFromText(combined) ?? segment;
+
+      proposals.push({
+        value: extractedSnippet,
+        confidence: "low",
+        evidenceSource: "visible_text",
+      });
+    }
+  }
+
+  return proposals;
+}
+
+function findNameField(
+  input: {
+    sourceKind: RestaurantSourceKind;
+    structuredNode: StructuredDataNode | null;
+    title: string | null;
+    ogTitle: string | null;
+  },
+  diagnostics: RestaurantExtractionDiagnostics,
+) {
+  const proposals: FieldProposal[] = [];
+
+  if (input.structuredNode?.name) {
+    proposals.push({
+      value: cleanRestaurantName(input.structuredNode.name, input.sourceKind),
+      confidence: "high",
+      evidenceSource: "structured_data",
+    });
+  }
+
+  if (input.ogTitle) {
+    proposals.push({
+      value: cleanRestaurantName(input.ogTitle, input.sourceKind),
+      confidence: "medium",
+      evidenceSource: "open_graph",
+    });
+  }
+
+  if (input.title) {
+    for (const segment of splitIntoSegments(input.title)) {
+      proposals.push({
+        value: cleanRestaurantName(segment, input.sourceKind),
+        confidence: "medium",
+        evidenceSource: "page_title",
+      });
+    }
+  }
+
+  return evaluateProposals("name", proposals, diagnostics, validateRestaurantName);
+}
+
+function findAddressField(
+  input: {
+    pageType: RestaurantPageType;
+    structuredNode: StructuredDataNode | null;
+    ogDescription: string | null;
+    description: string | null;
+    visibleTextSegments: string[];
+  },
+  diagnostics: RestaurantExtractionDiagnostics,
+) {
+  const proposals: FieldProposal[] = [];
+  const structuredAddress = formatStructuredAddress(input.structuredNode?.address ?? null);
+
+  if (structuredAddress) {
+    proposals.push({
+      value: structuredAddress,
+      confidence: "high",
+      evidenceSource: "structured_data",
+    });
+  }
+
+  proposals.push(
+    ...extractAddressFromMetadataSegments(
+      splitIntoSegments(input.ogDescription ?? ""),
+      "medium",
+      "open_graph",
+    ),
+  );
+  proposals.push(
+    ...extractAddressFromMetadataSegments(
+      splitIntoSegments(input.description ?? ""),
+      "medium",
+      "meta_description",
+    ),
+  );
+
+  if (input.pageType === "single_restaurant") {
+    proposals.push(...extractAddressFromVisibleSections(input.visibleTextSegments.slice(0, 40)));
+  }
+
+  return evaluateProposals("address", proposals, diagnostics, validateAddress);
+}
+
+function findCityField(
+  input: {
+    structuredNode: StructuredDataNode | null;
+    acceptedAddress: ExtractedRestaurantField;
+    ogDescription: string | null;
+    description: string | null;
+  },
+  diagnostics: RestaurantExtractionDiagnostics,
+) {
+  const proposals: FieldProposal[] = [];
+
+  if (input.structuredNode?.address?.addressLocality) {
+    proposals.push({
+      value: input.structuredNode.address.addressLocality,
+      confidence: "high",
+      evidenceSource: "structured_data",
+    });
+  }
+
+  if (input.acceptedAddress.accepted && input.acceptedAddress.value) {
+    proposals.push({
+      value: extractCity(input.acceptedAddress.value),
+      confidence: "medium",
+      evidenceSource: input.acceptedAddress.evidenceSource ?? "visible_text",
+    });
+  }
+
+  for (const [value, evidenceSource] of [
+    [input.ogDescription, "open_graph"],
+    [input.description, "meta_description"],
+  ] as const) {
+    const city = extractCity(value);
+
+    if (city) {
+      proposals.push({
+        value: city,
+        confidence: "low",
+        evidenceSource,
+      });
+    }
+  }
+
+  return evaluateProposals("city", proposals, diagnostics, validateCity);
+}
+
+function findCuisineField(
+  input: {
+    structuredNode: StructuredDataNode | null;
+    title: string | null;
+    description: string | null;
+    ogTitle: string | null;
+    ogDescription: string | null;
+    visibleTextSegments: string[];
+  },
+  diagnostics: RestaurantExtractionDiagnostics,
+) {
+  const proposals: FieldProposal[] = [];
+
+  if (input.structuredNode?.servesCuisine.length) {
+    for (const cuisine of input.structuredNode.servesCuisine) {
+      proposals.push({
+        value: cuisine,
+        confidence: "high",
+        evidenceSource: "structured_data",
+      });
+    }
+  }
+
+  const inference = inferCuisineFromSourceContent({
+    title: input.ogTitle ?? input.title,
+    description: input.ogDescription ?? input.description,
+    visibleText: input.visibleTextSegments.slice(0, 12).join(" "),
+  });
+
+  if (inference.cuisine) {
+    const evidenceSource: RestaurantFieldEvidenceSource =
+      input.ogDescription || input.description
+        ? "meta_description"
+        : input.ogTitle || input.title
+          ? "page_title"
+          : "visible_text";
+
+    proposals.push({
+      value: inference.cuisine,
+      confidence: inference.isConfident
+        ? evidenceSource === "visible_text"
+          ? "low"
+          : "medium"
+        : "low",
+      evidenceSource,
+    });
+  }
+
+  return evaluateProposals("cuisine", proposals, diagnostics, validateCuisine);
+}
+
+function buildCandidate(
+  input: {
+    sourceUrl: string;
+    sourceKind: RestaurantSourceKind;
+    pageType: RestaurantPageType;
+    structuredNodes: StructuredDataNode[];
+    title: string | null;
+    description: string | null;
+    ogTitle: string | null;
+    ogDescription: string | null;
+    visibleTextSegments: string[];
+  },
+  diagnostics: RestaurantExtractionDiagnostics,
+) {
+  const structuredNode = pickStructuredNode(input.structuredNodes);
+  const name = findNameField(
+    {
+      sourceKind: input.sourceKind,
+      structuredNode,
+      title: input.title,
+      ogTitle: input.ogTitle,
+    },
+    diagnostics,
+  );
+  const address = findAddressField(
+    {
+      pageType: input.pageType,
+      structuredNode,
+      ogDescription: input.ogDescription,
+      description: input.description,
+      visibleTextSegments: input.visibleTextSegments,
+    },
+    diagnostics,
+  );
+  const city = findCityField(
+    {
+      structuredNode,
+      acceptedAddress: address,
+      ogDescription: input.ogDescription,
+      description: input.description,
+    },
+    diagnostics,
+  );
+  const cuisine = findCuisineField(
+    {
+      structuredNode,
+      title: input.title,
+      description: input.description,
+      ogTitle: input.ogTitle,
+      ogDescription: input.ogDescription,
+      visibleTextSegments: input.visibleTextSegments,
+    },
+    diagnostics,
+  );
+
+  const candidate: RestaurantExtractionCandidate = {
+    sourceUrl: input.sourceUrl,
+    fields: {
+      name,
+      city,
+      address,
+      cuisine,
+    },
+  };
+
+  const acceptanceReasons: string[] = [];
+  const hasStructuredRestaurantEvidence = Boolean(
+    structuredNode &&
+      structuredNode.types.some((type) => relevantStructuredTypes.has(type)) &&
+      structuredNode.name,
+  );
+  const hasAcceptedSupportingField = address.accepted || city.accepted || cuisine.accepted;
+  const hasRestaurantSpecificEvidence =
+    hasStructuredRestaurantEvidence ||
+    hasAcceptedSupportingField ||
+    restaurantKeywordPattern.test(
+      [input.ogDescription, input.description, input.ogTitle, input.title]
+        .filter(Boolean)
+        .join(" "),
+    );
+  const hasGoogleMapsUsableEvidence = hasStructuredRestaurantEvidence || hasAcceptedSupportingField;
+
+  if (candidate.fields.name.accepted) {
+    acceptanceReasons.push("餐厅名称通过了严格校验。");
+  }
+
+  if (hasStructuredRestaurantEvidence) {
+    acceptanceReasons.push("页面存在结构化餐厅或本地商家数据。");
+  }
+
+  if (address.accepted) {
+    acceptanceReasons.push("地址来源具备可接受的强地址证据。");
+  }
+
+  if (input.pageType === "single_restaurant") {
+    acceptanceReasons.push("页面类型判定为单餐厅页。");
+  }
+
+  if (
+    input.sourceKind === "google-maps" &&
+    !hasGoogleMapsUsableEvidence &&
+    candidate.fields.name.accepted
+  ) {
+    diagnostics.finalDecision = "fallback_google_maps_limited_fetch";
+
+    return {
+      candidate,
+      acceptanceReasons,
+      isAccepted: false,
+    };
+  }
+
+  const isAccepted =
+    input.pageType === "single_restaurant" &&
+    candidate.fields.name.accepted &&
+    hasRestaurantSpecificEvidence;
+
+  diagnostics.finalDecision = isAccepted
+    ? "accepted_single_restaurant_candidate"
+    : "fallback_weak_or_non_single_page";
+
+  return {
+    candidate,
+    acceptanceReasons,
+    isAccepted,
+  };
+}
+
+function emitDiagnosticsIfNeeded(diagnostics: RestaurantExtractionDiagnostics) {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.info("[step11-extraction-diagnostics]", diagnostics);
+}
+
+function getFallbackReason(input: {
+  sourceKind: RestaurantSourceKind;
+  pageType: RestaurantPageType;
+  baseMessage: string;
+}) {
+  if (input.sourceKind === "google-maps") {
+    return `Google Maps 在当前受限的服务端抓取下未稳定暴露可用字段，${input.baseMessage}`;
+  }
+
+  if (input.pageType === "restaurant_list") {
+    return "当前页面更像餐厅目录或位置索引页，请先手动选择并补全单个餐厅。";
+  }
+
+  if (input.pageType === "generic_page") {
+    return "当前页面更像通用页面，没有足够明确的单餐厅信号，请先手动补全。";
+  }
+
+  if (input.sourceKind === "xiaohongshu" || input.sourceKind === "douyin") {
+    return `当前来源属于 best-effort 平台，${input.baseMessage}`;
+  }
+
+  if (input.sourceKind === "unsupported-social") {
+    return "当前来源不在 V1 的主要支持范围内，请先改为手动补全。";
+  }
+
+  return input.baseMessage;
+}
+
+export async function extractRestaurantDraftFromSource(
+  sourceUrl: string,
+  options: ExtractRestaurantCandidateOptions = {},
+): Promise<RestaurantExtractionResult> {
+  const sourceKind = classifyRestaurantSource(sourceUrl);
+  const supportLevel = getSourceSupportLevel(sourceKind);
+
+  if (sourceKind === "unsupported-social") {
+    const diagnostics = createDiagnostics({
+      sourceKind,
+      finalFetchedUrl: null,
+      httpStatus: null,
+      contentType: null,
+      pageType: "generic_page",
+      structuredNodes: [],
+    });
+    diagnostics.finalDecision = "unsupported_source";
+    emitDiagnosticsIfNeeded(diagnostics);
+
+    return {
+      status: "fallback",
+      sourceUrl,
+      sourceKind,
+      supportLevel,
+      pageType: "generic_page",
+      fetchedUrl: null,
+      httpStatus: null,
+      contentType: null,
+      reason: "当前来源不在 V1 的主要支持范围内，请先改为手动补全。",
+      notes: ["不尝试抓取 TikTok、Instagram 等非主要 V1 来源。"],
+      diagnostics: process.env.NODE_ENV === "development" ? diagnostics : undefined,
+    };
+  }
+
+  const fetchResult = await fetchSourceDocument(sourceUrl, {
+    fetchImpl: options.fetchImpl,
+  });
+
+  if (fetchResult.ok === false) {
+    const diagnostics = createDiagnostics({
+      sourceKind,
+      finalFetchedUrl: fetchResult.url,
+      httpStatus: fetchResult.status ?? null,
+      contentType: null,
+      pageType: "unknown",
+      structuredNodes: [],
+    });
+    diagnostics.finalDecision = `fetch_failure:${fetchResult.errorCode}`;
+    emitDiagnosticsIfNeeded(diagnostics);
+
+    return {
+      status: "fallback",
+      sourceUrl,
+      sourceKind,
+      supportLevel,
+      pageType: "unknown",
+      fetchedUrl: fetchResult.url,
+      httpStatus: fetchResult.status ?? null,
+      contentType: null,
+      reason: getFallbackReason({
+        sourceKind,
+        pageType: "unknown",
+        baseMessage: fetchResult.message,
+      }),
+      notes: [
+        "抓取失败后保留手动补全路径，不会阻塞保存流程。",
+        sourceKind === "google-maps"
+          ? "当前不会为 Google Maps 增加脆弱抓取或浏览器自动化。"
+          : "当前不会尝试未受控的页面抓取扩展。",
+      ],
+      diagnostics: process.env.NODE_ENV === "development" ? diagnostics : undefined,
+    };
+  }
+
+  const documentContent = extractSourceDocumentContent(fetchResult.url, fetchResult.body);
+  const structuredNodes = relevantStructuredNodes(documentContent.structuredData);
+  const pageType = determinePageType({
+    sourceKind,
+    title: documentContent.metadata.title,
+    description: documentContent.metadata.description,
+    ogTitle: documentContent.metadata.ogTitle,
+    ogDescription: documentContent.metadata.ogDescription,
+    structuredNodes,
+    visibleTextSegments: documentContent.visibleTextSegments,
+  });
+  const diagnostics = createDiagnostics({
+    sourceKind,
+    finalFetchedUrl: fetchResult.url,
+    httpStatus: fetchResult.status,
+    contentType: fetchResult.contentType,
+    pageType,
+    structuredNodes: documentContent.structuredData,
+  });
+  const extraction = buildCandidate(
+    {
+      sourceUrl,
+      sourceKind,
+      pageType,
+      structuredNodes,
+      title: documentContent.metadata.title,
+      description: documentContent.metadata.description,
+      ogTitle: documentContent.metadata.ogTitle,
+      ogDescription: documentContent.metadata.ogDescription,
+      visibleTextSegments: documentContent.visibleTextSegments,
+    },
+    diagnostics,
+  );
+
+  if (!extraction.isAccepted) {
+    emitDiagnosticsIfNeeded(diagnostics);
+
+    return {
+      status: "fallback",
+      sourceUrl,
+      sourceKind,
+      supportLevel,
+      pageType,
+      fetchedUrl: fetchResult.url,
+      httpStatus: fetchResult.status,
+      contentType: fetchResult.contentType,
+      reason: getFallbackReason({
+        sourceKind,
+        pageType,
+        baseMessage: "当前页面没有提供足够明确的单餐厅信息，请先改为手动补全。",
+      }),
+      notes: [
+        "只有当页面被判定为单餐厅页，且餐厅名称与餐厅证据都通过门槛时，系统才会生成草稿。",
+        "目录页、位置索引页、泛首页和弱信号页面会直接回退到手动补全。",
+      ],
+      diagnostics: process.env.NODE_ENV === "development" ? diagnostics : undefined,
+    };
+  }
+
+  emitDiagnosticsIfNeeded(diagnostics);
+
+  return {
+    status: "success",
+    sourceUrl,
+    sourceKind,
+    supportLevel,
+    pageType,
+    fetchedUrl: fetchResult.url,
+    httpStatus: fetchResult.status,
+    contentType: fetchResult.contentType,
+    candidate: extraction.candidate,
+    notes: [
+      extraction.candidate.fields.city.accepted
+        ? "城市字段通过了保守校验。"
+        : "城市字段证据不足，保留为手动补全。",
+      extraction.candidate.fields.address.accepted
+        ? "地址字段来自结构化数据、元数据或清晰的联系区块。"
+        : "地址字段证据不足，保留为手动补全。",
+      extraction.candidate.fields.cuisine.accepted
+        ? "菜系来自结构化数据或清晰关键词证据。"
+        : "菜系信号不足时会保持为空。",
+    ],
+    acceptanceReasons: extraction.acceptanceReasons,
+    diagnostics: process.env.NODE_ENV === "development" ? diagnostics : undefined,
+  };
+}

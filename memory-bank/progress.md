@@ -21,6 +21,8 @@ Step 9 is complete and has been validated.
 
 Step 10 is complete and has been validated.
 
+Step 11 is complete and has been validated.
+
 ## Completed In Step 1
 - Initialized the repository with Git version control.
 - Created a single Next.js app in the project root using the App Router.
@@ -151,6 +153,23 @@ Step 10 is complete and has been validated.
 - Added the handoff from source review back to the existing manual form so `source_url` is prefilled with the normalized URL.
 - Kept Step 10 intentionally narrow: no page fetching, no restaurant-field extraction, no cuisine inference, no candidate generation, no geocoding, and no map work.
 
+## Completed In Step 11
+- Added the first simple server-side extraction service behind `/restaurants/review`.
+- Upgraded the review flow so accepted sources now go beyond URL confirmation and attempt best-effort restaurant draft extraction before manual completion.
+- Added page-type detection so directory pages, index pages, generic pages, and weak pages can fall back cleanly instead of producing garbage restaurant drafts.
+- Added a structured-data-first extraction pipeline that prioritizes JSON-LD and related structured metadata before conservative fallback heuristics.
+- Added strict field validation for restaurant `name`, `address`, `city`, and `cuisine` so weak, generic, or oversized values are rejected.
+- Added field-level confidence and evidence tracking so extracted values are not treated as successful just because some text was found.
+- Added candidate acceptance rules so a draft succeeds only when the page looks like a single-restaurant page and the extracted evidence clears the Step 11 threshold.
+- Added partial-candidate support so genuine single-restaurant pages can return a reliable `name` plus any confident fields while leaving uncertain fields blank.
+- Added bounded fetch behavior with timeout and response-size limits and kept all fetched source content treated as untrusted input.
+- Added development-only extraction diagnostics that record the fetched URL, response metadata, page type, structured-data types, accepted evidence, rejected candidates, and final decision.
+- Added a new extraction preview card on `/restaurants/review` so only accepted fields are shown and giant low-confidence text blocks are never rendered.
+- Kept extracted candidates editable by handing accepted fields back into the existing manual form instead of saving anything automatically.
+- Kept 小红书 and 抖音 as best-effort sources with graceful fallback behavior.
+- Added focused Step 11 extraction regression tests and confirmed they pass `17/17`.
+- Documented the China-first direction update alongside Step 11 planning: 高德地图 / Amap is the primary V1 map, POI, and geocoding provider; 高德 links and sharing text are officially supported V1 sources; 大众点评, 小红书, and 抖音 are best-effort sources; 百度地图 is secondary input only; Google Maps is optional overseas support.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
@@ -164,10 +183,11 @@ Step 10 is complete and has been validated.
 - A mobile-first public and protected page shell is now in place.
 - Signed-in users can now manually create restaurant records at `/restaurants/new`.
 - Signed-in users can now begin a source intake flow at `/restaurants/new` and continue to `/restaurants/review` before choosing manual completion.
+- Signed-in users can now run a simple extraction-review flow at `/restaurants/review` that either returns an editable draft candidate or falls back cleanly to manual completion.
 - `/restaurants` now provides the full saved restaurant list experience for the current user's records.
 - Signed-in users can now edit `cuisine`, `note`, and `privacy` for their own saved restaurant records.
 - The map page remains a protected placeholder.
-- A source review entry point now exists, but no page fetching or restaurant-field extraction has been added yet.
+- Step 11 page fetching, structured-data-first extraction, candidate review, and graceful fallback are now in place.
 - `privacy` remains a stored flag only and does not create cross-user visibility in V1.
 
 ## Step 1 Validation
@@ -309,30 +329,28 @@ Validation outcome:
 - Invalid text without a valid `http` or `https` URL is rejected with clear Simplified Chinese feedback while preserving the pasted text.
 - The source review page can hand the normalized URL back into the existing manual form with `source_url` prefilled.
 - Step 10 stops at URL intake and review only; it does not fetch pages or extract restaurant fields yet.
-- The newly-created restaurant is still visually highlighted after save.
-- Missing optional fields are handled cleanly without breaking the card layout.
-- The saved-list page remains mobile-first and usable on larger desktop widths.
 
-## Step 9 Validation
+## Step 11 Validation
 Validated checks completed:
 - `npm run build`
 - `npm run lint`
-- Manual validation of editing `cuisine`, `note`, and `privacy`
-- Manual validation that changes persist in Supabase
-- Manual validation that clearing optional `cuisine` or `note` works
-- Manual validation that owner-only RLS prevents cross-user edit access
-- Manual validation of successful-update redirect back to `/restaurants`
-- Manual validation that the list shows updated values after redirect
-- Manual validation that `餐厅信息已更新` appears after redirect
-- Manual validation that validation and update errors remain on the edit page
+- Focused Step 11 extraction tests passing `17/17`
+- Manual validation that directory/index pages such as the Din Tai Fung locations page fall back without garbage extraction
+- Manual validation that genuine single-restaurant pages can produce partial candidates
+- Manual validation that Eleven Madison Park produced a reliable name and city while uncertain fields stayed blank
+- Manual validation that Sushi Nakazawa produced a reliable name and cuisine while uncertain fields stayed blank
+- Manual validation that missing data is preferred over incorrect data
+- Manual validation that no giant page-text blocks are accepted as restaurant fields
+- Manual validation that extracted candidates are never automatically saved
+- Manual validation that extracted fields remain editable through the manual completion flow
+- Manual validation that 小红书 and 抖音 remain best-effort sources with graceful fallback behavior
 
 Validation outcome:
-- A signed-in user can open a saved restaurant record and update `cuisine`, `note`, and `privacy`.
-- Updated values persist correctly in Supabase and appear on the saved restaurant list.
-- Optional `cuisine` and `note` fields can be cleared back to blank successfully.
-- Owner-only RLS continues to block cross-user edit access.
-- Successful updates now redirect back to `/restaurants` and show the short success message `餐厅信息已更新`.
-- Validation and update errors still stay on the edit page so the user can correct and resubmit.
+- Directory and index pages now fall back cleanly instead of generating navigation text or large body-text blocks as restaurant data.
+- Genuine single-restaurant pages can now return partial candidates when only some fields are reliable.
+- The extraction flow now prefers missing data over incorrect data and keeps uncertain fields blank.
+- Step 11 now includes page-type detection, structured-data-first extraction, field validation, field-level confidence and evidence tracking, candidate acceptance rules, bounded fetching, development-only diagnostics, and focused regression tests.
+- Extracted values still require manual confirmation and are never automatically saved.
 
 ## Docs-Only Product Direction Update
 Documented but not yet implemented in UI:
@@ -341,6 +359,7 @@ Documented but not yet implemented in UI:
 - Simplified Chinese as the default language
 - English as a later secondary language option
 - future extraction should attempt to infer cuisine when possible, keep it editable, and leave it blank when confidence is low
+- China-first location-provider direction is now documented in the planning set: 高德地图 / Amap is primary for V1 map, POI, and geocoding; 高德 links/share text are official sources; 大众点评, 小红书, and 抖音 are best-effort; 百度地图 is secondary input only; Google Maps is optional overseas support
 
 ## Notes
 - The current `npm run lint` command uses TypeScript static checks.

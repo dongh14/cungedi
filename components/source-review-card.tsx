@@ -21,14 +21,14 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
       <div className="space-y-5">
         <div className="space-y-3">
           <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-            Step 10 提取确认起点
+            Step 11 来源检查
           </span>
           <div>
             <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              来源链接已经准备好
+              来源链接已经进入提取流程
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步先确认来源入口已经接通。当前还不会抓取页面或推断餐厅字段，只会把标准化后的链接带入下一步流程骨架。
+              这一步会先用受限的服务端抓取尝试读取公开页面元数据和正文文本，再生成一个 best-effort 草稿。提取失败时会直接回退到手动补全。
             </p>
           </div>
         </div>
@@ -45,7 +45,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               来源域名：{sourceHost}
             </span>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-              当前仅做链接确认
+              已标准化来源链接
             </span>
           </div>
         </div>

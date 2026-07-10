@@ -7,7 +7,7 @@ For V1, the simplest robust stack is:
 - Styling: Tailwind CSS
 - Backend and database: Supabase
 - Auth: Supabase Auth with email and password
-- Maps and geocoding: Mapbox
+- Maps, POI search, and geocoding: 高德地图 / Amap
 - Deployment: Vercel
 - Extraction approach: simple server-side URL fetch plus metadata parsing, always followed by user confirmation
 
@@ -15,8 +15,10 @@ This stack is a good fit for V1 because it keeps the number of moving parts low 
 
 Product direction note:
 - The main V1 audience is Chinese users.
-- The main discovery sources are Xiaohongshu (RedNote), Douyin, Google Maps, and ordinary public web pages.
-- Keep extraction realistic for Xiaohongshu (RedNote) and Douyin and treat them as best-effort sources in V1.
+- The primary V1 map and geocoding provider should be 高德地图 / Amap.
+- The main mainland-China discovery sources are 高德地图, 大众点评, 小红书, 抖音, and ordinary public web pages.
+- Keep extraction realistic for 大众点评, 小红书, and 抖音 and treat them as best-effort sources in V1.
+- Google Maps is optional support for overseas restaurants, not part of the core mainland-China V1 promise.
 
 ## Why This Stack
 
@@ -77,18 +79,18 @@ V1 fit:
 - Log out
 - Protected user data
 
-### 5. Mapbox for maps and geocoding
-Use Mapbox for both the interactive map and address-to-coordinate lookup.
+### 5. 高德地图 / Amap for maps, POI search, and geocoding
+Use 高德地图 / Amap as the primary V1 provider for interactive maps, POI search, and address-to-coordinate lookup.
 
 Why:
-- It gives you one provider for map display and geocoding.
-- It is simpler and more robust than stitching together a free map library plus separate tile hosting plus separate geocoder.
-- It supports a world map experience, zooming, pins, and structured geocoding.
+- It matches the product's mainland-China-first direction better than a global-first provider.
+- It gives you one provider for map display, POI search, and geocoding in the core V1 market.
+- It avoids introducing a second map provider for the main use case in V1.
 
 V1 fit:
-- Show saved restaurant pins on a world map
-- Zoom into countries and cities
+- Show saved restaurant pins on a simple map
 - Convert address or city text into coordinates when possible
+- Support China-first POI and location normalization flows later
 - Still allow saving restaurants even when geocoding fails
 
 ### 6. Vercel for deployment
@@ -155,18 +157,21 @@ Recommended approach:
 - Always show a confirmation and editing step before save.
 
 Official V1 source stance:
-- Ordinary public web pages and Google Maps are officially supported sources for V1.
+- Ordinary public web pages and 高德地图 links or sharing text are officially supported sources for V1.
+- 大众点评 is an important China-first source and should be treated as best-effort unless reliable official API access becomes available.
 - Xiaohongshu (RedNote) and Douyin are accepted on a best-effort basis only.
+- 百度地图 may be accepted as a secondary best-effort input source, but V1 should not integrate a second map provider around it.
+- Google Maps is optional support for overseas restaurants, not part of the core mainland-China V1 promise.
 - TikTok and Instagram are future or best-effort sources, not part of the main V1 promise.
 
 ### Why this is the right V1 approach
 - It matches the PRD requirement that users confirm and edit extracted data.
 - It avoids overbuilding brittle source-specific scrapers too early.
-- It keeps platform risk lower for Xiaohongshu (RedNote), Douyin, TikTok, and Instagram links where extraction quality can vary or public page content may be limited.
+- It keeps platform risk lower for 大众点评, Xiaohongshu (RedNote), Douyin, TikTok, and Instagram links where extraction quality can vary or public page content may be limited.
 - It allows you to ship the workflow first, then improve extraction later.
 
 Practical limitation for V1:
-- Xiaohongshu (RedNote) and Douyin often do not expose page content as cleanly as ordinary public web pages.
+- 大众点评, Xiaohongshu (RedNote), and Douyin often do not expose page content as cleanly as ordinary public web pages or map links.
 - V1 should not rely on full scraping, browser automation, login-required access, or platform-specific extraction systems.
 - If extraction fails or returns weak results, the product should fall back to manual entry with `source_url` prefilled.
 
@@ -216,7 +221,7 @@ If we optimize for simplicity, beginner-friendliness, and a realistic path to sh
 - Tailwind CSS
 - Supabase Postgres
 - Supabase Auth
-- Mapbox
+- 高德地图 / Amap
 - Vercel
 - Server-side metadata extraction with manual confirmation
 
@@ -228,8 +233,8 @@ This gives the project one main app, one backend platform, one auth system, one 
 - Supabase Auth password docs: [supabase.com/docs/guides/auth/passwords](https://supabase.com/docs/guides/auth/passwords)
 - Supabase Database overview: [supabase.com/docs/guides/database/overview](https://supabase.com/docs/guides/database/overview)
 - Supabase Row Level Security: [supabase.com/docs/guides/database/postgres/row-level-security](https://supabase.com/docs/guides/database/postgres/row-level-security)
-- Mapbox GL JS guides: [docs.mapbox.com/mapbox-gl-js/guides](https://docs.mapbox.com/mapbox-gl-js/guides/)
-- Mapbox Geocoding API: [docs.mapbox.com/api/search/geocoding](https://docs.mapbox.com/api/search/geocoding/)
+- Amap JS API docs: [lbs.amap.com/api/javascript-api/summary](https://lbs.amap.com/api/javascript-api/summary)
+- Amap Web Service docs: [lbs.amap.com/api/webservice/summary](https://lbs.amap.com/api/webservice/summary)
 
 ## Source Notes
-The specific recommendation to pair Next.js, Supabase, Mapbox, and Vercel is an inference based on the V1 requirements in the PRD and the current official documentation for those tools. The extraction approach is also a product recommendation, not something taken from a single vendor source.
+The specific recommendation to pair Next.js, Supabase, 高德地图 / Amap, and Vercel is an inference based on the V1 requirements in the PRD and the current official documentation for those tools. The extraction approach is also a product recommendation, not something taken from a single vendor source.

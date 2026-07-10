@@ -1,9 +1,9 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 10 only.
+This document describes the repository as it exists after validated Step 11 only.
 
-It does not include Step 11 or later architecture yet.
+It does not include Step 12 or later architecture yet.
 
 ## Current Structure
 
@@ -30,7 +30,7 @@ It does not include Step 11 or later architecture yet.
 - `app/dashboard/page.tsx`: Step 6 protected overview page inside the signed-in app shell
 - `app/setup/page.tsx`: Step 6 Supabase setup page in the shared public shell
 - `app/restaurants/new/page.tsx`: Step 7 protected manual-create page
-- `app/restaurants/review/page.tsx`: Step 10 protected source review page
+- `app/restaurants/review/page.tsx`: Step 11 protected source review and extraction page
 - `app/restaurants/page.tsx`: Step 8 protected full saved-list page
 - `app/restaurants/[id]/edit/page.tsx`: Step 9 protected restaurant edit page
 - `app/restaurants/actions.ts`: Step 7, Step 9, and Step 10 server actions for create, update, and source-intake flow control
@@ -49,8 +49,9 @@ It does not include Step 11 or later architecture yet.
 - `components/restaurant-list.tsx`: Step 8 reusable saved-list summary and list wrapper
 - `components/restaurant-list-card.tsx`: Step 8 reusable saved-restaurant card
 - `components/restaurant-edit-form-card.tsx`: Step 9 reusable restaurant edit form card
+- `components/extraction-preview-card.tsx`: Step 11 reusable extraction-result card for accepted fields, fallback messaging, and manual-form handoff
 - `components/source-intake-card.tsx`: Step 10 reusable source intake card for `/restaurants/new`
-- `components/source-review-card.tsx`: Step 10 reusable source review card for `/restaurants/review`
+- `components/source-review-card.tsx`: Step 11 reusable source review card for `/restaurants/review`
 - `components/site-brand.tsx`: reusable product brand block
 - `components/surface-card.tsx`: shared rounded card wrapper used across the UI
 
@@ -70,6 +71,15 @@ It does not include Step 11 or later architecture yet.
 - `lib/restaurants/queries.ts`: Step 8 and Step 9 user-scoped restaurant read helpers for the full saved list and edit route
 - `lib/restaurants/source-url.ts`: generic Step 7 source URL extraction utility for direct links and sharing text
 - `lib/restaurants/source-url.test.ts`: focused automated tests for URL extraction behavior
+- `lib/restaurants/extraction-types.ts`: Step 11 shared extraction result, candidate, page-type, field-evidence, diagnostics, and fetch-result types
+- `lib/restaurants/source-classification.ts`: Step 11 source-kind classification and support-level rules
+- `lib/restaurants/source-fetch.ts`: Step 11 bounded source fetching with timeout, response-size, and content-type limits
+- `lib/restaurants/source-html.ts`: Step 11 metadata, visible-text-segment, and structured-data parsing helpers
+- `lib/restaurants/page-type.ts`: Step 11 page-type classification for single-restaurant, directory/list, generic, and unknown pages
+- `lib/restaurants/field-validation.ts`: Step 11 strict restaurant-field validation and structured-address formatting helpers
+- `lib/restaurants/cuisine-inference.ts`: Step 11 conservative cuisine inference helper with low-confidence blank behavior
+- `lib/restaurants/source-extraction.ts`: Step 11 orchestration for fetching, parsing, validation, candidate acceptance, diagnostics, and fallback decisions
+- `lib/restaurants/source-extraction.test.ts`: focused Step 11 regression tests for extraction behavior
 
 ### Supabase Database Files
 - `supabase/migrations/20260709120000_create_restaurants_table.sql`: Step 4 migration that creates the initial V1 `restaurants` table, indexes, and `updated_at` trigger
@@ -147,10 +157,11 @@ These are starter static assets from the base app scaffold. They are not product
 - Keeps the Step 7 manual-save path intact while introducing the Step 10 extraction-review starting point.
 
 ### `app/restaurants/review/page.tsx`
-- Provides the protected Step 10 source review page after accepted URL intake.
+- Provides the protected Step 11 source review and extraction page after accepted URL intake.
 - Reads the normalized `source_url` from the query string and rejects missing or malformed values by redirecting back to `/restaurants/new`.
-- Uses the shared signed-in shell and the Step 10 source review card.
-- Makes the Step 10 boundary explicit: this page confirms only the source link and does not fetch the page or extract restaurant fields yet.
+- Calls the Step 11 extraction service for the normalized source URL.
+- Uses the shared signed-in shell together with the source review card and extraction preview card.
+- Keeps the Step 11 boundary explicit by showing draft extraction results without auto-saving anything.
 
 ### `app/restaurants/page.tsx`
 - Provides the protected Step 8 full saved restaurant list page.
@@ -158,7 +169,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Keeps the successful-save confirmation banner through the shared `AppShell` message area.
 - Highlights the just-created restaurant when a `created` query parameter is present after a successful redirect from the create flow.
 - Also displays the Step 9 short success message `餐厅信息已更新` after a successful edit redirect.
-- Continues to stop short of Step 11 and later work by omitting page fetching, restaurant extraction, geocoding, and map integration.
+- Continues to stop short of Step 12 and later work by omitting extracted-candidate editing, multi-candidate confirmation, geocoding, and map integration.
 
 ### `app/restaurants/[id]/edit/page.tsx`
 - Provides the protected Step 9 edit page for one saved restaurant.
@@ -179,7 +190,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Redirects successful updates back to `/restaurants` with the short success message `餐厅信息已更新`.
 - Also contains the Step 10 `startSourceIntakeAction` server action for the new source intake flow.
 - Reuses the existing generic first-`http` or first-`https` extraction logic instead of adding source-specific parsing.
-- Accepts direct URLs, 小红书 share text, 抖音 share text, Google Maps share text, and ordinary public-web share text as long as a valid URL can be extracted.
+- Accepts direct URLs, 高德 share text, 小红书 share text, 抖音 share text, Google Maps share text, and ordinary public-web share text as long as a valid URL can be extracted.
 - Redirects accepted source input into `/restaurants/review` with the normalized URL.
 - Redirects invalid source input back to `/restaurants/new` with Simplified Chinese validation feedback while preserving the pasted input.
 
@@ -252,18 +263,25 @@ These are starter static assets from the base app scaffold. They are not product
 - Supports clearing optional `cuisine` and `note` values back to blank.
 - Keeps validation and update errors on the edit page so the user can correct and resubmit.
 
+### `components/extraction-preview-card.tsx`
+- Provides the main Step 11 extraction-result UI on `/restaurants/review`.
+- Shows only accepted extracted fields plus explicit missing-field fallbacks such as `需要手动补全`.
+- Avoids rendering giant low-confidence page-text blocks by never displaying rejected or unaccepted field candidates.
+- Explains whether the current result is an accepted draft candidate or a fallback to manual completion.
+- Hands accepted fields back into `/restaurants/new` so the existing manual form opens with prefilled values and remains the final save path.
+
 ### `components/source-intake-card.tsx`
 - Provides the main Step 10 source intake UI on `/restaurants/new`.
 - Uses a textarea so the user can paste either a clean URL or a full sharing message.
-- Shows clear Simplified Chinese guidance about V1 source support: public web pages and Google Maps are official, while 小红书 and 抖音 are best-effort.
+- Shows Simplified Chinese guidance about the current source-intake boundary and accepted share-text workflow.
 - Preserves pasted intake text and shows validation feedback when no valid `http` or `https` URL can be extracted.
 
 ### `components/source-review-card.tsx`
-- Provides the main Step 10 source review UI on `/restaurants/review`.
+- Provides the main Step 11 source review UI on `/restaurants/review`.
 - Displays the normalized source URL and a lightweight host label for quick confirmation.
 - States the current V1 source-policy boundary so supported and best-effort sources are visible in the UI.
 - Hands the normalized URL back to `/restaurants/new` so the existing manual form opens with `source_url` prefilled.
-- Keeps the Step 10 boundary explicit by not rendering any extracted restaurant fields yet.
+- Frames the page as a bounded best-effort extraction flow rather than a raw URL-review-only screen.
 
 ### `components/site-brand.tsx`
 - Renders the shared product brand lockup.
@@ -320,13 +338,63 @@ These are starter static assets from the base app scaffold. They are not product
 - Extracts the first valid `http` or `https` URL from direct input or longer share text.
 - Trims common trailing ASCII and Chinese punctuation from pasted links.
 - Uses standard URL parsing so non-URL fragments like `qrr:/` or `Z@M.jp` are not mistaken for valid links.
-- Keeps the logic generic so it works across 小红书, 抖音, Google Maps, and public web sharing text.
+- Keeps the logic generic so it works across 高德, 小红书, 抖音, Google Maps, and public web sharing text.
 - Is reused by both the Step 7 manual-save flow and the Step 10 source intake flow.
 
 ### `lib/restaurants/source-url.test.ts`
 - Covers the focused Step 7 URL-extraction cases with automated tests.
 - Verifies direct URL handling, 小红书 share-text extraction, 抖音 share-text extraction, no-URL validation input, and first-URL-wins behavior.
 - Supports the Step 10 intake guarantees for direct URLs, full share text, and invalid text without requiring new source-specific parsing code.
+
+### `lib/restaurants/extraction-types.ts`
+- Defines the Step 11 extraction result model used by the review flow.
+- Stores the source kind, support level, page type, extracted fields, and success-or-fallback status in one shared type layer.
+- Adds field-level confidence, evidence source, and optional rejection-reason support.
+- Adds development-only diagnostics types for fetched URL, response metadata, structured-data types, accepted evidence, rejected candidates, and final extraction decision.
+
+### `lib/restaurants/source-classification.ts`
+- Classifies source URLs into product-level kinds such as public web, Google Maps, 小红书, 抖音, and unsupported social sources.
+- Maps source kinds to Step 11 support levels such as official, best-effort, and unsupported.
+- Does not yet add dedicated source kinds for 高德地图, 大众点评, or 百度地图; those China-first distinctions currently live in the planning documents rather than in app-specific source classification code.
+
+### `lib/restaurants/source-fetch.ts`
+- Performs the Step 11 bounded server-side fetch for source pages.
+- Enforces the current timeout, response-size, and content-type limits before any extraction logic runs.
+- Preserves the final fetched URL after redirects, HTTP status, and content type for diagnostics and fallback handling.
+- Treats fetched content as untrusted and returns structured failure states for timeout, network, oversized response, unsupported content type, and empty body.
+
+### `lib/restaurants/source-html.ts`
+- Extracts Step 11 source metadata such as page title, meta description, and Open Graph fields.
+- Parses multiple JSON-LD script blocks, top-level arrays, and `@graph` content while ignoring malformed blocks individually instead of failing the whole page.
+- Normalizes structured data into restaurant-relevant nodes including `Restaurant`, `LocalBusiness`, `FoodEstablishment`, and related address/cuisine fields.
+- Produces bounded visible-text segments for conservative fallback heuristics without treating the full cleaned page body as a field value.
+
+### `lib/restaurants/page-type.ts`
+- Determines whether a fetched page looks like a single-restaurant page, a restaurant list or directory page, a generic page, or an unknown page.
+- Uses structured data, page metadata, and bounded visible-text signals to reject directory or index pages before field extraction succeeds.
+- Helps prevent failures like accepting `Locations` as a restaurant name on location index pages.
+
+### `lib/restaurants/field-validation.ts`
+- Applies strict Step 11 validation to candidate `name`, `address`, `city`, and `cuisine` values before they can be shown as accepted extraction results.
+- Rejects generic names, navigation-like content, oversized text, low-confidence cuisine, and address text that lacks strong address-like evidence.
+- Formats structured postal addresses into one display string when structured address data is reliable.
+
+### `lib/restaurants/cuisine-inference.ts`
+- Performs conservative cuisine inference from title, description, and bounded visible text.
+- Uses weighted keyword evidence rather than broad page-body guessing.
+- Returns blank cuisine when confidence is low so Step 11 prefers missing data over incorrect data.
+
+### `lib/restaurants/source-extraction.ts`
+- Orchestrates the full Step 11 extraction flow from source classification through fetch, parse, validation, and final candidate or fallback decision.
+- Prioritizes structured data first, then conservative metadata and labeled-section heuristics, while avoiding broad body-text extraction.
+- Supports partial candidates so genuine single-restaurant pages can return a reliable subset of fields when address, city, or cuisine are uncertain.
+- Adds candidate-acceptance thresholds so successful drafts require a valid restaurant name plus sufficient single-restaurant evidence.
+- Records development-only diagnostics for final fetched URL, page type, structured-data coverage, accepted field evidence, rejected field candidates, and the final acceptance or fallback reason.
+
+### `lib/restaurants/source-extraction.test.ts`
+- Covers the focused Step 11 extraction regression cases with automated tests.
+- Verifies success and fallback behavior for structured-data restaurant pages, directory pages, generic pages, malformed JSON-LD, partial candidates, metadata-based address extraction, low-confidence cuisine, and limited-fetch Google Maps fallback.
+- Locks in the validated Step 11 requirement that weak pages should fall back cleanly and that missing data is preferred over incorrect data.
 
 ### `lib/utils.ts`
 - Provides a minimal shared helper for joining CSS class names in reusable components.
@@ -391,6 +459,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Step 8 adds the first complete saved-list experience for the current user.
 - Step 9 adds the first saved-record edit flow.
 - Step 10 adds the first URL-intake and source-review entry into the future extraction flow.
+- Step 11 adds the first bounded server-side extraction flow and review result layer on top of the Step 10 intake path.
 - The V1 restaurant schema is intentionally small and centered on one `restaurants` table.
 - `source_url` lives directly on the `restaurants` table in V1.
 - Coordinates are optional by design so restaurants can still be saved without map placement.
@@ -406,8 +475,12 @@ These are starter static assets from the base app scaffold. They are not product
 - Step 9 preserves owner-only editing through the existing Supabase RLS model.
 - Step 9 redirects successful updates back to `/restaurants` with a short success message, while keeping validation and update errors on the edit page.
 - Step 10 reuses the same generic first-valid-URL extraction logic for direct URLs and longer sharing text instead of introducing source-specific parsing.
-- Step 10 stops at URL intake and source review only; it does not fetch source pages, infer cuisine, generate restaurant candidates, or extract restaurant fields yet.
-- A future extraction step should attempt to infer cuisine from source content when possible, but inferred cuisine must remain editable and should stay blank when confidence is low.
+- Step 11 adds page-type detection, structured-data-first extraction, strict field validation, field-level evidence and confidence, candidate acceptance rules, development-only diagnostics, and focused extraction regression tests.
+- Step 11 prefers missing data over incorrect data and never accepts large raw page-text blocks as restaurant fields.
+- Step 11 never auto-saves extracted results and always routes accepted fields back through the existing manual completion flow.
+- The planning documents now define a China-first direction where 高德地图 / Amap is the primary future V1 map, POI, and geocoding provider.
+- The planning documents now define the source stance as: 高德 links and share text are official V1 sources; 大众点评, 小红书, and 抖音 are best-effort; 百度地图 is secondary input only; Google Maps is optional overseas support.
+- A future extraction step may expand candidate editing and multi-candidate confirmation, but inferred cuisine must remain editable and should stay blank when confidence is low.
 
 ## Restaurants Table Schema
 
@@ -488,11 +561,11 @@ These are starter static assets from the base app scaffold. They are not product
 ### Protected Placeholder Pages
 - `/dashboard` acts as the signed-in overview page
 - `/restaurants/new` is now the Step 10 add page with both source intake and manual-create paths
-- `/restaurants/review` is now the Step 10 source review page
+- `/restaurants/review` is now the Step 11 source review and extraction page
 - `/restaurants` is now the real Step 8 saved restaurant list page
 - `/restaurants/[id]/edit` is now the real Step 9 saved-record edit page
-- `/map` is the placeholder for the future map page
-- These pages are navigable now, with source intake, source review, manual creation, the saved list, and saved-record editing in place while map and Step 11+ flows remain for later steps
+- `/map` is the placeholder for the future Amap-based map page
+- These pages are navigable now, with source intake, extraction review, manual creation, the saved list, and saved-record editing in place while Step 12+ confirmation editing, geocoding, and map integration remain for later steps
 
 ### Visual Direction Now In Use
 - mobile-first layouts, closer to a mobile web app than a desktop-first site
@@ -506,9 +579,10 @@ These are starter static assets from the base app scaffold. They are not product
 - The app is still intentionally narrow in scope beyond setup, auth, and basic restaurant creation.
 - The restaurant create flow, Step 10 source intake flow, and Step 9 edit flow exist, but there is still no delete flow.
 - `/restaurants` shows the full saved-list experience, but it does not yet support deleting, filtering, or pagination.
-- There is no restaurant-information extraction yet beyond extracting the first valid source URL from pasted text.
-- There is no map integration.
+- Step 11 extraction exists, but there is still no Step 12 extracted-candidate editing screen or Step 13 multi-candidate extraction flow yet.
+- There is no map integration yet.
+- There is no 高德地图 / Amap integration yet; the China-first provider decision is documented, but map, POI, and geocoding implementation still belongs to later steps.
 - There is no geocoding or coordinate input in the user-facing create flow yet.
 - There is no multilingual switching yet, only Chinese-first copy with future English support planned.
 - Supabase setup depends on the user manually creating a Supabase project and filling `.env.local`.
-- Step 10 now covers URL intake and source review only; Step 11 page fetching and extraction work has not been added yet.
+- The current extraction path remains intentionally conservative: unsupported or weak pages fall back instead of forcing questionable field values.

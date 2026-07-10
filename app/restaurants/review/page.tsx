@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ExtractionPreviewCard } from "@/components/extraction-preview-card";
 import { PlaceholderCard } from "@/components/placeholder-card";
 import { SourceReviewCard } from "@/components/source-review-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
+import { extractRestaurantDraftFromSource } from "@/lib/restaurants/source-extraction";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 
 type RestaurantReviewPageProps = {
@@ -15,6 +18,7 @@ type RestaurantReviewPageProps = {
 export default async function RestaurantReviewPage({
   searchParams,
 }: RestaurantReviewPageProps) {
+  noStore();
   const user = await requireAuthenticatedUser();
   const params = (await searchParams) ?? {};
   const sourceUrl = params.source_url?.trim();
@@ -28,12 +32,14 @@ export default async function RestaurantReviewPage({
     );
   }
 
+  const extractionResult = await extractRestaurantDraftFromSource(normalizedSourceUrl);
+
   return (
     <AppShell
       currentPath="/restaurants/new"
-      eyebrow="来源确认"
-      title="先把来源入口接进来，再进入后续提取流程"
-      description="当前这一步只负责确认和展示来源链接本身，让 URL 保存链路先完整跑通。真正的页面抓取、候选生成与字段提取会留到 Step 11。"
+      eyebrow="来源提取"
+      title="先生成一个草稿，再交给你确认和补全"
+      description="当前这一步会用简单、受限、best-effort 的服务端提取读取公开页面信息。提取出的内容不会自动保存，信号不足时会直接回退到手动补全。"
       userEmail={user.email}
       userId={user.userId}
       actions={
@@ -54,24 +60,27 @@ export default async function RestaurantReviewPage({
       }
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <SourceReviewCard sourceUrl={normalizedSourceUrl} />
+        <div className="space-y-4">
+          <SourceReviewCard sourceUrl={normalizedSourceUrl} />
+          <ExtractionPreviewCard result={extractionResult} />
+        </div>
 
         <div className="space-y-4">
           <PlaceholderCard
             title="这一步现在已经做到什么"
-            description="Step 10 的目标不是提取餐厅信息，而是把来源输入、链接校验和提取流程入口先接好。"
+            description="Step 11 已经接入了受限抓取、元数据读取和正文文本解析，但仍保持 V1 的轻量边界。"
             items={[
-              "支持直接 URL，也支持整段小红书 / 抖音分享文案。",
-              "会提取并标准化其中第一个有效的 http 或 https 链接。",
-              "当前不会抓取来源页面，也不会推断餐厅字段。",
+              "官方支持普通公开网页和 Google Maps。",
+              "小红书 / 抖音只做 best-effort，不会接入定制抓取系统。",
+              "提取结果不会直接保存，仍然需要进入手动表单确认。",
             ]}
           />
           <PlaceholderCard
-            title="下一步会接入什么"
-            description="真正的来源抓取、候选餐厅生成和后续确认编辑，会在 Step 11 再接上。"
+            title="这一步还没有做什么"
+            description="为了不越过 Step 12，当前页面还只是生成草稿或回退到手动补全，不会直接在这里完成最终编辑保存。"
             items={[
-              "不会提前获取网页内容。",
-              "不会提前推断名称、城市、地址或菜系。",
+              "不会自动保存任何提取结果。",
+              "不会提前做多餐厅候选列表。",
               "不会提前进入地理编码或地图流程。",
             ]}
           />
