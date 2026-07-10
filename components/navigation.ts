@@ -22,7 +22,7 @@ export const appNavigation: AppNavigationItem[] = [
     href: "/restaurants",
     label: "收藏列表",
     shortLabel: "收藏",
-    description: "用最小结果视图确认刚刚保存的记录已经入库。",
+    description: "查看当前账号已保存的餐厅列表，并保留刚保存成功的确认状态。",
   },
   {
     href: "/map",

@@ -21,7 +21,7 @@ export default async function DashboardPage({
       currentPath="/dashboard"
       eyebrow="已登录主页面"
       title="欢迎回来，主导航已经准备好"
-      description="你现在已经可以手动保存餐厅，并通过主导航在总览、添加页、最小结果页和地图页之间切换。这里会继续作为已登录用户的主入口。"
+      description="你现在已经可以手动保存餐厅，并通过主导航在总览、添加页、收藏列表和地图页之间切换。这里会继续作为已登录用户的主入口。"
       userEmail={user.email}
       userId={user.userId}
       message={params.message}
@@ -91,10 +91,10 @@ export default async function DashboardPage({
         <div className="space-y-4">
           <PlaceholderCard
             title="接下来可进入的三个页面"
-            description="现在可以直接进入手动添加页完成保存；收藏页则会用最小结果展示帮助你确认记录已经写入。"
+            description="现在可以直接进入手动添加页完成保存；收藏页已经升级为完整的 Step 8 列表体验。"
             items={[
               "添加餐厅：已经接入 Step 7 的手动录入表单。",
-              "收藏列表：当前只展示最基础的保存结果确认。",
+              "收藏列表：展示当前账号已保存的餐厅记录。",
               "地图视图：用于承接后续的地图与位置展示。",
             ]}
           />

@@ -15,6 +15,8 @@ Step 6 is complete and has been validated.
 
 Step 7 is complete and has been validated.
 
+Step 8 is complete and has been validated.
+
 ## Completed In Step 1
 - Initialized the repository with Git version control.
 - Created a single Next.js app in the project root using the App Router.
@@ -104,6 +106,19 @@ Step 7 is complete and has been validated.
 - Added a minimal `/restaurants` confirmation page that shows the current user's saved restaurant cards and highlights the just-created record.
 - Kept Step 7 intentionally smaller than Step 8 by not adding edit, delete, filters, or a full saved-list experience.
 
+## Completed In Step 8
+- Upgraded `/restaurants` from the Step 7 minimal confirmation screen into the full Step 8 saved restaurant list page.
+- Kept the list scoped to the current signed-in user through the existing owner-only RLS rules.
+- Added a reusable `restaurant-list.tsx` component to render saved-list summary metrics and the full list body.
+- Added a reusable `restaurant-list-card.tsx` component to display each restaurant in the mobile-first card layout.
+- Expanded the saved-list query so it now returns the current user's full restaurant list ordered by newest first, instead of the earlier limited confirmation view.
+- Kept the successful-save confirmation message behavior after redirects from the Step 7 create flow.
+- Kept the newly-created restaurant highlight behavior by using the `created` query parameter on `/restaurants`.
+- Added clear fallback display for missing optional fields such as `address`, `cuisine`, and `note` using `暂未填写`.
+- Kept core restaurant information easy to scan, including name, city, privacy, save date, and source link.
+- Preserved the validated mobile-first, orange-accent, Simplified-Chinese visual direction while expanding the saved-list experience.
+- Kept Step 8 intentionally focused on listing only, without starting edit, delete, map, geocoding, or extraction-review work.
+
 ## Current App State
 - The project is one Next.js codebase.
 - The home page is still a lightweight placeholder shell.
@@ -116,7 +131,7 @@ Step 7 is complete and has been validated.
 - Owner-only RLS protection is now in place for `public.restaurants`.
 - A mobile-first public and protected page shell is now in place.
 - Signed-in users can now manually create restaurant records at `/restaurants/new`.
-- `/restaurants` now provides a minimal save-confirmation view for the current user's records.
+- `/restaurants` now provides the full saved restaurant list experience for the current user's records.
 - The map page remains a protected placeholder.
 - No edit, delete, geocoding, extraction review, or map rendering logic has been added yet.
 - `privacy` remains a stored flag only and does not create cross-user visibility in V1.
@@ -212,12 +227,30 @@ Validation outcome:
 - Invalid sharing text without a URL is rejected with clear Simplified Chinese validation feedback while preserving the pasted input.
 - After a successful save, `/restaurants` provides a minimal confirmation view without prematurely starting Step 8 list work.
 
+## Step 8 Validation
+Validated checks completed:
+- `npm run build`
+- `npm run lint`
+- Manual validation with several saved restaurants
+- Manual validation with records that omit optional fields
+- Manual validation in mobile-sized browser window
+- Manual validation in desktop browser window
+
+Validation outcome:
+- A signed-in user can open `/restaurants` and see their saved restaurant list in newest-first order.
+- The list only shows records accessible to the current user through the existing RLS rules.
+- The successful-save confirmation banner still appears after a create redirect.
+- The newly-created restaurant is still visually highlighted after save.
+- Missing optional fields are handled cleanly without breaking the card layout.
+- The saved-list page remains mobile-first and usable on larger desktop widths.
+
 ## Docs-Only Product Direction Update
 Documented but not yet implemented in UI:
 - mobile-first product direction
 - vibrant orange accent near `#FF5B00`
 - Simplified Chinese as the default language
 - English as a later secondary language option
+- future extraction should attempt to infer cuisine when possible, keep it editable, and leave it blank when confidence is low
 
 ## Notes
 - The current `npm run lint` command uses TypeScript static checks.
@@ -228,4 +261,5 @@ Documented but not yet implemented in UI:
 - Owner-only RLS policies are now in place for `public.restaurants`.
 - Step 7 manual restaurant creation is now in place and validated.
 - The source input now supports generic share-text URL extraction without starting restaurant-information extraction.
-- Step 8 saved-list work still remains for later.
+- Step 8 saved-list work is now in place and validated.
+- A future extraction step should try to infer cuisine from source content, but it must remain editable and should stay blank when confidence is low.

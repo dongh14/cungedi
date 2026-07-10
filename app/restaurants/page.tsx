@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { PlaceholderCard } from "@/components/placeholder-card";
+import { RestaurantList } from "@/components/restaurant-list";
 import { SurfaceCard } from "@/components/surface-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
 import { getCurrentUserRestaurants } from "@/lib/restaurants/queries";
@@ -18,13 +19,14 @@ export default async function RestaurantsPage({
   const user = await requireAuthenticatedUser();
   const params = (await searchParams) ?? {};
   const { restaurants, error } = await getCurrentUserRestaurants();
+  const createdRestaurantId = params.created ? Number(params.created) : null;
 
   return (
     <AppShell
       currentPath="/restaurants"
-      eyebrow="已保存结果"
-      title="这里会先帮你确认餐厅已经保存成功"
-      description="为了完成 Step 7，这个页面现在会展示当前用户最基础的已保存结果，方便你确认手动录入是否已经写入 Supabase。完整列表体验仍留到 Step 8。"
+      eyebrow="已保存餐厅"
+      title="你的旅行餐厅清单都在这里"
+      description="这里会展示当前账号在现有 RLS 规则下可访问的全部餐厅记录。你可以快速确认刚保存的内容，也可以继续回看之前收藏过的地点。"
       userEmail={user.email}
       userId={user.userId}
       message={params.message}
@@ -46,111 +48,67 @@ export default async function RestaurantsPage({
       }
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <SurfaceCard className="p-5 sm:p-6">
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-                当前结果
-              </p>
-              <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-                你的餐厅记录
-              </h2>
-              <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-                这里只展示最基础的结果卡片，用来确认 Step 7 的手动保存已经成功，而不是 Step 8 的完整列表体验。
-              </p>
+        <div className="space-y-4">
+          <SurfaceCard className="p-5 sm:p-6">
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
+                  Saved List
+                </p>
+                <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
+                  已保存餐厅列表
+                </h2>
+                <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
+                  核心信息会优先展示出来。像地址、菜系、备注这类可选字段如果暂时没有填写，也会用清晰但不打扰的方式呈现。
+                </p>
+              </div>
+
+              {error ? (
+                <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm leading-7 text-rose-700">
+                  读取已保存餐厅时出现问题：{error.message}
+                </div>
+              ) : null}
+
+              {!error && restaurants.length === 0 ? (
+                <div className="rounded-[24px] border border-dashed border-[var(--border-soft)] bg-[var(--surface-muted)] p-5 text-sm leading-7 text-[var(--ink-soft)]">
+                  你还没有保存任何餐厅。先去“添加餐厅”录入两三条记录，再回到这里查看完整列表效果。
+                </div>
+              ) : null}
             </div>
+          </SurfaceCard>
 
-            {error ? (
-              <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm leading-7 text-rose-700">
-                读取已保存餐厅时出现问题：{error.message}
-              </div>
-            ) : null}
-
-            {!error && restaurants.length === 0 ? (
-              <div className="rounded-[24px] border border-dashed border-[var(--border-soft)] bg-[var(--surface-muted)] p-5 text-sm leading-7 text-[var(--ink-soft)]">
-                你还没有保存任何餐厅。可以先去“添加餐厅”页面录入一条记录。
-              </div>
-            ) : null}
-
-            {!error && restaurants.length > 0 ? (
-              <div className="space-y-3">
-                {restaurants.map((restaurant) => {
-                  const isNewlyCreated = params.created === String(restaurant.id);
-
-                  return (
-                    <article
-                      key={restaurant.id}
-                      className={`rounded-[24px] border p-4 ${
-                        isNewlyCreated
-                          ? "border-[var(--accent)] bg-[var(--accent-soft)]"
-                          : "border-[var(--border-soft)] bg-[var(--surface-muted)]"
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <h3 className="text-base font-semibold text-[var(--ink-strong)]">
-                            {restaurant.name}
-                          </h3>
-                          <p className="mt-1 text-sm text-[var(--ink-soft)]">
-                            {restaurant.city}
-                            {restaurant.cuisine ? ` · ${restaurant.cuisine}` : ""}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-                          {restaurant.privacy === "private" ? "仅自己可见" : "标记为公开"}
-                        </span>
-                      </div>
-
-                      {restaurant.address ? (
-                        <p className="mt-3 text-sm leading-7 text-[var(--ink-soft)]">
-                          地址：{restaurant.address}
-                        </p>
-                      ) : null}
-
-                      {restaurant.note ? (
-                        <p className="mt-3 text-sm leading-7 text-[var(--ink-soft)]">
-                          备注：{restaurant.note}
-                        </p>
-                      ) : null}
-
-                      <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                        <a
-                          href={restaurant.source_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-medium text-[var(--ink-strong)] underline underline-offset-4"
-                        >
-                          打开来源链接
-                        </a>
-                        {isNewlyCreated ? (
-                          <span className="font-medium text-[var(--accent-deep)]">
-                            这条是刚刚保存的记录
-                          </span>
-                        ) : null}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
-        </SurfaceCard>
+          {!error && restaurants.length > 0 ? (
+            <RestaurantList
+              restaurants={restaurants}
+              createdRestaurantId={Number.isNaN(createdRestaurantId) ? null : createdRestaurantId}
+            />
+          ) : null}
+        </div>
 
         <div className="space-y-4">
           <PlaceholderCard
-            title="为什么这里只做最小展示"
-            description="因为当前目标只是确认 Step 7 的手动保存路径已经打通，还不打算提前开始 Step 8 的完整列表体验。"
+            title="这一步现在已经是完整列表页"
+            description="Step 8 的重点是让你稳定查看自己保存过的餐厅，而不是只确认单次保存是否成功。"
             items={[
-              "会显示当前用户自己的餐厅记录。",
-              "会高亮刚刚保存成功的那一条。",
-              "不会在这里加入编辑、删除、筛选或分页。",
+              "只显示当前登录用户在现有 RLS 下可访问的餐厅。",
+              "继续保留刚保存成功后的顶部提示和高亮状态。",
+              "这一步仍然不会加入编辑、删除、地图或提取流程。",
             ]}
           />
           <PlaceholderCard
-            title="下一步你可以做什么"
-            description="继续添加一条完整记录、一条仅必填字段记录，或者用中文内容测试输入支持。"
+            title="建议你这样验证"
+            description="最适合的手动测试方式，是准备几条不同完整度的餐厅记录，再从移动端尺寸和桌面尺寸分别检查展示效果。"
+            items={[
+              "至少准备一条完整记录。",
+              "至少准备一条缺少地址、菜系或备注的记录。",
+              "至少准备一条使用中文名称和中文备注的记录。",
+            ]}
+          />
+          <PlaceholderCard
+            title="继续添加餐厅"
+            description="如果你想马上验证列表变化，可以继续新增记录，然后返回这里确认排序和高亮效果。"
             actionHref="/restaurants/new"
-            actionLabel="继续添加餐厅"
+            actionLabel="去添加餐厅"
           />
         </div>
       </div>

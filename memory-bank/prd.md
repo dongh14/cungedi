@@ -70,6 +70,10 @@ A user can decide whether a saved restaurant is private or public.
 ### Confirmation And Editing
 - After extraction, the user reviews each restaurant candidate before saving.
 - User can edit restaurant fields manually.
+- The extraction flow should attempt to infer cuisine from the pasted source content when possible.
+- Any inferred cuisine must remain editable by the user before saving.
+- If cuisine cannot be inferred confidently, the system should leave it blank rather than guessing.
+- Manual cuisine entry must always remain available.
 - User can bulk-select and save multiple restaurant candidates from a single source.
 - User can save incomplete entries if map location data is unavailable.
 
@@ -134,6 +138,10 @@ Restaurant fields must support Chinese text input in V1.
 - The system must support one-to-many extraction from a single source URL.
 - The system must allow users to save multiple restaurants from a single source flow.
 - The system must allow manual edits to extracted restaurant details.
+- The system should attempt to infer cuisine from source content during extraction when confidence is reasonable.
+- The system must let the user edit or replace any inferred cuisine value before saving.
+- The system should leave cuisine blank when it cannot infer it confidently.
+- The system must continue to allow manual cuisine entry even when extraction is used.
 - The system must allow saving a restaurant without confirmed map coordinates.
 - The system must store the original source URL for each restaurant.
 - The system must support optional personal notes.

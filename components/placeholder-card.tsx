@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { SurfaceCard } from "@/components/surface-card";
 
 type PlaceholderCardProps = {
+  eyebrow?: string;
   title: string;
   description: string;
   items?: string[];
@@ -12,6 +13,7 @@ type PlaceholderCardProps = {
 };
 
 export function PlaceholderCard({
+  eyebrow = "当前说明",
   title,
   description,
   items,
@@ -23,7 +25,7 @@ export function PlaceholderCard({
     <SurfaceCard className="p-5 sm:p-6">
       <div className="space-y-4">
         <div className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-          Step 6
+          {eyebrow}
         </div>
         <div className="space-y-2">
           <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">

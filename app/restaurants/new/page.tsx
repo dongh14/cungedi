@@ -31,7 +31,7 @@ export default async function NewRestaurantPage({
             href="/restaurants"
             className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
-            查看已保存结果
+            查看已保存列表
           </Link>
           <Link
             href="/map"

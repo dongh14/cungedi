@@ -244,6 +244,7 @@ Test you can run:
 Goal:
 - Fetch public page metadata and visible text from a pasted URL
 - Return draft restaurant candidates
+- Attempt to infer cuisine from the pasted source content when possible
 - Keep the logic simple and best-effort only
 
 Why this step matters:
@@ -251,11 +252,17 @@ Why this step matters:
 
 Implementation rule:
 - Use simple server-side URL fetch plus metadata and visible text parsing
+- Treat cuisine inference as best-effort only
+- If cuisine cannot be inferred confidently, leave it blank rather than guessing
+- Any inferred cuisine must remain editable by the user before save
+- Manual cuisine entry must still be available in the extraction confirmation flow
 - Do not add browser automation, login-required access, or source-specific scraping systems
 - Expect stronger results from ordinary public web pages and Google Maps than from 小红书 or 抖音
 
 Done when:
 - A pasted URL returns at least one draft candidate for a straightforward page
+- The draft candidate may include cuisine when the source content supports a reasonable inference
+- The cuisine field remains editable and can also remain blank
 - Extraction failures or weak results can fall back to manual entry with `source_url` prefilled
 
 Test you can run:
