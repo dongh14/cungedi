@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { RestaurantExtractionResult } from "@/lib/restaurants/extraction-types";
+import { getSubtypeFieldConfig } from "@/lib/restaurants/constants";
 import { SurfaceCard } from "@/components/surface-card";
 
 type ExtractionPreviewCardProps = {
@@ -78,7 +79,12 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
   if (result.status === "success" && cuisineField?.accepted && cuisineField.value) {
     acceptedFields.push({
       key: "cuisine",
-      label: extractedCategory === "住宿" ? "住宿类型" : "类型推断（美食）",
+      label:
+        extractedCategory === "美食"
+          ? "类型推断（美食）"
+          : extractedCategory
+            ? getSubtypeFieldConfig(extractedCategory).label
+            : "类型细分",
       value: cuisineField.value,
       evidence: cuisineField.evidenceSource ?? "未记录",
     });
@@ -99,8 +105,10 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
               {result.status === "success"
                 ? extractedCategory === "住宿"
                   ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。住宿自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
+                  : extractedCategory === "景点"
+                    ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。景点自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
                   : "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。自动提取目前仍以餐厅类页面最稳妥，你仍然需要在下方确认、补全并主动点击保存。"
-                : "当前来源没有返回足够稳定的美食或住宿类单地点信息，系统不会强行猜测。你可以保留来源链接，直接进入手动表单继续保存其他地点。"}
+                : "当前来源没有返回足够稳定的美食、住宿或景点类单地点信息，系统不会强行猜测。你可以保留来源链接，直接进入手动表单继续保存其他地点。"}
             </p>
           </div>
         </div>

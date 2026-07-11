@@ -31,6 +31,8 @@ The first small, reversible `存个地` generalization migration step is now com
 
 The second small, reversible `存个地` extraction migration step is now complete and has been validated without starting Step 13.
 
+The third small, reversible `存个地` extraction migration step is now complete and has been validated without starting Step 13.
+
 ## Validated Reversible Generalization Step 1
 
 ### Database
@@ -84,7 +86,7 @@ The second small, reversible `存个地` extraction migration step is now comple
 - No route rename has started.
 - No table rename has started.
 - No database column rename has started.
-- No category-aware extraction beyond `住宿` has started.
+- No category-aware extraction beyond `景点` has started.
 - `存个地` generalization is proceeding in small reversible migration steps.
 
 ## Validated Reversible Generalization Step 3A
@@ -120,7 +122,46 @@ The second small, reversible `存个地` extraction migration step is now comple
 - Resort subtype inference is validated through focused fixtures even when a real resort site returns `403`.
 
 ### Product State
-- `购物`, `玩乐`, `景点`, and `其他` category-aware extraction have not started.
+- `购物`, `玩乐`, and `其他` category-aware extraction have not started.
+- 高德 integration has not started.
+- Step 13 has not started.
+- No route rename has started.
+- No table rename has started.
+- No module rename has started.
+- No TypeScript type rename has started.
+- No database column rename has started.
+
+## Validated Reversible Generalization Step 3B
+
+### Extraction Scope
+- Category-aware extraction now supports `景点` alongside the existing `美食` and `住宿` paths.
+- Existing `美食` and `住宿` extraction behavior remains unchanged.
+- `景点` extraction now requires strong structured-data evidence such as:
+  - `TouristAttraction`
+  - `Museum`
+  - `Park`
+  - `LandmarksOrHistoricalBuildings`
+  - `Zoo`
+  - `Aquarium`
+- Generic `Place` or `LocalBusiness` alone is insufficient attraction evidence.
+- Only single-place pages are accepted for `景点`.
+- Attraction directories, travel blogs, and mixed-category pages now fall back to manual completion.
+- Partial `景点` candidates are now allowed when the name is reliable even if `city` or `address` are missing.
+
+### Review And Save Behavior
+- Subtype is inferred conservatively and is still stored temporarily through the existing `cuisine` field.
+- Successful `景点` candidates now default the review form category to `景点`.
+- All extracted fields remain editable before save.
+- Nothing auto-saves.
+- Successful saves still redirect to `/restaurants`.
+- Saved `景点` category and subtype editing remain functional in the existing saved-record edit flow.
+
+### Validation
+- Focused extraction tests now pass `47/47`.
+- Real-world single-attraction extraction, directory fallback, review, save, list, and edit flow were manually validated.
+
+### Product State
+- `购物`, `玩乐`, and `其他` category-aware extraction have not started.
 - 高德 integration has not started.
 - Step 13 has not started.
 - No route rename has started.
@@ -306,6 +347,19 @@ The second small, reversible `存个地` extraction migration step is now comple
 - Confirmed real-world timeout and `403` responses still fall back gracefully.
 - Added focused Step 3A extraction and review-form coverage and confirmed the focused test set passes `35/35`.
 - Validated manual hotel extraction, review, save, list, and edit flow end to end.
+
+## Completed In Step 3B
+- Added the second small category-aware extraction expansion without weakening the existing `美食` or `住宿` paths.
+- Added conservative `景点` extraction support on top of the existing shared fetch, parsing, diagnostics, validation, review, and confirmation flow.
+- Added strong attraction structured-data recognition for `TouristAttraction`, `Museum`, `Park`, `LandmarksOrHistoricalBuildings`, `Zoo`, and `Aquarium`.
+- Kept generic `Place` and `LocalBusiness` insufficient for attraction acceptance.
+- Added conservative attraction subtype inference while still storing the value through the existing `cuisine` field.
+- Allowed partial `景点` candidates when the page is a single place, the name is reliable, and strong attraction evidence exists.
+- Added fallback behavior for attraction directory pages, travel blogs, and mixed-category pages.
+- Updated the review flow so successful attraction candidates default to category `景点` without silently overriding user-selected categories.
+- Kept all fields editable before explicit save and kept the existing redirect target `/restaurants`.
+- Added focused Step 3B extraction and review-form coverage and confirmed the focused test set passes `47/47`.
+- Validated real-world single-attraction extraction, directory fallback, review, save, list, and edit flow end to end.
 
 ## Current App State
 - The project is one Next.js codebase.

@@ -43,6 +43,7 @@ export const attractionSubtypeSuggestions = [
   "山景",
   "寺庙",
   "动物园",
+  "水族馆",
 ] as const;
 
 export const lodgingSubtypeSuggestions = [

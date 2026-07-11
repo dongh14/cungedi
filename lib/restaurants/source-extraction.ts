@@ -1,4 +1,5 @@
 import { inferAccommodationSubtype, hasAccommodationStructuredType } from "./accommodation-inference";
+import { inferAttractionSubtype, hasAttractionStructuredType } from "./attraction-inference";
 import { inferCuisineFromSourceContent } from "./cuisine-inference";
 import { defaultRestaurantCategory } from "./constants";
 import {
@@ -36,7 +37,7 @@ type FieldProposal = {
 };
 
 type CandidateFieldKey = "name" | "city" | "address" | "cuisine";
-type ExtractionCategory = "美食" | "住宿";
+type ExtractionCategory = "美食" | "住宿" | "景点";
 
 const relevantStructuredTypes = new Set([
   "restaurant",
@@ -53,6 +54,12 @@ const relevantStructuredTypes = new Set([
   "motel",
   "campground",
   "hostel",
+  "touristattraction",
+  "museum",
+  "park",
+  "landmarksorhistoricalbuildings",
+  "zoo",
+  "aquarium",
 ]);
 const restaurantStructuredTypes = new Set([
   "restaurant",
@@ -88,6 +95,10 @@ const accommodationListPattern =
   /\b(hotels|resorts|lodgings|accommodations|hostels|our hotels|our resorts|all hotels|find a hotel|hotel directory)\b/i;
 const accommodationKeywordPattern =
   /\b(hotel|hostel|motel|resort|lodging|campground|homestay|guesthouse|inn|suites?|apartment|villa)\b/i;
+const attractionListPattern =
+  /\b(attractions|things to do|places to visit|our parks|our museums|museum guide|park guide|visitor guide|exhibitions)\b/i;
+const attractionKeywordPattern =
+  /\b(museum|park|zoo|aquarium|temple|shrine|landmark|attraction|historic site|old town|beach|mountain)\b/i;
 
 const knownCities = [
   { city: "上海", patterns: ["上海", "上海市", "shanghai"] },
@@ -160,6 +171,10 @@ function restaurantStructuredNodes(nodes: StructuredDataNode[]) {
 
 function accommodationStructuredNodes(nodes: StructuredDataNode[]) {
   return nodes.filter(hasAccommodationStructuredType);
+}
+
+function attractionStructuredNodes(nodes: StructuredDataNode[]) {
+  return nodes.filter(hasAttractionStructuredType);
 }
 
 function extractCity(value: string | null) {
@@ -262,6 +277,19 @@ function pickAccommodationStructuredNode(nodes: StructuredDataNode[]) {
   );
 }
 
+function pickAttractionStructuredNode(nodes: StructuredDataNode[]) {
+  return (
+    nodes.find(
+      (node) =>
+        hasAttractionStructuredType(node) &&
+        Boolean(node.name) &&
+        (Boolean(node.address?.streetAddress) || Boolean(node.address?.addressLocality)),
+    ) ??
+    nodes.find((node) => hasAttractionStructuredType(node) && Boolean(node.name)) ??
+    null
+  );
+}
+
 function hasStrongRestaurantStructuredEvidence(nodes: StructuredDataNode[]) {
   return restaurantStructuredNodes(nodes).some(
     (node) =>
@@ -274,12 +302,26 @@ function hasStrongAccommodationStructuredEvidence(nodes: StructuredDataNode[]) {
   return accommodationStructuredNodes(nodes).some((node) => Boolean(node.name));
 }
 
+function hasStrongAttractionStructuredEvidence(nodes: StructuredDataNode[]) {
+  return attractionStructuredNodes(nodes).some((node) => Boolean(node.name));
+}
+
 function determineExtractionCategory(nodes: StructuredDataNode[]) {
   const hasRestaurantEvidence = hasStrongRestaurantStructuredEvidence(nodes);
   const hasAccommodationEvidence = hasStrongAccommodationStructuredEvidence(nodes);
+  const hasAttractionEvidence = hasStrongAttractionStructuredEvidence(nodes);
+  const strongCategoryCount = [
+    hasRestaurantEvidence,
+    hasAccommodationEvidence,
+    hasAttractionEvidence,
+  ].filter(Boolean).length;
 
-  if (hasRestaurantEvidence && hasAccommodationEvidence) {
+  if (strongCategoryCount >= 2) {
     return "ambiguous" as const;
+  }
+
+  if (hasAttractionEvidence) {
+    return "景点" as const;
   }
 
   if (hasAccommodationEvidence) {
@@ -314,6 +356,24 @@ function looksLikeAccommodationWithoutStrongStructuredData(input: {
     .join(" ");
 
   return accommodationKeywordPattern.test(headlineText);
+}
+
+function looksLikeAttractionWithoutStrongStructuredData(input: {
+  title: string | null;
+  description: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  structuredNodes: StructuredDataNode[];
+}) {
+  if (!hasOnlyGenericLocalBusiness(input.structuredNodes)) {
+    return false;
+  }
+
+  const headlineText = [input.ogTitle, input.title, input.ogDescription, input.description]
+    .filter(Boolean)
+    .join(" ");
+
+  return attractionKeywordPattern.test(headlineText);
 }
 
 function detectRestaurantSpecificHeuristic(input: {
@@ -398,6 +458,43 @@ function determinePageType(input: {
     }
 
     if (/\b(home|about|contact|newsletter|privacy|offers)\b/i.test(combinedHeadline)) {
+      return "generic_page" satisfies RestaurantPageType;
+    }
+
+    return "unknown" satisfies RestaurantPageType;
+  }
+
+  if (input.extractionCategory === "景点") {
+    const title = input.ogTitle ?? input.title ?? "";
+    const description = input.ogDescription ?? input.description ?? "";
+    const combinedHeadline = `${title} ${description}`.trim();
+    const attractionNodes = attractionStructuredNodes(input.structuredNodes);
+    const addressStructuredCount = attractionNodes.filter(
+      (node) => node.address?.streetAddress || node.address?.addressLocality,
+    ).length;
+    const locationSegmentCount = input.visibleTextSegments.filter((segment) =>
+      /\b(attractions|things to do|visitor guide|museum guide|park guide|our museums|our parks)\b/i.test(
+        segment,
+      ),
+    ).length;
+
+    if (
+      attractionNodes.length >= 2 ||
+      addressStructuredCount >= 2 ||
+      locationSegmentCount >= 2
+    ) {
+      return "restaurant_list" satisfies RestaurantPageType;
+    }
+
+    if (attractionListPattern.test(combinedHeadline) && attractionNodes.length !== 1) {
+      return "restaurant_list" satisfies RestaurantPageType;
+    }
+
+    if (attractionNodes.length === 1) {
+      return "single_restaurant" satisfies RestaurantPageType;
+    }
+
+    if (/\b(home|about|contact|newsletter|privacy|travel guide|blog|itinerary)\b/i.test(combinedHeadline)) {
       return "generic_page" satisfies RestaurantPageType;
     }
 
@@ -777,6 +874,21 @@ function findAccommodationSubtypeField(
   return evaluateProposals("cuisine", proposals, diagnostics, validateCuisine);
 }
 
+function findAttractionSubtypeField(
+  input: {
+    structuredNode: StructuredDataNode | null;
+    title: string | null;
+    description: string | null;
+    ogTitle: string | null;
+    ogDescription: string | null;
+  },
+  diagnostics: RestaurantExtractionDiagnostics,
+) {
+  const proposals = inferAttractionSubtype(input);
+
+  return evaluateProposals("cuisine", proposals, diagnostics, validateCuisine);
+}
+
 function buildRestaurantCandidate(
   input: {
     sourceUrl: string;
@@ -1010,6 +1122,110 @@ function buildAccommodationCandidate(
   };
 }
 
+function buildAttractionCandidate(
+  input: {
+    sourceUrl: string;
+    sourceKind: RestaurantSourceKind;
+    pageType: RestaurantPageType;
+    structuredNodes: StructuredDataNode[];
+    title: string | null;
+    description: string | null;
+    ogTitle: string | null;
+    ogDescription: string | null;
+    visibleTextSegments: string[];
+  },
+  diagnostics: RestaurantExtractionDiagnostics,
+) {
+  const structuredNode = pickAttractionStructuredNode(input.structuredNodes);
+  const name = findNameField(
+    {
+      sourceKind: input.sourceKind,
+      structuredNode,
+      title: input.title,
+      ogTitle: input.ogTitle,
+    },
+    diagnostics,
+  );
+  const address = findAddressField(
+    {
+      pageType: input.pageType,
+      structuredNode,
+      ogDescription: input.ogDescription,
+      description: input.description,
+      visibleTextSegments: input.visibleTextSegments,
+    },
+    diagnostics,
+  );
+  const city = findCityField(
+    {
+      structuredNode,
+      acceptedAddress: address,
+      ogDescription: input.ogDescription,
+      description: input.description,
+    },
+    diagnostics,
+  );
+  const cuisine = findAttractionSubtypeField(
+    {
+      structuredNode,
+      title: input.title,
+      description: input.description,
+      ogTitle: input.ogTitle,
+      ogDescription: input.ogDescription,
+    },
+    diagnostics,
+  );
+
+  const candidate: RestaurantExtractionCandidate = {
+    sourceUrl: input.sourceUrl,
+    category: "景点",
+    fields: {
+      name,
+      city,
+      address,
+      cuisine,
+    },
+  };
+
+  const hasStructuredAttractionEvidence = Boolean(
+    structuredNode &&
+      hasAttractionStructuredType(structuredNode) &&
+      structuredNode.name,
+  );
+  const acceptanceReasons: string[] = [];
+
+  if (candidate.fields.name.accepted) {
+    acceptanceReasons.push("地点名称通过了严格校验。");
+  }
+
+  if (hasStructuredAttractionEvidence) {
+    acceptanceReasons.push("页面存在明确的景点类结构化数据。");
+  }
+
+  if (address.accepted) {
+    acceptanceReasons.push("地址来源具备可接受的强地址证据。");
+  }
+
+  if (input.pageType === "single_restaurant") {
+    acceptanceReasons.push("页面类型判定为单地点页。");
+  }
+
+  const isAccepted =
+    input.pageType === "single_restaurant" &&
+    candidate.fields.name.accepted &&
+    hasStructuredAttractionEvidence;
+
+  diagnostics.finalDecision = isAccepted
+    ? "accepted_single_attraction_candidate"
+    : "fallback_weak_or_non_single_attraction_page";
+
+  return {
+    candidate,
+    acceptanceReasons,
+    isAccepted,
+  };
+}
+
 function emitDiagnosticsIfNeeded(diagnostics: RestaurantExtractionDiagnostics) {
   if (process.env.NODE_ENV !== "development") {
     return;
@@ -1029,15 +1245,27 @@ function getFallbackReason(input: {
   }
 
   if (input.pageType === "restaurant_list") {
-    return input.extractionCategory === "住宿"
-      ? "当前页面更像住宿目录或列表页，请先手动选择并补全单个地点。"
-      : "当前页面更像餐厅目录或位置索引页，请先手动选择并补全单个餐厅。";
+    if (input.extractionCategory === "住宿") {
+      return "当前页面更像住宿目录或列表页，请先手动选择并补全单个地点。";
+    }
+
+    if (input.extractionCategory === "景点") {
+      return "当前页面更像景点目录或列表页，请先手动选择并补全单个地点。";
+    }
+
+    return "当前页面更像餐厅目录或位置索引页，请先手动选择并补全单个餐厅。";
   }
 
   if (input.pageType === "generic_page") {
-    return input.extractionCategory === "住宿"
-      ? "当前页面更像通用页面，没有足够明确的单住宿地点信号，请先手动补全。"
-      : "当前页面更像通用页面，没有足够明确的单餐厅信号，请先手动补全。";
+    if (input.extractionCategory === "住宿") {
+      return "当前页面更像通用页面，没有足够明确的单住宿地点信号，请先手动补全。";
+    }
+
+    if (input.extractionCategory === "景点") {
+      return "当前页面更像通用页面，没有足够明确的单景点信号，请先手动补全。";
+    }
+
+    return "当前页面更像通用页面，没有足够明确的单餐厅信号，请先手动补全。";
   }
 
   if (input.sourceKind === "xiaohongshu" || input.sourceKind === "douyin") {
@@ -1167,6 +1395,45 @@ export async function extractRestaurantDraftFromSource(
     };
   }
 
+  if (
+    looksLikeAttractionWithoutStrongStructuredData({
+      title: documentContent.metadata.title,
+      description: documentContent.metadata.description,
+      ogTitle: documentContent.metadata.ogTitle,
+      ogDescription: documentContent.metadata.ogDescription,
+      structuredNodes,
+    })
+  ) {
+    const pageType = "unknown" satisfies RestaurantPageType;
+    const diagnostics = createDiagnostics({
+      sourceKind,
+      finalFetchedUrl: fetchResult.url,
+      httpStatus: fetchResult.status,
+      contentType: fetchResult.contentType,
+      pageType,
+      structuredNodes: documentContent.structuredData,
+    });
+    diagnostics.finalDecision = "fallback_weak_attraction_localbusiness_only";
+    emitDiagnosticsIfNeeded(diagnostics);
+
+    return {
+      status: "fallback",
+      sourceUrl,
+      sourceKind,
+      supportLevel,
+      pageType,
+      fetchedUrl: fetchResult.url,
+      httpStatus: fetchResult.status,
+      contentType: fetchResult.contentType,
+      reason: "当前页面看起来像景点，但只有过于泛化的 LocalBusiness 信号，系统不会强行猜测，请先手动补全。",
+      notes: [
+        "景点提取目前只接受 TouristAttraction、Museum、Park、LandmarksOrHistoricalBuildings、Zoo、Aquarium 等强结构化证据。",
+        "只有泛化商家类型时，当前步骤会直接回退到手动确认。",
+      ],
+      diagnostics: process.env.NODE_ENV === "development" ? diagnostics : undefined,
+    };
+  }
+
   const inferredCategory = determineExtractionCategory(structuredNodes);
 
   if (inferredCategory === "ambiguous") {
@@ -1191,10 +1458,10 @@ export async function extractRestaurantDraftFromSource(
       fetchedUrl: fetchResult.url,
       httpStatus: fetchResult.status,
       contentType: fetchResult.contentType,
-      reason: "当前来源同时出现了美食和住宿两类强结构化信号，系统不会静默改写分类，请先手动确认。",
+      reason: "当前来源同时出现了多类强结构化地点信号，系统不会静默改写分类，请先手动确认。",
       notes: [
         "当页面同时出现多类强地点信号时，当前步骤会优先回退到手动补全。",
-        "这样可以避免把住宿页面误判成美食，或把餐厅页面误判成住宿。",
+        "这样可以避免把景点、住宿或美食页面误判到错误分类。",
       ],
       diagnostics: process.env.NODE_ENV === "development" ? diagnostics : undefined,
     };
@@ -1234,7 +1501,22 @@ export async function extractRestaurantDraftFromSource(
           },
           diagnostics,
         )
-      : buildRestaurantCandidate(
+      : inferredCategory === "景点"
+        ? buildAttractionCandidate(
+            {
+              sourceUrl,
+              sourceKind,
+              pageType,
+              structuredNodes,
+              title: documentContent.metadata.title,
+              description: documentContent.metadata.description,
+              ogTitle: documentContent.metadata.ogTitle,
+              ogDescription: documentContent.metadata.ogDescription,
+              visibleTextSegments: documentContent.visibleTextSegments,
+            },
+            diagnostics,
+          )
+        : buildRestaurantCandidate(
           {
             sourceUrl,
             sourceKind,
@@ -1268,11 +1550,15 @@ export async function extractRestaurantDraftFromSource(
         baseMessage:
           inferredCategory === "住宿"
             ? "当前页面没有提供足够明确的单住宿地点信息，请先改为手动补全。"
+            : inferredCategory === "景点"
+              ? "当前页面没有提供足够明确的单景点信息，请先改为手动补全。"
             : "当前页面没有提供足够明确的单餐厅信息，请先改为手动补全。",
       }),
       notes: [
         inferredCategory === "住宿"
           ? "只有当页面被判定为单地点页，且地点名称与住宿结构化证据都通过门槛时，系统才会生成草稿。"
+          : inferredCategory === "景点"
+            ? "只有当页面被判定为单地点页，且地点名称与景点结构化证据都通过门槛时，系统才会生成草稿。"
           : "只有当页面被判定为单餐厅页，且餐厅名称与餐厅证据都通过门槛时，系统才会生成草稿。",
         "目录页、位置索引页、泛首页和弱信号页面会直接回退到手动补全。",
       ],
@@ -1302,9 +1588,13 @@ export async function extractRestaurantDraftFromSource(
       extraction.candidate.fields.cuisine.accepted
         ? extraction.candidate.category === "住宿"
           ? "住宿类型来自强结构化数据或明确的页面元数据。"
+          : extraction.candidate.category === "景点"
+            ? "景点类型来自强结构化数据或明确的页面元数据。"
           : "菜系来自结构化数据或清晰关键词证据。"
         : extraction.candidate.category === "住宿"
           ? "住宿类型信号不足时会保持为空。"
+          : extraction.candidate.category === "景点"
+            ? "景点类型信号不足时会保持为空。"
           : "菜系信号不足时会保持为空。",
     ],
     acceptanceReasons: extraction.acceptanceReasons,
