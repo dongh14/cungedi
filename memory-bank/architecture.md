@@ -1,7 +1,7 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12.
+This document describes the repository as it exists after validated Step 12 plus the first validated, reversible `存个地` generalization migration step.
 
 It does not include Step 13 or later architecture yet.
 
@@ -47,9 +47,10 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `components/navigation.ts`: shared navigation definitions and active-route helpers
 - `components/placeholder-card.tsx`: reusable content card for Step 6 placeholder pages
 - `components/public-shell.tsx`: public-page shell for home, auth, and setup pages
+- `components/category-field.tsx`: reusable category selector that keeps the selected category first and now renders the active subtype field directly below it
 - `components/restaurant-form-card.tsx`: Step 7 reusable restaurant create form card
-- `components/restaurant-form-fields.tsx`: Step 12 shared restaurant form fields used by manual create and extraction confirmation
-- `components/cuisine-field.tsx`: Step 12 reusable cuisine picker used by create, review confirmation, and saved-record edit forms
+- `components/restaurant-form-fields.tsx`: shared create/review form fields now used for manual create and Step 12 confirmation, including category-specific subtype behavior
+- `components/cuisine-field.tsx`: reusable subtype picker used by create, review confirmation, and saved-record edit forms while the database still stores the value in `cuisine`
 - `components/restaurant-list.tsx`: Step 8 reusable saved-list summary and list wrapper
 - `components/restaurant-list-card.tsx`: Step 8 reusable saved-restaurant card
 - `components/restaurant-edit-form-card.tsx`: Step 9 reusable restaurant edit form card
@@ -71,7 +72,7 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/utils.ts`: small class-name helper for reusable UI composition
 
 ### Restaurant Utilities
-- `lib/restaurants/constants.ts`: Step 7 cuisine and privacy option definitions for the restaurant form
+- `lib/restaurants/constants.ts`: shared category, subtype-suggestion, cuisine, and privacy definitions for the current restaurant-first place form
 - `lib/restaurants/types.ts`: shared TypeScript types for restaurant inserts and minimal list items
 - `lib/restaurants/queries.ts`: Step 8 and Step 9 user-scoped restaurant read helpers for the full saved list and edit route
 - `lib/restaurants/source-url.ts`: generic Step 7 source URL extraction utility for direct links and sharing text
@@ -85,12 +86,17 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/restaurants/cuisine-inference.ts`: Step 11 conservative cuisine inference helper with low-confidence blank behavior
 - `lib/restaurants/source-extraction.ts`: Step 11 orchestration for fetching, parsing, validation, candidate acceptance, diagnostics, and fallback decisions
 - `lib/restaurants/source-extraction.test.ts`: focused Step 11 regression tests for extraction behavior
-- `lib/restaurants/review-form.ts`: Step 12 helper for turning accepted extraction results plus URL overrides into editable confirmation-form values
-- `lib/restaurants/review-form.test.ts`: focused Step 12 tests for accepted-field prefills, user overrides, missing fields, and fallback-mode manual completion
+- `lib/restaurants/review-form.ts`: helper for turning accepted extraction results plus URL overrides into editable confirmation values, including default category `美食`
+- `lib/restaurants/review-form.test.ts`: focused tests for accepted-field prefills, category defaults, user overrides, missing fields, and fallback-mode manual completion
+- `lib/restaurants/record-payloads.ts`: shared insert and update payload builders that keep `category` threaded through current save flows while `cuisine` remains the temporary subtype storage column
+- `lib/restaurants/constants.test.ts`: focused tests for allowed categories, subtype field labels, suggestion sets, and subtype-category compatibility
+- `lib/restaurants/record-payloads.test.ts`: focused tests for category persistence in save and edit payloads
 
 ### Supabase Database Files
 - `supabase/migrations/20260709120000_create_restaurants_table.sql`: Step 4 migration that creates the initial V1 `restaurants` table, indexes, and `updated_at` trigger
 - `supabase/migrations/20260709130000_enable_restaurants_rls.sql`: Step 5 migration that enables RLS and adds owner-only access policies for restaurant records
+- `supabase/migrations/20260711110000_add_restaurant_category.sql`: validated reversible migration that adds `category`, backfills existing rows to `美食`, enforces the six allowed values, and leaves current RLS behavior unchanged
+- `supabase/migrations/add_restaurant_category_migration.test.ts`: focused regression test for the category migration contract
 
 ### Request Protection
 - `proxy.ts`: request-time auth cookie refresh and protected-route handling
@@ -162,6 +168,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Uses the shared signed-in shell to combine the new source intake flow with the already validated manual-create form.
 - Lets the user either start from a pasted source link or skip directly to manual save.
 - Keeps the Step 7 manual-save path intact while introducing the Step 10 extraction-review starting point.
+- Now participates in the first reversible `存个地` migration step by requiring category selection before showing subtype in the manual create path.
 
 ### `app/restaurants/review/page.tsx`
 - Provides the protected Step 12 source review, extraction preview, and explicit confirmation page after accepted URL intake.
@@ -170,6 +177,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Uses the shared signed-in shell together with the source review card, extraction preview card, and extraction confirmation card.
 - Shows accepted extraction results first, then requires explicit user confirmation before saving anything.
 - Keeps the Step 12 boundary explicit by supporting only single-candidate confirmation and not starting Step 13 multi-candidate work.
+- Still defaults extracted restaurant candidates to category `美食` and only carries inferred cuisine into the subtype field for that category.
 
 ### `app/restaurants/page.tsx`
 - Provides the protected Step 8 full saved restaurant list page.
@@ -179,12 +187,14 @@ These are starter static assets from the base app scaffold. They are not product
 - Also displays the Step 9 short success message `餐厅信息已更新` after a successful edit redirect.
 - Receives successful saves from both the manual create path and the Step 12 extraction confirmation path.
 - Continues to stop short of Step 13 and later work by omitting multi-candidate confirmation, geocoding, and map integration.
+- Now also surfaces the saved `category` and the temporary subtype value stored in `cuisine` without renaming any route, table, or column yet.
 
 ### `app/restaurants/[id]/edit/page.tsx`
 - Provides the protected Step 9 edit page for one saved restaurant.
 - Loads exactly one current-user restaurant record through the shared query helper and owner-only RLS protection.
 - Uses `notFound()` when the route id is invalid or the current user cannot access the requested restaurant.
 - Keeps the route focused on editing saved records only and does not start any Step 10+ page fetching or extraction behavior.
+- Now also supports validated category changes and category-specific subtype UI while keeping all saved-record edits under the existing `/restaurants/[id]/edit` route.
 
 ### `app/restaurants/actions.ts`
 - Contains the Step 7 server action that validates and creates restaurant records.
@@ -196,7 +206,8 @@ These are starter static assets from the base app scaffold. They are not product
 - Also supports the Step 12 review confirmation form by preserving review-entered values on validation errors and redirecting back to `/restaurants/review`.
 - Keeps Step 12 confirmation saves on the same validated create path as manual saves.
 - Also contains the Step 9 `updateRestaurantAction` server action for editing existing restaurant records.
-- Keeps the editable-field boundary limited to `cuisine`, `note`, and `privacy`.
+- Now validates and persists `category` in both create and edit flows.
+- Keeps using the existing `cuisine` column as temporary generic subtype storage.
 - Preserves validation and update errors on the edit page.
 - Redirects successful updates back to `/restaurants` with the short success message `餐厅信息已更新`.
 - Also contains the Step 10 `startSourceIntakeAction` server action for the new source intake flow.
@@ -248,21 +259,28 @@ These are starter static assets from the base app scaffold. They are not product
 - Provides the main Step 7 restaurant form UI inside a reusable card.
 - Keeps the visible form copy Simplified Chinese by default.
 - Uses the shared Step 12 restaurant form field component so manual create and review confirmation stay aligned.
-- Supports Chinese text input, the reusable cuisine picker, and free-text optional fields.
+- Supports Chinese text input, category selection, the reusable subtype picker, and free-text optional fields.
 - Accepts either a direct URL or a longer 小红书, 抖音, Google Maps, or public-web sharing message in the source input.
 - Preserves the pasted source text and the rest of the form values when validation fails.
 - Receives the Step 10 handoff from `/restaurants/review` by accepting a prefilled `source_url` value through `source_input`.
 - Intentionally excludes latitude and longitude inputs in Step 7.
+- Keeps manual create intentionally unselected by default for category, so subtype stays hidden until the user picks one.
 
 ### `components/restaurant-form-fields.tsx`
 - Provides the shared V1 restaurant field controls for both manual creation and Step 12 extraction confirmation.
-- Renders name, city, source input, address, cuisine, privacy, and note fields in one reusable component.
+- Renders name, city, source input, address, category, subtype, privacy, and note fields in one reusable component.
 - Lets the review confirmation path customize source labels and guidance without changing the underlying save contract.
+- Hides subtype until category is selected in manual create.
+- Keeps extracted review defaults at category `美食`.
+- Shows the selected category first, then renders the matching subtype field directly below that selected category card, then shows the remaining categories afterward.
+- Clears incompatible subtype values when category changes.
+- Preserves category and subtype values after validation errors.
 
 ### `components/cuisine-field.tsx`
-- Provides the reusable cuisine picker used by manual create, extraction confirmation, and saved-record edit forms.
-- Supports free-text cuisine entry plus Chinese-friendly quick-pick suggestions.
-- Keeps inferred or saved cuisine editable instead of treating suggestions as fixed values.
+- Provides the reusable subtype picker used by manual create, extraction confirmation, and saved-record edit forms.
+- Supports both free-text subtype entry and tap-to-select quick-pick suggestions.
+- Keeps inferred food-cuisine values editable instead of treating suggestions as fixed values.
+- Still writes the result into the existing `cuisine` column for now.
 
 ### `components/restaurant-list.tsx`
 - Provides the main Step 8 saved-list presentation wrapper.
@@ -273,18 +291,20 @@ These are starter static assets from the base app scaffold. They are not product
 ### `components/restaurant-list-card.tsx`
 - Provides the reusable Step 8 card UI for one saved restaurant.
 - Shows the core restaurant details clearly: name, city, privacy, save date, and source link.
-- Handles missing optional fields with explicit `暂未填写` fallback copy for `cuisine`, `address`, and `note`.
+- Handles missing optional fields with explicit `暂未填写` fallback copy for the temporary subtype value in `cuisine`, `address`, and `note`.
 - Displays the newly-created highlight state and `刚刚保存` badge when requested by the parent list.
 - Extracts a lightweight source host label from `source_url` for easier scanning without changing the saved source URL itself.
 - Provides the Step 9 edit entry point from the saved restaurant list.
+- Also shows the saved `category`.
 
 ### `components/restaurant-edit-form-card.tsx`
 - Provides the main Step 9 edit UI inside a reusable card.
 - Shows the non-editable restaurant context fields `name`, `city`, `address`, and `source_url`.
-- Limits editable fields to `cuisine`, `note`, and `privacy`.
-- Uses the same reusable cuisine picker as create and review confirmation.
-- Supports clearing optional `cuisine` and `note` values back to blank.
+- Now supports editing `category`, the temporary subtype value stored in `cuisine`, `note`, and `privacy`.
+- Uses the same reusable subtype picker as create and review confirmation.
+- Supports clearing optional subtype and `note` values back to blank.
 - Keeps validation and update errors on the edit page so the user can correct and resubmit.
+- Shows the selected category first and renders its subtype field directly below it, matching the create and review confirmation layout.
 
 ### `components/extraction-preview-card.tsx`
 - Provides the main Step 11 extraction-result UI on `/restaurants/review`.
@@ -301,6 +321,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Preserves user-entered values after validation errors by reading review query parameters.
 - Submits to the existing `createRestaurantAction` and writes nothing until the user confirms.
 - Successful saves redirect to `/restaurants` with the existing success message and newly-created highlight.
+- Keeps extracted restaurant candidates defaulted to category `美食` and continues to place inferred cuisine into the current subtype field only for that category.
 
 ### `components/source-intake-card.tsx`
 - Provides the main Step 10 source intake UI on `/restaurants/new`.

@@ -74,6 +74,9 @@ export function RestaurantListCard({
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
+            分类：{restaurant.category}
+          </span>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
             {restaurant.privacy === "private" ? "仅自己可见" : "标记为公开"}
           </span>
           <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
@@ -82,8 +85,9 @@ export function RestaurantListCard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <DetailItem label="菜系" value={restaurant.cuisine} />
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        <DetailItem label="分类" value={restaurant.category} />
+        <DetailItem label="类型细分" value={restaurant.cuisine} />
         <DetailItem label="地址" value={restaurant.address} />
       </div>
 

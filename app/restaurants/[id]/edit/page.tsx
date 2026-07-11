@@ -13,6 +13,7 @@ type EditRestaurantPageProps = {
   searchParams?: Promise<{
     error?: string;
     message?: string;
+    category?: string;
     cuisine?: string;
     privacy?: string;
     note?: string;
@@ -43,7 +44,7 @@ export default async function EditRestaurantPage({
       currentPath="/restaurants"
       eyebrow="编辑餐厅"
       title="把这条餐厅记录修正得更准确一些"
-      description="这一步只处理已保存记录的后续修正，不会提前开始新的来源输入、提取、菜系推断、地图或地理编码能力。"
+      description="这一步只处理已保存记录的后续修正，不会提前开始新的来源输入、提取、类型推断、地图或地理编码能力。"
       userEmail={user.email}
       userId={user.userId}
       actions={
@@ -74,7 +75,7 @@ export default async function EditRestaurantPage({
             title="这一步现在支持什么"
             description="Step 9 的重点是让你能回头修正已经保存过的记录，而不是把 Step 10 之后的来源提取链路提前做进来。"
             items={[
-              "当前支持更新菜系、备注和可见范围。",
+              "当前支持更新分类、类型细分、备注和可见范围。",
               "保存后可以刷新页面，确认修改已经持久化。",
               "现有 owner-only RLS 仍会继续限制你只能编辑自己的记录。",
             ]}
@@ -84,7 +85,7 @@ export default async function EditRestaurantPage({
             description="为了保持范围清晰，下面这些能力都继续留在后续步骤。"
             items={[
               "不会在这里加入来源链接重新提取。",
-              "不会提前实现菜系自动推断。",
+              "不会提前实现非美食分类的类型自动推断。",
               "不会加入地图、坐标、地理编码或删除功能。",
             ]}
           />

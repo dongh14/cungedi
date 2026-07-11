@@ -1,7 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import type { RestaurantPrivacy } from "@/lib/restaurants/constants";
+import {
+  isRestaurantCategory,
+  type RestaurantCategory,
+  type RestaurantPrivacy,
+} from "@/lib/restaurants/constants";
+import {
+  buildRestaurantInsertPayload,
+  buildRestaurantUpdatePayload,
+} from "@/lib/restaurants/record-payloads";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type {
@@ -32,12 +40,21 @@ function getPrivacyValue(value: string): RestaurantPrivacy | null {
   return null;
 }
 
+function getCategoryValue(value: string): RestaurantCategory | null {
+  if (isRestaurantCategory(value)) {
+    return value;
+  }
+
+  return null;
+}
+
 function buildNewRestaurantRedirect(
   values: {
     name: string;
     city: string;
     sourceInput: string;
     privacy: string;
+    category: string;
     address: string;
     cuisine: string;
     note: string;
@@ -50,6 +67,7 @@ function buildNewRestaurantRedirect(
     city: values.city,
     source_input: values.sourceInput,
     privacy: values.privacy,
+    category: values.category,
     address: values.address,
     cuisine: values.cuisine,
     note: values.note,
@@ -63,6 +81,7 @@ function buildReviewRestaurantRedirect(
     city: string;
     sourceInput: string;
     privacy: string;
+    category: string;
     address: string;
     cuisine: string;
     note: string;
@@ -80,6 +99,7 @@ function buildReviewRestaurantRedirect(
     city: values.city,
     source_input: values.sourceInput,
     privacy: values.privacy,
+    category: values.category,
     address: values.address,
     cuisine: values.cuisine,
     note: values.note,
@@ -105,6 +125,7 @@ function buildSourceIntakeRedirect(
 function buildEditRestaurantRedirect(
   restaurantId: number,
   values: {
+    category: string;
     cuisine: string;
     privacy: string;
     note: string;
@@ -117,6 +138,7 @@ function buildEditRestaurantRedirect(
   return buildRedirect(`/restaurants/${restaurantId}/edit`, {
     ...(state.error ? { error: state.error } : {}),
     ...(state.message ? { message: state.message } : {}),
+    category: values.category,
     cuisine: values.cuisine,
     privacy: values.privacy,
     note: values.note,
@@ -128,6 +150,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const city = getFormValue(formData, "city");
   const sourceInput = getFormValue(formData, "source_url");
   const privacy = getFormValue(formData, "privacy");
+  const category = getFormValue(formData, "category");
   const address = getFormValue(formData, "address");
   const cuisine = getFormValue(formData, "cuisine");
   const note = getFormValue(formData, "note");
@@ -140,6 +163,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     city,
     sourceInput,
     privacy,
+    category,
     address,
     cuisine,
     note,
@@ -160,8 +184,8 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     redirect(buildNewRestaurantRedirect(values, error));
   };
 
-  if (!name || !city || !sourceInput || !privacy) {
-    redirectToDraft("请先填写所有必填项：餐厅名称、城市、来源输入和可见范围。");
+  if (!name || !city || !sourceInput || !privacy || !category) {
+    redirectToDraft("请先填写所有必填项：餐厅名称、城市、来源输入、分类和可见范围。");
   }
 
   const sourceUrl = extractFirstHttpUrl(sourceInput);
@@ -176,14 +200,22 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     redirectToDraft("可见范围只支持 private 或 public。");
   }
 
+  const parsedCategory = getCategoryValue(category);
+
+  if (!parsedCategory) {
+    redirectToDraft("分类只支持 美食、购物、玩乐、景点、住宿、其他。");
+  }
+
   const finalSourceUrl = sourceUrl as string;
   const finalPrivacy = parsedPrivacy as RestaurantPrivacy;
+  const finalCategory = parsedCategory as RestaurantCategory;
 
   return {
     name,
     city,
     sourceUrl: finalSourceUrl,
     privacy: finalPrivacy,
+    category: finalCategory,
     address: normalizeOptionalField(address),
     cuisine: normalizeOptionalField(cuisine),
     note: normalizeOptionalField(note),
@@ -195,10 +227,12 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
 function parseRestaurantUpdateForm(formData: FormData): RestaurantUpdateInput {
   const restaurantIdValue = getFormValue(formData, "restaurant_id");
   const privacy = getFormValue(formData, "privacy");
+  const category = getFormValue(formData, "category");
   const cuisine = getFormValue(formData, "cuisine");
   const note = getFormValue(formData, "note");
   const restaurantId = Number(restaurantIdValue);
   const values = {
+    category,
     cuisine,
     privacy,
     note,
@@ -216,9 +250,20 @@ function parseRestaurantUpdateForm(formData: FormData): RestaurantUpdateInput {
     );
   }
 
+  const parsedCategory = getCategoryValue(category);
+
+  if (!parsedCategory) {
+    redirect(
+      buildEditRestaurantRedirect(restaurantId, values, {
+        error: "分类只支持 美食、购物、玩乐、景点、住宿、其他。",
+      }),
+    );
+  }
+
   return {
     id: restaurantId,
     privacy,
+    category: parsedCategory,
     cuisine: normalizeOptionalField(cuisine),
     note: normalizeOptionalField(note),
   };
@@ -267,16 +312,7 @@ export async function createRestaurantAction(formData: FormData) {
 
   const { data, error } = await supabase
     .from("restaurants")
-    .insert({
-      user_id: user.id,
-      name: restaurant.name,
-      city: restaurant.city,
-      source_url: restaurant.sourceUrl,
-      privacy: restaurant.privacy,
-      address: restaurant.address,
-      cuisine: restaurant.cuisine,
-      note: restaurant.note,
-    })
+    .insert(buildRestaurantInsertPayload(user.id, restaurant))
     .select("id")
     .single();
 
@@ -286,6 +322,7 @@ export async function createRestaurantAction(formData: FormData) {
       city: restaurant.city,
       sourceInput: restaurant.sourceUrl,
       privacy: restaurant.privacy,
+      category: restaurant.category,
       address: restaurant.address ?? "",
       cuisine: restaurant.cuisine ?? "",
       note: restaurant.note ?? "",
@@ -329,11 +366,7 @@ export async function updateRestaurantAction(formData: FormData) {
 
   const { data, error } = await supabase
     .from("restaurants")
-    .update({
-      cuisine: restaurant.cuisine,
-      note: restaurant.note,
-      privacy: restaurant.privacy,
-    })
+    .update(buildRestaurantUpdatePayload(restaurant))
     .eq("id", restaurant.id)
     .select("id")
     .single();
@@ -343,6 +376,7 @@ export async function updateRestaurantAction(formData: FormData) {
       buildEditRestaurantRedirect(
         restaurant.id,
         {
+          category: restaurant.category,
           cuisine: restaurant.cuisine ?? "",
           privacy: restaurant.privacy,
           note: restaurant.note ?? "",

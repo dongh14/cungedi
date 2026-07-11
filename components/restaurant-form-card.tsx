@@ -4,7 +4,6 @@ import {
   type RestaurantFormFieldValues,
 } from "@/components/restaurant-form-fields";
 import { SurfaceCard } from "@/components/surface-card";
-
 type RestaurantFormCardProps = {
   searchParams: Partial<RestaurantFormFieldValues> & {
     error?: string;
@@ -18,6 +17,7 @@ export function RestaurantFormCard({ searchParams }: RestaurantFormCardProps) {
     city: searchParams.city ?? "",
     source_input: searchParams.source_input ?? "",
     privacy: searchParams.privacy ?? "private",
+    category: searchParams.category ?? "",
     address: searchParams.address ?? "",
     cuisine: searchParams.cuisine ?? "",
     note: searchParams.note ?? "",

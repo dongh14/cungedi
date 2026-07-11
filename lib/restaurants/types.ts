@@ -1,8 +1,11 @@
+import type { RestaurantCategory, RestaurantPrivacy } from "./constants";
+
 export type RestaurantInsertInput = {
   name: string;
   city: string;
   sourceUrl: string;
-  privacy: "private" | "public";
+  privacy: RestaurantPrivacy;
+  category: RestaurantCategory;
   address: string | null;
   cuisine: string | null;
   note: string | null;
@@ -12,7 +15,8 @@ export type RestaurantInsertInput = {
 
 export type RestaurantUpdateInput = {
   id: number;
-  privacy: "private" | "public";
+  privacy: RestaurantPrivacy;
+  category: RestaurantCategory;
   cuisine: string | null;
   note: string | null;
 };
@@ -22,7 +26,8 @@ export type RestaurantListItem = {
   name: string;
   city: string;
   source_url: string;
-  privacy: "private" | "public";
+  privacy: RestaurantPrivacy;
+  category: RestaurantCategory;
   address: string | null;
   cuisine: string | null;
   note: string | null;
@@ -34,7 +39,8 @@ export type RestaurantEditItem = {
   name: string;
   city: string;
   source_url: string;
-  privacy: "private" | "public";
+  privacy: RestaurantPrivacy;
+  category: RestaurantCategory;
   address: string | null;
   cuisine: string | null;
   note: string | null;

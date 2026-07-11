@@ -2,13 +2,19 @@ import type {
   RestaurantExtractionCandidate,
   RestaurantExtractionResult,
 } from "./extraction-types";
-import type { RestaurantPrivacy } from "./constants";
+import {
+  defaultRestaurantCategory,
+  isRestaurantCategory,
+  type RestaurantCategory,
+  type RestaurantPrivacy,
+} from "./constants";
 
 export type RestaurantDraftFormValues = {
   name: string;
   city: string;
   source_input: string;
   privacy: RestaurantPrivacy;
+  category: RestaurantCategory;
   address: string;
   cuisine: string;
   note: string;
@@ -59,6 +65,10 @@ export function getInitialDraftFormValues(
     city: overrides.city ?? extractedValues.city,
     source_input: overrides.source_input ?? result.sourceUrl,
     privacy: overrides.privacy === "public" ? "public" : "private",
+    category:
+      overrides.category !== undefined && isRestaurantCategory(overrides.category)
+        ? overrides.category
+        : defaultRestaurantCategory,
     address: overrides.address ?? extractedValues.address,
     cuisine: overrides.cuisine ?? extractedValues.cuisine,
     note: overrides.note ?? "",

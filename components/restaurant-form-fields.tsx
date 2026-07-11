@@ -1,4 +1,14 @@
-import { privacyOptions } from "@/lib/restaurants/constants";
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  getSubtypeFieldConfig,
+  isRestaurantCategory,
+  isSubtypeSuggestionCompatible,
+  privacyOptions,
+  type RestaurantCategory,
+} from "@/lib/restaurants/constants";
+import { CategoryField } from "@/components/category-field";
 import { CuisineField } from "@/components/cuisine-field";
 
 export type RestaurantFormFieldValues = {
@@ -6,6 +16,7 @@ export type RestaurantFormFieldValues = {
   city: string;
   source_input: string;
   privacy: string;
+  category: string;
   address: string;
   cuisine: string;
   note: string;
@@ -37,6 +48,39 @@ export function RestaurantFormFields({
   sourceLabel?: string;
   sourceHint?: string;
 }) {
+  const [selectedCategory, setSelectedCategory] = useState(values.category);
+  const [subtypeValue, setSubtypeValue] = useState(values.cuisine);
+
+  useEffect(() => {
+    setSelectedCategory(values.category);
+    setSubtypeValue(values.cuisine);
+  }, [values.category, values.cuisine]);
+
+  function handleCategoryChange(nextCategory: string) {
+    const previousCategory = isRestaurantCategory(selectedCategory)
+      ? selectedCategory
+      : null;
+
+    setSelectedCategory(nextCategory);
+
+    if (!previousCategory || previousCategory === nextCategory) {
+      return;
+    }
+
+    if (!isRestaurantCategory(nextCategory)) {
+      setSubtypeValue("");
+      return;
+    }
+
+    if (!isSubtypeSuggestionCompatible(nextCategory, subtypeValue)) {
+      setSubtypeValue("");
+    }
+  }
+
+  const subtypeConfig = isRestaurantCategory(selectedCategory)
+    ? getSubtypeFieldConfig(selectedCategory as RestaurantCategory)
+    : null;
+
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -89,16 +133,34 @@ export function RestaurantFormFields({
         />
       </div>
 
-      <div className="space-y-2">
-        <FieldLabel htmlFor="cuisine" label="菜系或类型" />
-        <CuisineField
-          id="cuisine"
-          name="cuisine"
-          initialValue={values.cuisine}
-          placeholder="例如：川菜、火锅、咖啡馆"
-        />
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-[var(--ink-strong)]">
+          分类<span className="ml-1 text-[var(--accent)]">*</span>
+        </p>
+        <CategoryField selectedValue={selectedCategory} onChange={handleCategoryChange}>
+          {subtypeConfig ? (
+            <div className="space-y-2 rounded-[24px] border border-[var(--border-soft)] bg-white/70 p-4">
+              <FieldLabel htmlFor="cuisine" label={subtypeConfig.label} />
+              <CuisineField
+                id="cuisine"
+                name="cuisine"
+                value={subtypeValue}
+                onChange={setSubtypeValue}
+                placeholder={subtypeConfig.placeholder}
+                options={subtypeConfig.suggestions}
+                openAriaLabel={subtypeConfig.pickerAriaLabel}
+              />
+              <p className="text-xs leading-6 text-[var(--ink-muted)]">
+                {subtypeConfig.hint}
+              </p>
+              <p className="text-xs leading-6 text-[var(--ink-muted)]">
+                切换分类时，如果当前细分类型不兼容，会自动清空并请你重新确认。
+              </p>
+            </div>
+          ) : null}
+        </CategoryField>
         <p className="text-xs leading-6 text-[var(--ink-muted)]">
-          可以直接输入，也可以从建议里选择，支持中文录入。
+          当前先在现有餐厅流程里补充分类字段，不改动现有路由和保存入口。
         </p>
       </div>
 

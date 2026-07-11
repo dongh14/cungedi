@@ -59,7 +59,7 @@ export default async function RestaurantsPage({
                   已保存餐厅列表
                 </h2>
                 <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-                  核心信息会优先展示出来。像地址、菜系、备注这类可选字段如果暂时没有填写，也会用清晰但不打扰的方式呈现。
+                  核心信息会优先展示出来。分类会和类型细分、地址、备注一起保留在列表里，方便你先做小范围归类，而不改动现有页面结构。
                 </p>
               </div>
 
@@ -100,7 +100,7 @@ export default async function RestaurantsPage({
             description="最适合的手动测试方式，是准备几条不同完整度的餐厅记录，再从移动端尺寸和桌面尺寸分别检查展示效果。"
             items={[
               "至少准备一条完整记录。",
-              "至少准备一条缺少地址、菜系或备注的记录。",
+              "至少准备一条缺少地址、类型细分或备注的记录。",
               "至少准备一条使用中文名称和中文备注的记录。",
             ]}
           />

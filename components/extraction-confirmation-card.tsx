@@ -80,7 +80,7 @@ export function ExtractionConfirmationCard({
             </div>
           ) : (
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              当前必填字段都已经有草稿，但你仍然可以继续修改名称、城市、地址、菜系、备注和可见范围。
+              当前必填字段都已经有草稿，但你仍然可以继续修改名称、城市、地址、类型细分、备注和可见范围。
             </p>
           )}
         </div>

@@ -9,6 +9,7 @@ type NewRestaurantPageProps = {
   searchParams?: Promise<{
     error?: string;
     message?: string;
+    category?: string;
     source_error?: string;
     source_message?: string;
     intake_input?: string;

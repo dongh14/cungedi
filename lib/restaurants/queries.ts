@@ -8,7 +8,9 @@ export async function getCurrentUserRestaurants() {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("restaurants")
-    .select("id, name, city, source_url, privacy, address, cuisine, note, created_at")
+    .select(
+      "id, name, city, source_url, privacy, category, address, cuisine, note, created_at",
+    )
     .order("created_at", { ascending: false });
 
   return {
@@ -21,7 +23,9 @@ export async function getCurrentUserRestaurantById(id: number) {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("restaurants")
-    .select("id, name, city, source_url, privacy, address, cuisine, note, created_at")
+    .select(
+      "id, name, city, source_url, privacy, category, address, cuisine, note, created_at",
+    )
     .eq("id", id)
     .maybeSingle();
 

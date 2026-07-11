@@ -1,8 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { updateRestaurantAction } from "@/app/restaurants/actions";
+import { CategoryField } from "@/components/category-field";
 import { CuisineField } from "@/components/cuisine-field";
 import { SurfaceCard } from "@/components/surface-card";
-import { privacyOptions } from "@/lib/restaurants/constants";
+import {
+  getSubtypeFieldConfig,
+  isRestaurantCategory,
+  isSubtypeSuggestionCompatible,
+  privacyOptions,
+} from "@/lib/restaurants/constants";
 import type { RestaurantEditItem } from "@/lib/restaurants/types";
 
 type RestaurantEditFormCardProps = {
@@ -10,6 +19,7 @@ type RestaurantEditFormCardProps = {
   searchParams: {
     error?: string;
     message?: string;
+    category?: string;
     cuisine?: string;
     privacy?: string;
     note?: string;
@@ -53,16 +63,48 @@ export function RestaurantEditFormCard({
   restaurant,
   searchParams,
 }: RestaurantEditFormCardProps) {
-  const cuisineValue =
-    searchParams.cuisine !== undefined
-      ? searchParams.cuisine
-      : restaurant.cuisine ?? "";
+  const initialCuisineValue =
+    searchParams.cuisine !== undefined ? searchParams.cuisine : restaurant.cuisine ?? "";
+  const initialCategoryValue =
+    searchParams.category !== undefined
+      ? searchParams.category
+      : restaurant.category;
   const noteValue =
     searchParams.note !== undefined ? searchParams.note : restaurant.note ?? "";
   const privacyValue =
     searchParams.privacy !== undefined
       ? searchParams.privacy
       : restaurant.privacy;
+  const [categoryValue, setCategoryValue] = useState(initialCategoryValue);
+  const [subtypeValue, setSubtypeValue] = useState(initialCuisineValue);
+
+  useEffect(() => {
+    setCategoryValue(initialCategoryValue);
+    setSubtypeValue(initialCuisineValue);
+  }, [initialCategoryValue, initialCuisineValue]);
+
+  function handleCategoryChange(nextCategory: string) {
+    const previousCategory = isRestaurantCategory(categoryValue) ? categoryValue : null;
+
+    setCategoryValue(nextCategory);
+
+    if (!previousCategory || previousCategory === nextCategory) {
+      return;
+    }
+
+    if (!isRestaurantCategory(nextCategory)) {
+      setSubtypeValue("");
+      return;
+    }
+
+    if (!isSubtypeSuggestionCompatible(nextCategory, subtypeValue)) {
+      setSubtypeValue("");
+    }
+  }
+
+  const subtypeConfig = isRestaurantCategory(categoryValue)
+    ? getSubtypeFieldConfig(categoryValue)
+    : null;
 
   return (
     <SurfaceCard className="p-5 sm:p-6">
@@ -76,7 +118,7 @@ export function RestaurantEditFormCard({
               编辑已保存的餐厅信息
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步先支持你修正菜系、备注和可见范围。名称、城市和来源链接会继续保留原样，不提前扩展到后续步骤。
+              这一步先支持你修正分类、类型细分、备注和可见范围。名称、城市和来源链接会继续保留原样，不提前扩展到后续步骤。
             </p>
           </div>
         </div>
@@ -103,16 +145,34 @@ export function RestaurantEditFormCard({
         <form action={updateRestaurantAction} className="space-y-5">
           <input type="hidden" name="restaurant_id" value={restaurant.id} />
 
-          <div className="space-y-2">
-            <FieldLabel htmlFor="cuisine" label="菜系或类型" />
-            <CuisineField
-              id="cuisine"
-              name="cuisine"
-              initialValue={cuisineValue}
-              placeholder="例如：川菜、火锅、咖啡馆"
-            />
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-[var(--ink-strong)]">
+              分类<span className="ml-1 text-[var(--accent)]">*</span>
+            </p>
+            <CategoryField selectedValue={categoryValue} onChange={handleCategoryChange}>
+              {subtypeConfig ? (
+                <div className="space-y-2 rounded-[24px] border border-[var(--border-soft)] bg-white/70 p-4">
+                  <FieldLabel htmlFor="cuisine" label={subtypeConfig.label} />
+                  <CuisineField
+                    id="cuisine"
+                    name="cuisine"
+                    value={subtypeValue}
+                    onChange={setSubtypeValue}
+                    placeholder={subtypeConfig.placeholder}
+                    options={subtypeConfig.suggestions}
+                    openAriaLabel={subtypeConfig.pickerAriaLabel}
+                  />
+                  <p className="text-xs leading-6 text-[var(--ink-muted)]">
+                    {subtypeConfig.hint}
+                  </p>
+                  <p className="text-xs leading-6 text-[var(--ink-muted)]">
+                    如果你切换到不兼容的分类，之前的细分类型会被清空，避免误保存。
+                  </p>
+                </div>
+              ) : null}
+            </CategoryField>
             <p className="text-xs leading-6 text-[var(--ink-muted)]">
-              可以改成更准确的菜系，也可以先留空。
+              这里允许你把已保存记录改到更合适的类别，当前仍保留在现有餐厅编辑流程里。
             </p>
           </div>
 

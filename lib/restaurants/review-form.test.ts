@@ -60,6 +60,7 @@ test("prefills review values from accepted extracted fields", () => {
     city: "上海",
     source_input: "https://example.com/restaurant",
     privacy: "private",
+    category: "美食",
     address: "",
     cuisine: "Cafe",
     note: "",
@@ -73,12 +74,14 @@ test("prefers user-entered overrides after a review validation error", () => {
     cuisine: "意大利菜",
     note: "晚餐候选",
     privacy: "public",
+    category: "景点",
   });
 
   assert.equal(values.city, "苏州");
   assert.equal(values.cuisine, "意大利菜");
   assert.equal(values.note, "晚餐候选");
   assert.equal(values.privacy, "public");
+  assert.equal(values.category, "景点");
 });
 
 test("reports missing required and optional fields for partial candidates", () => {
@@ -114,4 +117,23 @@ test("marks all editable restaurant fields as missing for fallback mode", () => 
     { key: "address", label: "地址", required: false },
     { key: "cuisine", label: "菜系或类型", required: false },
   ]);
+});
+
+test("defaults fallback review category to 美食", () => {
+  const fallbackResult: RestaurantExtractionResult = {
+    status: "fallback",
+    sourceUrl: "https://example.com/fallback",
+    sourceKind: "public-web",
+    supportLevel: "official",
+    pageType: "generic_page",
+    fetchedUrl: "https://example.com/fallback",
+    httpStatus: 200,
+    contentType: "text/html",
+    reason: "signals too weak",
+    notes: ["manual completion needed"],
+  };
+
+  const values = getInitialDraftFormValues(fallbackResult, {});
+
+  assert.equal(values.category, "美食");
 });

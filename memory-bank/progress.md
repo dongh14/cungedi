@@ -27,6 +27,64 @@ Step 12 is complete and has been validated.
 
 The product is now paused before Step 13 so the restaurant-only direction can be generalized into `存个地`, a Chinese-first personal place collection app.
 
+The first small, reversible `存个地` generalization migration step is now complete and has been validated without starting Step 13.
+
+## Validated Reversible Generalization Step 1
+
+### Database
+- `public.restaurants` now has a `category` text column with `not null` and default `美食`.
+- Existing rows were successfully backfilled to `美食`.
+- `category` is restricted to exactly these values:
+  - `美食`
+  - `购物`
+  - `玩乐`
+  - `景点`
+  - `住宿`
+  - `其他`
+- The existing owner-only RLS behavior remains unchanged.
+- The `restaurants` table name remains unchanged for now.
+- The `cuisine` column remains unchanged for now and is still used temporarily.
+
+### Application
+- `category` is now threaded through create, Step 12 review/confirmation, list, and edit flows.
+- Manual creation now requires the user to select a category.
+- Extracted restaurant candidates still default to `美食`.
+- Saved records can now change category.
+- Category values were validated to persist correctly.
+- The existing `cuisine` column is temporarily used as generic subtype storage in the UI and application logic.
+
+### Category-Specific Subtype UX
+- In manual creation, subtype stays hidden until a category is selected.
+- `美食` shows `菜系或类型`.
+- `购物` shows `购物类型`.
+- `玩乐` shows `玩乐类型`.
+- `景点` shows `景点类型`.
+- `住宿` shows `住宿类型`.
+- `其他` shows `类型`.
+- Subtype supports both tap-to-select suggestions and custom free-text input.
+- Incompatible subtype values are cleared when category changes.
+- Validation errors preserve both category and subtype values.
+- The selected category is shown first.
+- Its subtype field appears directly below the selected category card.
+- Remaining unselected categories appear after the subtype field.
+- This behavior is now validated in manual create, Step 12 review/confirmation, and saved-record edit flows.
+
+### Verification
+- The category migration was successfully applied in Supabase.
+- Existing rows were verified as `美食` with no null `category` values.
+- `npm run build` passed.
+- `npm run lint` passed.
+- Focused category and subtype tests passed.
+- Manual create, review, edit, category switching, subtype suggestion selection, custom subtype input, and subtype placement were all validated.
+
+### Product State
+- Step 13 has not started.
+- No route rename has started.
+- No table rename has started.
+- No database column rename has started.
+- No extraction expansion beyond restaurant-focused extraction has started.
+- `存个地` generalization is proceeding in small reversible migration steps.
+
 ## Completed In Step 1
 - Initialized the repository with Git version control.
 - Created a single Next.js app in the project root using the App Router.
@@ -210,6 +268,18 @@ The product is now paused before Step 13 so the restaurant-only direction can be
 - The map page remains a protected placeholder.
 - Step 11 page fetching, structured-data-first extraction, candidate review, and graceful fallback are now in place.
 - Step 12 explicit confirmation, editable accepted fields, manual completion for partial candidates, validation-error value preservation, and confirm-before-save behavior are now in place.
+- `public.restaurants` now also includes a validated `category` field with default `美食`, allowed-value enforcement, and existing-row backfill.
+- The app now threads `category` through create, Step 12 review/confirmation, list, and edit while still keeping the `restaurants` table name unchanged.
+- The existing `cuisine` column is temporarily reused as generic subtype storage during the first `存个地` migration step.
+- Manual create now requires category selection before showing subtype.
+- Step 12 extracted candidates still default category to `美食`.
+- Saved records can now change category and keep the updated value after refresh.
+- Category-specific subtype UX is now in place across manual create, review confirmation, and saved-record edit:
+  - The selected category is shown first.
+  - The matching subtype field appears directly below the selected category card.
+  - Remaining categories appear after that subtype field.
+  - Users can either choose a suggestion or type a custom subtype.
+  - Incompatible subtype values are cleared when category changes.
 - `privacy` remains a stored flag only and does not create cross-user visibility in V1.
 - Product implementation is paused before Step 13 while the new `存个地` place-collection direction is planned.
 
