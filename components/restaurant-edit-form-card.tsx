@@ -115,7 +115,7 @@ export function RestaurantEditFormCard({
           </span>
           <div>
             <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              编辑已保存的餐厅信息
+              编辑已保存的地点信息
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
               这一步先支持你修正分类、类型细分、备注和可见范围。名称、城市和来源链接会继续保留原样，不提前扩展到后续步骤。
@@ -136,7 +136,7 @@ export function RestaurantEditFormCard({
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <ReadonlyDetail label="餐厅名称" value={restaurant.name} />
+          <ReadonlyDetail label="地点名称" value={restaurant.name} />
           <ReadonlyDetail label="城市" value={restaurant.city} />
           <ReadonlyDetail label="地址" value={restaurant.address} />
           <ReadonlyDetail label="来源链接" value={restaurant.source_url} />
@@ -172,7 +172,7 @@ export function RestaurantEditFormCard({
               ) : null}
             </CategoryField>
             <p className="text-xs leading-6 text-[var(--ink-muted)]">
-              这里允许你把已保存记录改到更合适的类别，当前仍保留在现有餐厅编辑流程里。
+              这里允许你把已保存记录改到更合适的类别，当前仍保留在现有地点编辑流程里。
             </p>
           </div>
 
@@ -214,7 +214,7 @@ export function RestaurantEditFormCard({
               rows={5}
               defaultValue={noteValue}
               className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
-              placeholder="例如：这次想补充一下推荐菜、排队时间，或者适合什么时候去。"
+              placeholder="例如：这次想补充一下推荐内容、排队时间，或者适合什么时候去。"
             />
           </div>
 
@@ -229,7 +229,7 @@ export function RestaurantEditFormCard({
               href="/restaurants"
               className="inline-flex justify-center rounded-full border border-[var(--border-soft)] bg-white px-5 py-3.5 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
             >
-              返回收藏列表
+              返回已收藏
             </Link>
           </div>
         </form>

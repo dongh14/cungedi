@@ -20,6 +20,7 @@ function createSuccessResult(): RestaurantExtractionResult {
     acceptanceReasons: ["single restaurant signals are strong enough"],
     candidate: {
       sourceUrl: "https://example.com/restaurant",
+      category: "美食",
       fields: {
         name: {
           value: "Alimentari Bistro",
@@ -112,10 +113,10 @@ test("marks all editable restaurant fields as missing for fallback mode", () => 
   };
 
   assert.deepEqual(getMissingCandidateFields(fallbackResult), [
-    { key: "name", label: "餐厅名称", required: true },
+    { key: "name", label: "地点名称", required: true },
     { key: "city", label: "城市", required: true },
     { key: "address", label: "地址", required: false },
-    { key: "cuisine", label: "菜系或类型", required: false },
+    { key: "cuisine", label: "类型细分", required: false },
   ]);
 });
 
@@ -136,4 +137,59 @@ test("defaults fallback review category to 美食", () => {
   const values = getInitialDraftFormValues(fallbackResult, {});
 
   assert.equal(values.category, "美食");
+});
+
+test("defaults extracted accommodation candidates to 住宿 unless the user already chose another category", () => {
+  const result: RestaurantExtractionResult = {
+    status: "success",
+    sourceUrl: "https://example.com/hotel",
+    sourceKind: "public-web",
+    supportLevel: "official",
+    pageType: "single_restaurant",
+    fetchedUrl: "https://example.com/hotel",
+    httpStatus: 200,
+    contentType: "text/html",
+    notes: ["lodging structured data accepted"],
+    acceptanceReasons: ["single accommodation signals are strong enough"],
+    candidate: {
+      sourceUrl: "https://example.com/hotel",
+      category: "住宿",
+      fields: {
+        name: {
+          value: "Lakeview Hotel",
+          confidence: "high",
+          evidenceSource: "structured_data",
+          accepted: true,
+        },
+        city: {
+          value: "杭州",
+          confidence: "high",
+          evidenceSource: "structured_data",
+          accepted: true,
+        },
+        address: {
+          value: null,
+          confidence: "none",
+          evidenceSource: null,
+          accepted: false,
+          rejectionReason: "missing",
+        },
+        cuisine: {
+          value: "酒店",
+          confidence: "medium",
+          evidenceSource: "structured_data",
+          accepted: true,
+        },
+      },
+    },
+  };
+
+  const defaultValues = getInitialDraftFormValues(result, {});
+  const overriddenValues = getInitialDraftFormValues(result, {
+    category: "美食",
+  });
+
+  assert.equal(defaultValues.category, "住宿");
+  assert.equal(defaultValues.cuisine, "酒店");
+  assert.equal(overriddenValues.category, "美食");
 });

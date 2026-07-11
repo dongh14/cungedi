@@ -1,7 +1,7 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12 plus the first validated, reversible `存个地` generalization migration step.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, and the validated Step 3A accommodation-extraction expansion.
 
 It does not include Step 13 or later architecture yet.
 
@@ -84,10 +84,11 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/restaurants/page-type.ts`: Step 11 page-type classification for single-restaurant, directory/list, generic, and unknown pages
 - `lib/restaurants/field-validation.ts`: Step 11 strict restaurant-field validation and structured-address formatting helpers
 - `lib/restaurants/cuisine-inference.ts`: Step 11 conservative cuisine inference helper with low-confidence blank behavior
-- `lib/restaurants/source-extraction.ts`: Step 11 orchestration for fetching, parsing, validation, candidate acceptance, diagnostics, and fallback decisions
-- `lib/restaurants/source-extraction.test.ts`: focused Step 11 regression tests for extraction behavior
-- `lib/restaurants/review-form.ts`: helper for turning accepted extraction results plus URL overrides into editable confirmation values, including default category `美食`
-- `lib/restaurants/review-form.test.ts`: focused tests for accepted-field prefills, category defaults, user overrides, missing fields, and fallback-mode manual completion
+- `lib/restaurants/accommodation-inference.ts`: Step 3A conservative accommodation subtype inference and strong lodging structured-data helpers
+- `lib/restaurants/source-extraction.ts`: Step 11 and Step 3A orchestration for shared fetching, parsing, validation, category-aware candidate acceptance, diagnostics, and fallback decisions
+- `lib/restaurants/source-extraction.test.ts`: focused Step 11 and Step 3A regression tests for restaurant and accommodation extraction behavior
+- `lib/restaurants/review-form.ts`: helper for turning accepted extraction results plus URL overrides into editable confirmation values, including category defaults for successful `美食` and `住宿` candidates
+- `lib/restaurants/review-form.test.ts`: focused tests for accepted-field prefills, category defaults, user overrides, missing fields, fallback-mode manual completion, and accommodation default-category behavior
 - `lib/restaurants/record-payloads.ts`: shared insert and update payload builders that keep `category` threaded through current save flows while `cuisine` remains the temporary subtype storage column
 - `lib/restaurants/constants.test.ts`: focused tests for allowed categories, subtype field labels, suggestion sets, and subtype-category compatibility
 - `lib/restaurants/record-payloads.test.ts`: focused tests for category persistence in save and edit payloads
@@ -177,7 +178,9 @@ These are starter static assets from the base app scaffold. They are not product
 - Uses the shared signed-in shell together with the source review card, extraction preview card, and extraction confirmation card.
 - Shows accepted extraction results first, then requires explicit user confirmation before saving anything.
 - Keeps the Step 12 boundary explicit by supporting only single-candidate confirmation and not starting Step 13 multi-candidate work.
-- Still defaults extracted restaurant candidates to category `美食` and only carries inferred cuisine into the subtype field for that category.
+- Still defaults extracted `美食` candidates to category `美食`.
+- Now also defaults successful accommodation candidates to category `住宿` when strong lodging evidence is accepted.
+- Keeps all accepted and missing fields editable before explicit save and still does not auto-save anything.
 
 ### `app/restaurants/page.tsx`
 - Provides the protected Step 8 full saved restaurant list page.
@@ -188,6 +191,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Receives successful saves from both the manual create path and the Step 12 extraction confirmation path.
 - Continues to stop short of Step 13 and later work by omitting multi-candidate confirmation, geocoding, and map integration.
 - Now also surfaces the saved `category` and the temporary subtype value stored in `cuisine` without renaming any route, table, or column yet.
+- Continues to support saved accommodation records through the same existing list and redirect flow.
 
 ### `app/restaurants/[id]/edit/page.tsx`
 - Provides the protected Step 9 edit page for one saved restaurant.
@@ -195,6 +199,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Uses `notFound()` when the route id is invalid or the current user cannot access the requested restaurant.
 - Keeps the route focused on editing saved records only and does not start any Step 10+ page fetching or extraction behavior.
 - Now also supports validated category changes and category-specific subtype UI while keeping all saved-record edits under the existing `/restaurants/[id]/edit` route.
+- Continues to support editing saved accommodation category and subtype values through that unchanged saved-record edit flow.
 
 ### `app/restaurants/actions.ts`
 - Contains the Step 7 server action that validates and creates restaurant records.
@@ -311,6 +316,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Shows only accepted extracted fields and never displays rejected or unaccepted field candidates.
 - Avoids rendering giant low-confidence page-text blocks by never displaying rejected or unaccepted field candidates.
 - Explains whether the current result is an accepted draft candidate or a fallback to manual completion.
+- Now also shows the accepted extracted category and uses accommodation-specific subtype labeling when the Step 3A lodging path succeeds.
 - Leaves the actual save decision to the Step 12 confirmation form on the same review page.
 
 ### `components/extraction-confirmation-card.tsx`
@@ -321,7 +327,8 @@ These are starter static assets from the base app scaffold. They are not product
 - Preserves user-entered values after validation errors by reading review query parameters.
 - Submits to the existing `createRestaurantAction` and writes nothing until the user confirms.
 - Successful saves redirect to `/restaurants` with the existing success message and newly-created highlight.
-- Keeps extracted restaurant candidates defaulted to category `美食` and continues to place inferred cuisine into the current subtype field only for that category.
+- Keeps fallback and restaurant candidates defaulted to category `美食`.
+- Now also defaults successful accommodation candidates to category `住宿` while still writing the inferred subtype through the current `cuisine` field.
 
 ### `components/source-intake-card.tsx`
 - Provides the main Step 10 source intake UI on `/restaurants/new`.
@@ -335,6 +342,7 @@ These are starter static assets from the base app scaffold. They are not product
 - States the current V1 source-policy boundary so supported and best-effort sources are visible in the UI.
 - Hands the normalized URL back to `/restaurants/new` so the existing manual form opens with `source_url` prefilled.
 - Frames the page as a bounded best-effort extraction flow rather than a raw URL-review-only screen.
+- Now explains that automatic extraction remains strongest for `美食` while adding conservative support for strong accommodation pages.
 
 ### `components/site-brand.tsx`
 - Renders the shared product brand lockup.
@@ -403,6 +411,7 @@ These are starter static assets from the base app scaffold. They are not product
 ### `lib/restaurants/extraction-types.ts`
 - Defines the Step 11 extraction result model used by the review flow.
 - Stores the source kind, support level, page type, extracted fields, and success-or-fallback status in one shared type layer.
+- Now also carries the accepted category on successful candidates so the review layer can distinguish `美食` and `住宿`.
 - Adds field-level confidence, evidence source, and optional rejection-reason support.
 - Adds development-only diagnostics types for fetched URL, response metadata, structured-data types, accepted evidence, rejected candidates, and final extraction decision.
 
@@ -438,27 +447,40 @@ These are starter static assets from the base app scaffold. They are not product
 - Uses weighted keyword evidence rather than broad page-body guessing.
 - Returns blank cuisine when confidence is low so Step 11 prefers missing data over incorrect data.
 
+### `lib/restaurants/accommodation-inference.ts`
+- Adds the first category-specific inference helper outside the existing `美食` path.
+- Recognizes strong accommodation structured-data types such as `Hotel`, `LodgingBusiness`, `Resort`, `Motel`, `Campground`, and reliable hostel equivalents.
+- Infers accommodation subtype conservatively and leaves the subtype blank when confidence is low.
+- Keeps subtype output compatible with the existing temporary `cuisine` storage column.
+
 ### `lib/restaurants/source-extraction.ts`
-- Orchestrates the full Step 11 extraction flow from source classification through fetch, parse, validation, and final candidate or fallback decision.
+- Orchestrates the full Step 11 extraction flow plus the validated Step 3A accommodation expansion from source classification through fetch, parse, validation, and final candidate or fallback decision.
 - Prioritizes structured data first, then conservative metadata and labeled-section heuristics, while avoiding broad body-text extraction.
 - Supports partial candidates so genuine single-restaurant pages can return a reliable subset of fields when address, city, or cuisine are uncertain.
 - Adds candidate-acceptance thresholds so successful drafts require a valid restaurant name plus sufficient single-restaurant evidence.
+- Keeps the current `美食` extraction behavior and acceptance thresholds unchanged.
+- Adds the smallest category-aware dispatch needed for `住宿`.
+- Accepts `住宿` only when the page looks like a single place, the name passes validation, and strong accommodation structured-data evidence exists.
+- Rejects generic `LocalBusiness` as insufficient accommodation evidence.
+- Falls back cleanly for ambiguous hotel-plus-restaurant sources, hotel directory pages, real-world timeout responses, and real-world `403` responses.
 - Records development-only diagnostics for final fetched URL, page type, structured-data coverage, accepted field evidence, rejected field candidates, and the final acceptance or fallback reason.
 
 ### `lib/restaurants/source-extraction.test.ts`
-- Covers the focused Step 11 extraction regression cases with automated tests.
-- Verifies success and fallback behavior for structured-data restaurant pages, directory pages, generic pages, malformed JSON-LD, partial candidates, metadata-based address extraction, low-confidence cuisine, and limited-fetch Google Maps fallback.
-- Locks in the validated Step 11 requirement that weak pages should fall back cleanly and that missing data is preferred over incorrect data.
+- Covers the focused Step 11 extraction regression cases plus the validated Step 3A accommodation cases with automated tests.
+- Verifies success and fallback behavior for structured-data restaurant pages, hotel pages, resort pages, directory pages, generic pages, malformed JSON-LD, partial candidates, metadata-based address extraction, low-confidence subtype inference, ambiguous hotel-plus-restaurant pages, and limited-fetch Google Maps fallback.
+- Locks in the validated rule that weak pages should fall back cleanly and that missing data is preferred over incorrect data.
 
 ### `lib/restaurants/review-form.ts`
 - Converts the Step 11 extraction result into Step 12 editable confirmation-form values.
 - Prefills only accepted extracted fields for successful candidates.
+- Still defaults fallback and `美食` candidates to `美食`.
+- Now defaults successful accommodation candidates to `住宿` without silently overriding an explicit user-selected category override.
 - Lets URL query overrides win after validation errors so user-entered values are preserved.
 - Reports missing required and optional fields so partial candidates and fallback results can be manually completed.
 
 ### `lib/restaurants/review-form.test.ts`
 - Covers the focused Step 12 confirmation-form state behavior.
-- Verifies accepted-field prefills, user-entered overrides, partial-candidate missing fields, and fallback-mode manual completion labels.
+- Verifies accepted-field prefills, user-entered overrides, partial-candidate missing fields, fallback-mode manual completion labels, and successful accommodation default-category behavior.
 
 ### `lib/utils.ts`
 - Provides a minimal shared helper for joining CSS class names in reusable components.
@@ -546,9 +568,13 @@ These are starter static assets from the base app scaffold. They are not product
 - Step 12 keeps extracted results editable and routes confirmed saves through the existing validated create action.
 - Step 12 preserves entered values on validation errors and returns the user to `/restaurants/review`.
 - Step 12 successful saves redirect to `/restaurants` with the existing success message and highlight behavior.
+- Step 3A adds the first category-aware extraction expansion for `住宿` only while preserving the existing `美食` path unchanged.
+- Step 3A requires strong accommodation structured-data evidence and falls back cleanly for generic `LocalBusiness`, ambiguous hotel-plus-restaurant sources, hotel directory pages, and real-world timeout or `403` responses.
+- `购物`, `玩乐`, `景点`, and `其他` category-aware extraction have not started.
 - The planning documents now define a China-first direction where 高德地图 / Amap is the primary future V1 map, POI, and geocoding provider.
 - The planning documents now define the source stance as: 高德 links and share text are official V1 sources; 大众点评, 小红书, and 抖音 are best-effort; 百度地图 is secondary input only; Google Maps is optional overseas support.
 - Inferred cuisine remains editable and should stay blank when confidence is low.
+- Accommodation subtype remains editable and is still stored through the temporary `cuisine` field.
 - Step 13 multi-candidate work is paused while the product direction generalizes into `存个地`.
 
 ## Restaurants Table Schema

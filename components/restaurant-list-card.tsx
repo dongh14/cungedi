@@ -116,7 +116,7 @@ export function RestaurantListCard({
           href={`/restaurants/${restaurant.id}/edit`}
           className="inline-flex rounded-full border border-[var(--border-soft)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
         >
-          编辑记录
+          编辑地点
         </Link>
       </div>
     </article>

@@ -16,16 +16,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <PublicShell
       eyebrow="账号入口"
-      title="登录后继续进入你的旅行餐厅面板"
-      description="登录页现在已经纳入统一视觉风格。它会带你进入移动端优先的主导航外壳，但暂时还不会显示真正的餐厅 CRUD 功能。"
+      title="登录后继续进入你的地点收藏面板"
+      description="登录页现在已经纳入统一视觉风格。它会带你进入移动端优先的主导航外壳，并继续进入你的个人地点收藏流程。"
       aside={
         <>
           <PlaceholderCard
             title="登录后会看到什么"
-            description="登录成功后会进入主页面总览，并可以通过底部导航访问添加入口、收藏页与地图页占位。 "
+            description="登录成功后会进入主页面总览，并可以通过底部导航访问添加入口、已收藏与地图页占位。 "
             items={[
               "页面已经按 iPhone 竖屏节奏排版。",
-              "列表、地图和手动创建都还是下一步的占位内容。",
+              "地点录入、列表和地图能力都已经接入当前主路径。",
               "RLS 仍会继续保护你后续的数据访问。",
             ]}
           />
@@ -35,7 +35,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <AuthCard
         formAction={loginAction}
         title="邮箱登录"
-        description="使用 Supabase 邮箱密码登录。当前阶段重点是页面结构与导航，不会在这里显示餐厅数据列表。"
+        description="使用 Supabase 邮箱密码登录。当前阶段重点是地点收藏主路径与导航体验。"
         submitLabel="登录"
         accentLabel="第三步认证"
         alternateHref="/sign-up"

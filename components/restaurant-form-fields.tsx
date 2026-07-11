@@ -85,14 +85,14 @@ export function RestaurantFormFields({
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <FieldLabel htmlFor="name" label="餐厅名称" required />
+          <FieldLabel htmlFor="name" label="地点名称" required />
           <input
             id="name"
             name="name"
             required
             defaultValue={values.name}
             className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
-            placeholder="例如：阿明海鲜酒家"
+            placeholder="例如：阿明海鲜酒家 / 某某书店 / 某某博物馆"
           />
         </div>
 
@@ -160,7 +160,7 @@ export function RestaurantFormFields({
           ) : null}
         </CategoryField>
         <p className="text-xs leading-6 text-[var(--ink-muted)]">
-          当前先在现有餐厅流程里补充分类字段，不改动现有路由和保存入口。
+          当前先在现有地点收藏流程里补充分类字段，不改动现有路由和保存入口。
         </p>
       </div>
 
@@ -202,7 +202,7 @@ export function RestaurantFormFields({
           rows={4}
           defaultValue={values.note}
           className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
-          placeholder="例如：想试招牌蟹粉拌面，适合周末去。"
+          placeholder="例如：想试招牌蟹粉拌面，或顺路逛一下这家书店。"
         />
       </div>
     </>

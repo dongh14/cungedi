@@ -65,7 +65,7 @@ export const categoryOptions = [
   {
     value: "美食",
     label: "美食",
-    description: "默认分类，继续保持当前餐厅收藏的主流程。",
+    description: "适合餐厅、小吃、咖啡馆和其他想吃想喝的地点。",
   },
   {
     value: "购物",
@@ -80,7 +80,7 @@ export const categoryOptions = [
   {
     value: "景点",
     label: "景点",
-    description: "适合地标、自然风景和想打卡的旅行目的地。",
+    description: "适合地标、自然风景和想打卡的旅行地点。",
   },
   {
     value: "住宿",
@@ -131,7 +131,7 @@ export function getSubtypeFieldConfig(
       return {
         label: "菜系或类型",
         placeholder: "例如：川菜、火锅、咖啡、Brunch",
-        hint: "可以直接输入，也可以从建议里选择，支持中文和英文手动补充。",
+        hint: "可以直接输入，也可以从建议里选择，适合美食类地点的细分说明。",
         pickerAriaLabel: "展开菜系或类型列表",
         suggestions: cuisineSuggestions,
       };

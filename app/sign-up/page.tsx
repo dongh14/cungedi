@@ -16,8 +16,8 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
   return (
     <PublicShell
       eyebrow="账号入口"
-      title="先创建账号，再开始搭建你的旅行餐厅收藏"
-      description="注册页与登录页现在共享同一套移动端优先视觉风格。后续步骤会在这个基础上接入真正的录入、列表和地图能力。"
+      title="先创建账号，再开始搭建你的地点收藏"
+      description="注册页与登录页现在共享同一套移动端优先视觉风格。后续你可以在这个基础上继续保存美食、购物、玩乐、景点、住宿和其他地点。"
       aside={
         <PlaceholderCard
           title="注册后的下一站"

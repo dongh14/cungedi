@@ -42,9 +42,9 @@ export default async function EditRestaurantPage({
   return (
     <AppShell
       currentPath="/restaurants"
-      eyebrow="编辑餐厅"
-      title="把这条餐厅记录修正得更准确一些"
-      description="这一步只处理已保存记录的后续修正，不会提前开始新的来源输入、提取、类型推断、地图或地理编码能力。"
+      eyebrow="编辑地点"
+      title="把这条地点记录修正得更准确一些"
+      description="这一步只处理已保存地点的后续修正，不会提前开始新的来源输入、提取、类型推断、地图或地理编码能力。"
       userEmail={user.email}
       userId={user.userId}
       actions={
@@ -53,13 +53,13 @@ export default async function EditRestaurantPage({
             href="/restaurants"
             className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
-            返回收藏列表
+            返回已收藏
           </Link>
           <Link
             href="/restaurants/new"
             className="inline-flex rounded-full border border-[var(--border-soft)] bg-white px-5 py-3 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
           >
-            再添加一条餐厅
+            再添加一个地点
           </Link>
         </>
       }
@@ -73,7 +73,7 @@ export default async function EditRestaurantPage({
         <div className="space-y-4">
           <PlaceholderCard
             title="这一步现在支持什么"
-            description="Step 9 的重点是让你能回头修正已经保存过的记录，而不是把 Step 10 之后的来源提取链路提前做进来。"
+            description="Step 9 的重点是让你能回头修正已经保存过的地点记录，而不是把 Step 10 之后的来源提取链路提前做进来。"
             items={[
               "当前支持更新分类、类型细分、备注和可见范围。",
               "保存后可以刷新页面，确认修改已经持久化。",

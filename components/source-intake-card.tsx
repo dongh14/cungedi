@@ -22,7 +22,7 @@ export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
               先粘贴来源链接或分享文案
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步先把来源入口接好。当前会先识别并标准化其中的链接，再进入提取确认起点；真正的页面抓取和信息提取会留到下一步。
+              这一步先把来源入口接好。当前会先识别并标准化其中的链接，再进入提取确认起点；你也可以随时回到右侧手动保存美食、购物、玩乐、景点、住宿或其他地点。
             </p>
           </div>
         </div>

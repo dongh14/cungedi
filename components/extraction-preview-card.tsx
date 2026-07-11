@@ -20,11 +20,11 @@ function getSupportLabel(result: RestaurantExtractionResult) {
 
 function getPageTypeLabel(result: RestaurantExtractionResult) {
   if (result.pageType === "single_restaurant") {
-    return "单餐厅页";
+    return "单地点页";
   }
 
   if (result.pageType === "restaurant_list") {
-    return "餐厅目录页";
+    return "地点目录页";
   }
 
   if (result.pageType === "generic_page") {
@@ -35,6 +35,8 @@ function getPageTypeLabel(result: RestaurantExtractionResult) {
 }
 
 export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
+  const extractedCategory =
+    result.status === "success" ? result.candidate.category : null;
   const nameField = result.status === "success" ? result.candidate.fields.name : null;
   const cityField = result.status === "success" ? result.candidate.fields.city : null;
   const addressField = result.status === "success" ? result.candidate.fields.address : null;
@@ -49,7 +51,7 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
   if (result.status === "success" && nameField?.value) {
     acceptedFields.push({
       key: "name",
-      label: "餐厅名称",
+      label: "地点名称",
       value: nameField.value,
       evidence: nameField.evidenceSource ?? "未记录",
     });
@@ -76,7 +78,7 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
   if (result.status === "success" && cuisineField?.accepted && cuisineField.value) {
     acceptedFields.push({
       key: "cuisine",
-      label: "菜系推断",
+      label: extractedCategory === "住宿" ? "住宿类型" : "类型推断（美食）",
       value: cuisineField.value,
       evidence: cuisineField.evidenceSource ?? "未记录",
     });
@@ -91,12 +93,14 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
           </span>
           <div>
             <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              {result.status === "success" ? "已生成一个可确认的单餐厅草稿" : "当前改为手动补全更稳妥"}
+              {result.status === "success" ? "已生成一个可确认的单地点草稿" : "当前改为手动补全更稳妥"}
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
               {result.status === "success"
-                ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。你仍然需要在下方确认、补全并主动点击保存。"
-                : "当前来源没有返回足够稳定的餐厅信息，系统不会强行猜测。你可以保留来源链接，直接进入手动表单继续保存。"}
+                ? extractedCategory === "住宿"
+                  ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。住宿自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
+                  : "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。自动提取目前仍以餐厅类页面最稳妥，你仍然需要在下方确认、补全并主动点击保存。"
+                : "当前来源没有返回足够稳定的美食或住宿类单地点信息，系统不会强行猜测。你可以保留来源链接，直接进入手动表单继续保存其他地点。"}
             </p>
           </div>
         </div>
@@ -111,6 +115,11 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
           <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
             {result.status === "success" ? "已生成草稿" : "回退到手动补全"}
           </span>
+          {extractedCategory ? (
+            <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
+              分类：{extractedCategory}
+            </span>
+          ) : null}
         </div>
 
         {result.status === "success" ? (

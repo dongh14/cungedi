@@ -25,9 +25,9 @@ export default async function NewRestaurantPage({
   return (
     <AppShell
       currentPath="/restaurants/new"
-      eyebrow="添加餐厅"
+      eyebrow="添加地点"
       title="先粘贴来源，再决定是等待提取还是直接手动补全"
-      description="现在这个页面同时承担两个入口：你可以先粘贴来源链接进入提取确认起点，也可以继续使用已经验证过的手动创建方式。"
+      description="现在这个页面同时承担两个入口：你可以先粘贴来源链接进入提取确认起点，也可以继续手动补全并保存美食、购物、玩乐、景点、住宿或其他地点。"
       userEmail={user.email}
       userId={user.userId}
       actions={
@@ -36,7 +36,7 @@ export default async function NewRestaurantPage({
             href="/restaurants"
             className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
-            查看已保存列表
+            查看已收藏
           </Link>
           <Link
             href="/map"
@@ -52,9 +52,9 @@ export default async function NewRestaurantPage({
           <SourceIntakeCard searchParams={params} />
           <PlaceholderCard
             title="手动创建仍然保留"
-            description="即使来源提取还没接通完整能力，你也可以继续直接手动补全并保存，不会影响已经验证通过的 Step 7 到 Step 9 行为。"
+            description="即使来源提取还没接通完整能力，你也可以继续直接手动补全并保存地点，不会影响已经验证通过的 Step 7 到 Step 9 行为。"
             items={[
-              "手动创建适合提取还没完成时的兜底流程。",
+              "手动创建适合所有分类的兜底流程，也适合非美食地点。",
               "来源入口当前只做链接识别与流程跳转，不会抓取页面。",
               "当前不会显示纬度、经度，也不会做地理编码。",
             ]}

@@ -29,6 +29,8 @@ The product is now paused before Step 13 so the restaurant-only direction can be
 
 The first small, reversible `存个地` generalization migration step is now complete and has been validated without starting Step 13.
 
+The second small, reversible `存个地` extraction migration step is now complete and has been validated without starting Step 13.
+
 ## Validated Reversible Generalization Step 1
 
 ### Database
@@ -82,8 +84,50 @@ The first small, reversible `存个地` generalization migration step is now com
 - No route rename has started.
 - No table rename has started.
 - No database column rename has started.
-- No extraction expansion beyond restaurant-focused extraction has started.
+- No category-aware extraction beyond `住宿` has started.
 - `存个地` generalization is proceeding in small reversible migration steps.
+
+## Validated Reversible Generalization Step 3A
+
+### Extraction Scope
+- Category-aware extraction now supports `住宿` in addition to the existing `美食` path.
+- `美食` extraction behavior and acceptance thresholds remain unchanged.
+- `住宿` extraction succeeds only when strong accommodation structured-data evidence exists.
+- Supported strong accommodation types now include:
+  - `Hotel`
+  - `LodgingBusiness`
+  - `Resort`
+  - `Motel`
+  - `Campground`
+  - reliable hostel equivalents when exposed through strong structured data
+- Generic `LocalBusiness` alone is not sufficient accommodation evidence.
+- Ambiguous hotel-plus-restaurant sources now fall back to manual completion.
+- Hotel directory and list pages now fall back to manual completion.
+- Partial accommodation candidates are now allowed when the name is reliable even if `address` or `city` are missing.
+
+### Review And Save Behavior
+- Subtype is inferred conservatively and still stored temporarily through the existing `cuisine` field.
+- Successful accommodation candidates now default the review form category to `住宿`.
+- All extracted fields remain editable before save.
+- Nothing auto-saves.
+- Saving still redirects to `/restaurants`.
+- Saved accommodation category and subtype editing remain functional in the existing saved-record edit flow.
+
+### Validation
+- Real-world timeout and `403` source responses were validated to fall back gracefully.
+- Focused extraction tests now pass `35/35`.
+- Manual hotel extraction, review, save, list, and edit flow were validated.
+- Resort subtype inference is validated through focused fixtures even when a real resort site returns `403`.
+
+### Product State
+- `购物`, `玩乐`, `景点`, and `其他` category-aware extraction have not started.
+- 高德 integration has not started.
+- Step 13 has not started.
+- No route rename has started.
+- No table rename has started.
+- No module rename has started.
+- No TypeScript type rename has started.
+- No database column rename has started.
 
 ## Completed In Step 1
 - Initialized the repository with Git version control.
@@ -246,6 +290,22 @@ The first small, reversible `存个地` generalization migration step is now com
 - Added focused Step 12 review-form tests for accepted-field prefills, user overrides, partial-candidate missing fields, and fallback-mode manual completion.
 - Confirmed Step 12 is complete and validated before starting any Step 13 multi-candidate work.
 - Paused product work before Step 13 so the app can be generalized from a restaurant-only collector into `存个地`.
+
+## Completed In Step 3A
+- Added the first small category-aware extraction expansion without weakening the existing restaurant path.
+- Kept the current `美食` extraction pipeline and acceptance thresholds unchanged.
+- Added conservative `住宿` extraction support on top of the existing shared fetch, parsing, diagnostics, validation, review, and confirmation flow.
+- Added strong accommodation structured-data recognition for `Hotel`, `LodgingBusiness`, `Resort`, `Motel`, `Campground`, and reliable hostel equivalents.
+- Kept generic `LocalBusiness` insufficient for accommodation acceptance.
+- Added conservative accommodation subtype inference while still storing the value through the existing `cuisine` field.
+- Allowed partial accommodation candidates when the page is a single place, the name is reliable, and strong accommodation evidence exists.
+- Added fallback behavior for ambiguous restaurant-plus-hotel sources.
+- Added fallback behavior for hotel directory and list pages.
+- Updated the review flow so successful accommodation candidates default to category `住宿` without silently overriding user-selected categories.
+- Kept all fields editable before explicit save and kept the existing redirect target `/restaurants`.
+- Confirmed real-world timeout and `403` responses still fall back gracefully.
+- Added focused Step 3A extraction and review-form coverage and confirmed the focused test set passes `35/35`.
+- Validated manual hotel extraction, review, save, list, and edit flow end to end.
 
 ## Current App State
 - The project is one Next.js codebase.

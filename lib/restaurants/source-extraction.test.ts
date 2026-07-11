@@ -226,6 +226,122 @@ test("extracts from a FoodEstablishment subtype", async () => {
   assert.equal(result.candidate.fields.city.value, "Seattle");
 });
 
+test("accepts a Hotel JSON-LD page as a 住宿 candidate", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Lakeview Hotel</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Hotel",
+            "name": "Lakeview Hotel",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "西湖大道 88 号",
+              "addressLocality": "杭州"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Stay by the lake.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/lakeview-hotel", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/lakeview-hotel"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "住宿");
+  assert.equal(result.candidate.fields.name.value, "Lakeview Hotel");
+  assert.equal(result.candidate.fields.city.value, "杭州");
+  assert.equal(result.candidate.fields.cuisine.value, "酒店");
+});
+
+test("accepts LodgingBusiness with PostalAddress as a 住宿 candidate", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Pine Courtyard Stay</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "LodgingBusiness",
+            "name": "Pine Courtyard Stay",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "平江路 23 号",
+              "addressLocality": "苏州"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Quiet rooms in the old town.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/pine-courtyard", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/pine-courtyard"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "住宿");
+  assert.equal(result.candidate.fields.address.value, "平江路 23 号, 苏州");
+});
+
+test("infers 度假村 from Resort structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Blue Bay Resort</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Resort",
+            "name": "Blue Bay Resort",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Sunrise Coast 1",
+              "addressLocality": "Sanya"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Oceanfront villas and spa weekends.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/blue-bay", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/blue-bay"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "住宿");
+  assert.equal(result.candidate.fields.cuisine.value, "度假村");
+});
+
 test("keeps parsing valid structured data when another JSON-LD block is malformed", async () => {
   const html = `
     <html>
@@ -298,6 +414,41 @@ test("allows a reliable single-restaurant name while leaving address blank", asy
   assert.equal(result.candidate.fields.name.value, "Sushi Nakazawa");
   assert.equal(result.candidate.fields.address.value, null);
   assert.equal(result.candidate.fields.city.value, "纽约");
+});
+
+test("allows a reliable accommodation name while leaving address blank", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Cloud Nine Hotel</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Hotel",
+            "name": "Cloud Nine Hotel"
+          }
+        </script>
+        <meta name="description" content="A design hotel in Shanghai with skyline views." />
+      </head>
+      <body>
+        <div>Welcome to Cloud Nine Hotel.</div>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/cloud-nine", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/cloud-nine"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "住宿");
+  assert.equal(result.candidate.fields.name.value, "Cloud Nine Hotel");
+  assert.equal(result.candidate.fields.address.value, null);
 });
 
 test("extracts address from restaurant-specific metadata only when evidence is strong", async () => {
@@ -404,6 +555,37 @@ test("falls back gracefully when all structured data is malformed", async () => 
   assert.equal(result.status, "fallback");
 });
 
+test("falls back when generic LocalBusiness is the only accommodation-like evidence", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>City Suites</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": "City Suites",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "人民路 10 号",
+              "addressLocality": "成都"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Stay downtown.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/city-suites", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/city-suites"),
+  });
+
+  assert.equal(result.status, "fallback");
+});
+
 test("keeps cuisine blank when confidence is low", async () => {
   const html = `
     <html>
@@ -439,6 +621,45 @@ test("keeps cuisine blank when confidence is low", async () => {
     return;
   }
 
+  assert.equal(result.candidate.fields.cuisine.value, null);
+});
+
+test("keeps accommodation subtype blank when confidence is low", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Riverfront Stay</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "LodgingBusiness",
+            "name": "Riverfront Stay",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "滨江路 66 号",
+              "addressLocality": "重庆"
+            }
+          }
+        </script>
+        <meta name="description" content="A calm stay near the river." />
+      </head>
+      <body>
+        <p>Simple rooms for travelers.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/riverfront-stay", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/riverfront-stay"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "住宿");
   assert.equal(result.candidate.fields.cuisine.value, null);
 });
 
@@ -480,6 +701,94 @@ test("classifies a restaurant locations index page as a list and falls back", as
   assert.equal(result.status, "fallback");
   assert.equal(result.pageType, "restaurant_list");
   assert.match(result.reason, /目录|位置索引/);
+});
+
+test("falls back for a hotel directory or list page", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Hotels | Example Stays</title>
+        <meta name="description" content="Browse our hotels, resorts and city stays." />
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Hotel",
+                "name": "Example Stay West",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "West Road 1",
+                  "addressLocality": "Shanghai"
+                }
+              },
+              {
+                "@type": "Hotel",
+                "name": "Example Stay East",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "East Road 2",
+                  "addressLocality": "Shanghai"
+                }
+              }
+            ]
+          }
+        </script>
+      </head>
+      <body>
+        <h1>Our Hotels</h1>
+        <p>Find the right stay for your next trip.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/hotels", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/hotels"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.equal(result.pageType, "restaurant_list");
+  assert.match(result.reason, /住宿目录|列表页/);
+});
+
+test("falls back when restaurant and hotel structured data are both strong", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Grand Place</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Restaurant",
+                "name": "Grand Place Dining"
+              },
+              {
+                "@type": "Hotel",
+                "name": "Grand Place Hotel",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "Central Avenue 1",
+                  "addressLocality": "Shanghai"
+                }
+              }
+            ]
+          }
+        </script>
+      </head>
+      <body>
+        <p>A hotel with signature dining.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/grand-place", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/grand-place"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.match(result.reason, /不会静默改写分类|手动确认/);
 });
 
 test("falls back for Google Maps when bounded server fetch does not expose reliable fields", async () => {

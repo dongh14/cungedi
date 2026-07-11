@@ -21,7 +21,7 @@ export default async function DashboardPage({
       currentPath="/dashboard"
       eyebrow="已登录主页面"
       title="欢迎回来，主导航已经准备好"
-      description="你现在已经可以从来源入口开始，也可以直接手动保存餐厅，并通过主导航在总览、添加页、收藏列表和地图页之间切换。这里会继续作为已登录用户的主入口。"
+      description="你现在已经可以从来源入口开始，也可以直接手动保存地点，并通过主导航在总览、添加页、已收藏和地图页之间切换。这里会继续作为已登录用户的主入口。"
       userEmail={user.email}
       userId={user.userId}
       message={params.message}
@@ -37,7 +37,7 @@ export default async function DashboardPage({
             href="/restaurants"
             className="inline-flex rounded-full border border-[var(--border-soft)] bg-white px-5 py-3 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
           >
-            查看收藏页
+            查看已收藏
           </Link>
           <Link
             href="/map"
@@ -91,10 +91,10 @@ export default async function DashboardPage({
         <div className="space-y-4">
           <PlaceholderCard
             title="接下来可进入的三个页面"
-            description="现在可以先进入来源入口开始 Step 10 流程，也可以继续手动补全保存；收藏页也已经支持进入编辑页，方便你修正已保存记录。"
+            description="现在可以先进入来源入口开始 Step 10 流程，也可以继续手动补全保存；已收藏页面也已经支持进入编辑页，方便你修正已保存记录。"
             items={[
-              "添加餐厅：已经接入 Step 10 的来源入口，同时保留 Step 7 的手动录入表单。",
-              "收藏列表：展示当前账号已保存的餐厅记录，并提供编辑入口。",
+              "添加地点：已经接入 Step 10 的来源入口，同时保留手动录入表单。",
+              "已收藏：展示当前账号已保存的地点记录，并提供编辑入口。",
               "地图视图：用于承接后续的地图与位置展示。",
             ]}
           />

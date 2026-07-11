@@ -12,7 +12,7 @@ export default async function MapPage() {
       currentPath="/map"
       eyebrow="地图页占位"
       title="地图页面已经纳入主导航"
-      description="这里先建立地图页在整体产品中的位置和视觉层次。真实地图、坐标点、地理编码与缩放交互都会留到后续步骤实现。"
+      description="这里先建立地图页在整体产品中的位置和视觉层次。真实地图、地点坐标、地理编码与缩放交互都会留到后续步骤实现。"
       userEmail={user.email}
       userId={user.userId}
       actions={
@@ -21,7 +21,7 @@ export default async function MapPage() {
             href="/restaurants"
             className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
-            去收藏列表页
+            去已收藏
           </Link>
           <Link
             href="/restaurants/new"
@@ -67,8 +67,8 @@ export default async function MapPage() {
             title="未来会出现在这里的内容"
             description="先把功能边界说清楚，避免 Step 6 看起来像已经开始做地图能力。"
             items={[
-              "餐厅位置点与城市聚焦会在后续步骤加入。",
-              "没有坐标的餐厅仍会保留在列表，不会在这里强行展示。",
+              "地点位置点与城市聚焦会在后续步骤加入。",
+              "没有坐标的地点仍会保留在列表，不会在这里强行展示。",
               "地图页会继续服从用户专属数据范围，不做公共发现。",
             ]}
           />

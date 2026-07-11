@@ -22,8 +22,8 @@ export default async function SetupPage() {
   return (
     <PublicShell
       eyebrow="第二步设置检查"
-      title="Supabase 已接入，现在也拥有统一页面风格"
-      description="这个页面继续负责展示 Supabase 项目连接状态，同时已经切换到 Step 6 的移动端优先视觉系统。它不会创建任何业务数据。"
+      title="Supabase 已接入，存个地也已经拥有统一页面风格"
+      description="这个页面继续负责展示 Supabase 项目连接状态，同时已经切换到移动端优先视觉系统。它不会创建任何收藏数据。"
       aside={
         <PlaceholderCard
           title="手动设置提醒"

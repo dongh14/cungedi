@@ -33,10 +33,10 @@ export function SiteBrand({
             compact ? "text-base" : "text-lg",
           )}
         >
-          餐厅收集器
+          存个地
         </span>
         <span className="block truncate text-xs tracking-[0.22em] text-[var(--ink-muted)] uppercase">
-          Restaurant Collector
+          Place Collector
         </span>
       </span>
     </Link>

@@ -1,3 +1,5 @@
+import type { RestaurantCategory } from "./constants";
+
 export type RestaurantSourceKind =
   | "public-web"
   | "google-maps"
@@ -32,6 +34,7 @@ export type ExtractedRestaurantField = {
 
 export type RestaurantExtractionCandidate = {
   sourceUrl: string;
+  category: RestaurantCategory;
   fields: {
     name: ExtractedRestaurantField;
     city: ExtractedRestaurantField;

@@ -40,8 +40,8 @@ export default async function RestaurantReviewPage({
     <AppShell
       currentPath="/restaurants/new"
       eyebrow="来源提取"
-      title="先生成一个草稿，再交给你确认和补全"
-      description="当前这一步会用简单、受限、best-effort 的服务端提取读取公开页面信息。提取出的内容不会自动保存，信号不足时会直接回退到手动补全。"
+      title="先生成一个地点草稿，再交给你确认和补全"
+      description="当前这一步会用简单、受限、best-effort 的服务端提取读取公开页面信息。自动提取目前仍以美食来源最稳妥，并新增了强结构化住宿页的保守支持；其他地点仍然可以继续手动保存。"
       userEmail={user.email}
       userId={user.userId}
       actions={
@@ -56,7 +56,7 @@ export default async function RestaurantReviewPage({
             href="/restaurants"
             className="inline-flex rounded-full border border-[var(--border-soft)] bg-white px-5 py-3 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
           >
-            回到收藏列表
+            回到已收藏
           </Link>
         </>
       }
@@ -71,18 +71,18 @@ export default async function RestaurantReviewPage({
         <div className="space-y-4">
           <PlaceholderCard
             title="这一步现在重点做什么"
-            description="Step 12 把单餐厅草稿正式接上“确认后保存”体验，但仍然保持 Step 11 的保守提取边界。"
+            description="Step 12 把单地点草稿正式接上“确认后保存”体验，但仍然保持 Step 11 的保守提取边界。"
             items={[
               "只显示已被接受的提取字段，不展示被拒绝或低置信度内容。",
-              "所有 V1 字段都仍可手动修改；美食分类下也会继续预填推断出来的菜系。",
-              "点击保存前不会写入任何餐厅记录。",
+              "所有 V1 字段都仍可手动修改；美食会继续预填推断出来的菜系或类型，住宿只会在强证据足够时预填分类与住宿类型。",
+              "点击保存前不会写入任何地点记录。",
             ]}
           />
           <PlaceholderCard
             title="这一步还没有做什么"
-            description="为了不越过 Step 12，这里仍然只处理单个餐厅候选确认，不会提前进入多候选或后续地图能力。"
+            description="为了不越过 Step 12，这里仍然只处理单个地点候选确认，不会提前进入多候选或后续地图能力。"
             items={[
-              "不会提前做多餐厅候选列表或多选保存。",
+              "不会提前做多地点候选列表或多选保存。",
               "不会做 POI enrichment、地理编码或坐标补全。",
               "不会启动地图展示或 Step 13 之后的流程。",
             ]}

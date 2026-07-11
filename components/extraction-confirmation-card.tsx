@@ -14,7 +14,7 @@ type ExtractionConfirmationCardProps = {
 };
 
 function getSaveButtonLabel(result: RestaurantExtractionResult) {
-  return result.status === "success" ? "确认并保存这家餐厅" : "手动补全并保存";
+  return result.status === "success" ? "确认并保存这个地点" : "手动补全并保存地点";
 }
 
 export function ExtractionConfirmationCard({
@@ -33,7 +33,7 @@ export function ExtractionConfirmationCard({
           </span>
           <div>
             <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              先确认这家餐厅，再决定是否保存
+              先确认这个地点，再决定是否保存
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
               这里只会展示当前已接受的提取结果，并允许你继续修改全部 V1 字段。只有你点击保存后，记录才会进入现有的服务端创建流程。

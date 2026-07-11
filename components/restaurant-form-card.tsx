@@ -32,10 +32,10 @@ export function RestaurantFormCard({ searchParams }: RestaurantFormCardProps) {
           </span>
           <div>
             <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              手动添加餐厅
+              手动添加地点
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              先把最关键的餐厅信息存下来。当前不会做坐标、地理编码或来源内容提取，只提供最直接的手动保存入口。
+              先把最关键的地点信息存下来。这里可以直接保存美食、购物、玩乐、景点、住宿和其他地点。当前不会做坐标、地理编码或来源内容提取，只提供最直接的手动保存入口。
             </p>
           </div>
         </div>
@@ -59,7 +59,7 @@ export function RestaurantFormCard({ searchParams }: RestaurantFormCardProps) {
             type="submit"
             className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
-            保存餐厅
+            保存地点
           </button>
         </form>
       </div>

@@ -7,13 +7,13 @@ export default function Home() {
   return (
     <PublicShell
       eyebrow="Step 6 导航外壳"
-      title="用更轻松的方式整理你看到的餐厅灵感"
-      description="这个版本先把主要页面与导航搭好，让你能在手机尺寸下顺畅地走完整体路径。手动创建、保存、地图与提取能力会在后续步骤接入。"
+      title="用更轻松的方式整理你看到的地点灵感"
+      description="这个版本先把主要页面与导航搭好，让你能在手机尺寸下顺畅地走完整体路径。无论是美食、购物、玩乐、景点还是住宿，后续都可以在这里慢慢存起来。"
       aside={
         <>
           <PlaceholderCard
             title="V1 页面已经就位"
-            description="首页、登录、注册、添加入口、收藏列表和地图占位页都已经接入统一导航。"
+            description="首页、登录、注册、添加入口、已收藏和地图占位页都已经接入统一导航。"
             items={[
               "默认可见文案为简体中文。",
               "整体布局优先适配 iPhone 竖屏。",
@@ -54,7 +54,7 @@ export default function Home() {
         <div className="grid gap-3 sm:grid-cols-3">
           {[
             "支持围绕小红书、抖音、Google Maps 和公开网页建立收藏流程。",
-            "保存前先确认信息，避免不准确数据直接进入你的收藏列表。",
+            "保存前先确认信息，避免不准确数据直接进入你的已收藏清单。",
             "后续会逐步接上手动录入、列表浏览和地图回看能力。",
           ].map((item) => (
             <SurfaceCard key={item} className="p-4 sm:p-5">

@@ -68,7 +68,9 @@ export function getInitialDraftFormValues(
     category:
       overrides.category !== undefined && isRestaurantCategory(overrides.category)
         ? overrides.category
-        : defaultRestaurantCategory,
+        : result.status === "success" && isRestaurantCategory(result.candidate.category)
+          ? result.candidate.category
+          : defaultRestaurantCategory,
     address: overrides.address ?? extractedValues.address,
     cuisine: overrides.cuisine ?? extractedValues.cuisine,
     note: overrides.note ?? "",
@@ -84,10 +86,10 @@ export function getMissingCandidateFields(
 }> {
   if (result.status !== "success") {
     return [
-      { key: "name", label: "餐厅名称", required: true },
+      { key: "name", label: "地点名称", required: true },
       { key: "city", label: "城市", required: true },
       { key: "address", label: "地址", required: false },
-      { key: "cuisine", label: "菜系或类型", required: false },
+      { key: "cuisine", label: "类型细分", required: false },
     ];
   }
 
@@ -95,7 +97,7 @@ export function getMissingCandidateFields(
     (field) => !result.candidate.fields[field].accepted,
   ).map((field) => ({
     key: field,
-    label: field === "name" ? "餐厅名称" : "城市",
+    label: field === "name" ? "地点名称" : "城市",
     required: true,
   }));
 
@@ -103,7 +105,7 @@ export function getMissingCandidateFields(
     (field) => !result.candidate.fields[field].accepted,
   ).map((field) => ({
     key: field,
-    label: field === "address" ? "地址" : "菜系或类型",
+    label: field === "address" ? "地址" : "类型细分",
     required: false,
   }));
 

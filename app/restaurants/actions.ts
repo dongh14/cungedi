@@ -185,7 +185,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   };
 
   if (!name || !city || !sourceInput || !privacy || !category) {
-    redirectToDraft("请先填写所有必填项：餐厅名称、城市、来源输入、分类和可见范围。");
+    redirectToDraft("请先填写所有必填项：地点名称、城市、来源输入、分类和可见范围。");
   }
 
   const sourceUrl = extractFirstHttpUrl(sourceInput);
@@ -307,7 +307,7 @@ export async function createRestaurantAction(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(buildRedirect("/login", { error: "请先登录后再创建餐厅。" }));
+    redirect(buildRedirect("/login", { error: "请先登录后再创建地点。" }));
   }
 
   const { data, error } = await supabase
@@ -347,7 +347,7 @@ export async function createRestaurantAction(formData: FormData) {
 
   redirect(
     buildRedirect("/restaurants", {
-      message: "餐厅已成功保存。",
+      message: "地点已成功保存。",
       created: String(data.id),
     }),
   );
@@ -361,7 +361,7 @@ export async function updateRestaurantAction(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(buildRedirect("/login", { error: "请先登录后再编辑餐厅。" }));
+    redirect(buildRedirect("/login", { error: "请先登录后再编辑地点。" }));
   }
 
   const { data, error } = await supabase
@@ -390,7 +390,7 @@ export async function updateRestaurantAction(formData: FormData) {
 
   redirect(
     buildRedirect("/restaurants", {
-      message: "餐厅信息已更新",
+      message: "地点信息已更新",
     }),
   );
 }
