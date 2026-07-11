@@ -33,6 +33,8 @@ The second small, reversible `存个地` extraction migration step is now comple
 
 The third small, reversible `存个地` extraction migration step is now complete and has been validated without starting Step 13.
 
+The fourth small, reversible `存个地` extraction migration step is now complete and has been validated without starting Step 13.
+
 ## Validated Reversible Generalization Step 1
 
 ### Database
@@ -162,6 +164,59 @@ The third small, reversible `存个地` extraction migration step is now complet
 
 ### Product State
 - `购物`, `玩乐`, and `其他` category-aware extraction have not started.
+- 高德 integration has not started.
+- Step 13 has not started.
+- No route rename has started.
+- No table rename has started.
+- No module rename has started.
+- No TypeScript type rename has started.
+- No database column rename has started.
+
+## Validated Reversible Generalization Step 3C
+
+### Extraction Scope
+- Category-aware extraction now supports `购物` alongside the existing `美食`, `住宿`, and `景点` paths.
+- Existing `美食`, `住宿`, and `景点` extraction behavior remains unchanged.
+- `购物` extraction now requires strong shopping structured-data evidence.
+- Supported shopping types now include:
+  - `ShoppingCenter`
+  - `Store`
+  - `BookStore`
+  - `ClothingStore`
+  - `GroceryStore`
+  - `ConvenienceStore`
+  - `DepartmentStore`
+  - `HomeGoodsStore`
+  - `ElectronicsStore`
+  - conservatively accepted beauty-shopping structured-data types when the evidence clearly matches a shopping-place subtype
+- Generic `LocalBusiness` or `Place` alone is insufficient shopping evidence.
+- Only single-place shopping pages are accepted for `购物`.
+- Shopping directories, store lists, search-result pages, and mixed-category pages now fall back to manual completion.
+- Generic `Store` may now produce a partial candidate with a blank subtype when the place evidence is strong but subtype confidence stays low.
+
+### Review And Save Behavior
+- Shopping subtype inference is conservative and is still stored temporarily through the existing `cuisine` field.
+- Successful shopping candidates now default the review form category to `购物`.
+- All extracted fields remain editable before save.
+- Nothing auto-saves.
+- Successful saves still redirect to `/restaurants`.
+- Saved shopping category and subtype editing remain functional in the existing saved-record edit flow.
+
+### Validation
+- Focused extraction tests now pass `59/59`.
+- `ShoppingCenter` fixture validation now succeeds as `购物 / 商场` after a fixture-only correction that avoided accidental directory-like copy.
+- `BookStore` fixture validation now succeeds as `购物 / 书店`.
+- Generic `Store` fixture validation now succeeds as `购物` with accepted `name`, `address`, and `city`, plus a blank subtype.
+- Shopping directory fixture validation now correctly falls back.
+- Mixed `ShoppingCenter + Restaurant` fixture validation now correctly falls back.
+- Save, list, and edit flow for a shopping candidate were manually validated.
+- Real-world shopping sites frequently returned timeout, `403`, or oversized-page fallbacks, and those failures remained graceful.
+- Development-only deterministic extraction fixtures were added for manual validation.
+- Fixture routes are not linked from the product UI and are disabled in production.
+- Fetch timeout, response-size limits, and extraction security boundaries were not loosened.
+
+### Product State
+- `玩乐` and `其他` category-aware extraction have not started.
 - 高德 integration has not started.
 - Step 13 has not started.
 - No route rename has started.

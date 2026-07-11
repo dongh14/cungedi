@@ -21,6 +21,8 @@ export const shoppingSubtypeSuggestions = [
   "书店",
   "家居店",
   "美妆店",
+  "电子产品店",
+  "百货商店",
 ] as const;
 
 export const entertainmentSubtypeSuggestions = [

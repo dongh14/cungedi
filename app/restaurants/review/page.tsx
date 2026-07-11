@@ -41,7 +41,7 @@ export default async function RestaurantReviewPage({
       currentPath="/restaurants/new"
       eyebrow="来源提取"
       title="先生成一个地点草稿，再交给你确认和补全"
-      description="当前这一步会用简单、受限、best-effort 的服务端提取读取公开页面信息。自动提取目前仍以美食来源最稳妥，并新增了强结构化住宿页与景点页的保守支持；其他地点仍然可以继续手动保存。"
+      description="当前这一步会用简单、受限、best-effort 的服务端提取读取公开页面信息。自动提取目前仍以美食来源最稳妥，并新增了强结构化住宿页、景点页和购物页的保守支持；其他地点仍然可以继续手动保存。"
       userEmail={user.email}
       userId={user.userId}
       actions={
@@ -74,7 +74,7 @@ export default async function RestaurantReviewPage({
             description="Step 12 把单地点草稿正式接上“确认后保存”体验，但仍然保持 Step 11 的保守提取边界。"
             items={[
               "只显示已被接受的提取字段，不展示被拒绝或低置信度内容。",
-              "所有 V1 字段都仍可手动修改；美食会继续预填推断出来的菜系或类型，住宿和景点只会在强证据足够时预填分类与类型细分。",
+              "所有 V1 字段都仍可手动修改；美食会继续预填推断出来的菜系或类型，住宿、景点和购物只会在强证据足够时预填分类与类型细分。",
               "点击保存前不会写入任何地点记录。",
             ]}
           />

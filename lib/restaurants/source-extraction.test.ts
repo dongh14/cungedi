@@ -495,6 +495,244 @@ test("infers 动物园 from Zoo structured data", async () => {
   assert.equal(result.candidate.fields.cuisine.value, "动物园");
 });
 
+test("accepts a ShoppingCenter JSON-LD page as a 购物 candidate", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Harbor Mall</title>
+        <meta
+          name="description"
+          content="A waterfront mall with retail, cafés and weekend browsing."
+        />
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "ShoppingCenter",
+            "name": "Harbor Mall",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "海港路 188 号",
+              "addressLocality": "厦门"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <main>
+          <h1>Harbor Mall</h1>
+          <p>A waterfront mall with retail, cafés and weekend browsing.</p>
+          <p>Visitors usually come here for seasonal pop-ups, relaxed browsing and a straightforward indoor mall experience.</p>
+        </main>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/harbor-mall", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/harbor-mall"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "购物");
+  assert.equal(result.candidate.fields.city.value, "厦门");
+  assert.equal(result.candidate.fields.cuisine.value, "商场");
+});
+
+test("infers 书店 from BookStore structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Page One Bookstore</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "BookStore",
+            "name": "Page One Bookstore",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "南京西路 999 号",
+              "addressLocality": "上海"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Books, magazines and stationery.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/page-one", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/page-one"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "购物");
+  assert.equal(result.candidate.fields.cuisine.value, "书店");
+});
+
+test("infers 服装店 from ClothingStore structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Archive Wardrobe</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "ClothingStore",
+            "name": "Archive Wardrobe",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "延安中路 88 号",
+              "addressLocality": "上海"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Curated fashion labels.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/archive-wardrobe", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/archive-wardrobe"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "购物");
+  assert.equal(result.candidate.fields.cuisine.value, "服装店");
+});
+
+test("infers 超市 from GroceryStore structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Fresh Basket Market</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "GroceryStore",
+            "name": "Fresh Basket Market",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "福州路 66 号",
+              "addressLocality": "上海"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Fresh produce and pantry staples.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/fresh-basket", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/fresh-basket"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "购物");
+  assert.equal(result.candidate.fields.cuisine.value, "超市");
+});
+
+test("infers 便利店 from ConvenienceStore structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>City Corner</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "ConvenienceStore",
+            "name": "City Corner",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "人民路 12 号",
+              "addressLocality": "成都"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Snacks and essentials around the clock.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/city-corner", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/city-corner"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "购物");
+  assert.equal(result.candidate.fields.cuisine.value, "便利店");
+});
+
+test("accepts a generic Store with blank subtype when subtype evidence is weak", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Studio Market</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Store",
+            "name": "Studio Market",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "复兴中路 18 号",
+              "addressLocality": "上海"
+            }
+          }
+        </script>
+        <meta name="description" content="A neighborhood retail space." />
+      </head>
+      <body>
+        <p>Open daily.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/studio-market", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/studio-market"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "购物");
+  assert.equal(result.candidate.fields.cuisine.value, null);
+});
+
 test("keeps parsing valid structured data when another JSON-LD block is malformed", async () => {
   const html = `
     <html>
@@ -805,6 +1043,37 @@ test("falls back when generic Place is the only attraction-like evidence", async
   assert.equal(result.status, "fallback");
 });
 
+test("falls back when generic LocalBusiness is the only shopping-like evidence", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Moonlight Shop</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": "Moonlight Shop",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "天府大道 8 号",
+              "addressLocality": "成都"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Independent shop for daily picks.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/moonlight-shop", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/moonlight-shop"),
+  });
+
+  assert.equal(result.status, "fallback");
+});
+
 test("keeps cuisine blank when confidence is low", async () => {
   const html = `
     <html>
@@ -918,6 +1187,45 @@ test("keeps attraction subtype blank when confidence is low", async () => {
   }
 
   assert.equal(result.candidate.category, "景点");
+  assert.equal(result.candidate.fields.cuisine.value, null);
+});
+
+test("keeps shopping subtype blank when confidence is low", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>North Gate Store</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Store",
+            "name": "North Gate Store",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "北门路 5 号",
+              "addressLocality": "苏州"
+            }
+          }
+        </script>
+        <meta name="description" content="Retail goods and neighborhood essentials." />
+      </head>
+      <body>
+        <p>Everyday shopping in the old town.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/north-gate-store", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/north-gate-store"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "购物");
   assert.equal(result.candidate.fields.cuisine.value, null);
 });
 
@@ -1057,6 +1365,54 @@ test("falls back for an attraction directory or list page", async () => {
   assert.match(result.reason, /景点目录|列表页/);
 });
 
+test("falls back for a shopping directory or list page", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Stores | Harbor Mall</title>
+        <meta name="description" content="Browse brands, stores and shopping categories." />
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Store",
+                "name": "North Wing Store",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "Mall Road 1",
+                  "addressLocality": "Xiamen"
+                }
+              },
+              {
+                "@type": "BookStore",
+                "name": "Books Plaza",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "Mall Road 2",
+                  "addressLocality": "Xiamen"
+                }
+              }
+            ]
+          }
+        </script>
+      </head>
+      <body>
+        <h1>Find a Store</h1>
+        <p>Search stores by category, floor and brand.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/stores", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/stores"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.equal(result.pageType, "restaurant_list");
+  assert.match(result.reason, /购物目录|门店列表|搜索结果页/);
+});
+
 test("falls back for a travel blog page", async () => {
   const html = `
     <html>
@@ -1117,6 +1473,81 @@ test("falls back when restaurant and hotel structured data are both strong", asy
 
   const result = await extractRestaurantDraftFromSource("https://example.com/grand-place", {
     fetchImpl: async () => createHtmlResponse(html, "https://example.com/grand-place"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.match(result.reason, /不会静默改写分类|手动确认/);
+});
+
+test("falls back when shopping and restaurant structured data are both strong", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>City Center Complex</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "ShoppingCenter",
+                "name": "City Center Mall"
+              },
+              {
+                "@type": "Restaurant",
+                "name": "City Center Kitchen"
+              }
+            ]
+          }
+        </script>
+      </head>
+      <body>
+        <p>Shopping and dining under one roof.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/city-center-complex", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/city-center-complex"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.match(result.reason, /不会静默改写分类|手动确认/);
+});
+
+test("falls back when shopping and hotel structured data are both strong", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Harbor Destination</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "ShoppingCenter",
+                "name": "Harbor Galleria"
+              },
+              {
+                "@type": "Hotel",
+                "name": "Harbor Hotel",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "Harbor Road 8",
+                  "addressLocality": "Qingdao"
+                }
+              }
+            ]
+          }
+        </script>
+      </head>
+      <body>
+        <p>Retail arcade connected to the hotel lobby.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/harbor-destination", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/harbor-destination"),
   });
 
   assert.equal(result.status, "fallback");

@@ -28,7 +28,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               来源链接已经进入提取流程
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步会先用受限的服务端抓取尝试读取公开页面元数据和正文文本，再生成一个 best-effort 草稿。当前自动提取仍以美食来源最稳妥，并新增了强结构化住宿页与景点页的保守支持；其他地点仍然需要你手动补全后再保存。
+              这一步会先用受限的服务端抓取尝试读取公开页面元数据和正文文本，再生成一个 best-effort 草稿。当前自动提取仍以美食来源最稳妥，并新增了强结构化住宿页、景点页和购物页的保守支持；其他地点仍然需要你手动补全后再保存。
             </p>
           </div>
         </div>

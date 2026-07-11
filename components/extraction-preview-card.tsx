@@ -90,6 +90,15 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
     });
   }
 
+  const successDescription =
+    extractedCategory === "住宿"
+      ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。住宿自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
+      : extractedCategory === "景点"
+        ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。景点自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
+        : extractedCategory === "购物"
+          ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。购物地点自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
+          : "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。自动提取目前仍以餐厅类页面最稳妥，你仍然需要在下方确认、补全并主动点击保存。";
+
   return (
     <SurfaceCard className="p-5 sm:p-6">
       <div className="space-y-5">
@@ -103,12 +112,8 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
               {result.status === "success"
-                ? extractedCategory === "住宿"
-                  ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。住宿自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
-                  : extractedCategory === "景点"
-                    ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。景点自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
-                  : "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。自动提取目前仍以餐厅类页面最稳妥，你仍然需要在下方确认、补全并主动点击保存。"
-                : "当前来源没有返回足够稳定的美食、住宿或景点类单地点信息，系统不会强行猜测。你可以保留来源链接，直接进入手动表单继续保存其他地点。"}
+                ? successDescription
+                : "当前来源没有返回足够稳定的美食、住宿、景点或购物类单地点信息，系统不会强行猜测。你可以保留来源链接，直接进入手动表单继续保存其他地点。"}
             </p>
           </div>
         </div>
