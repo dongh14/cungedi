@@ -23,7 +23,7 @@ const navigationLikePattern =
   /\b(newsletter|subscribe|privacy|cookie|terms|careers|careers|gift card|sign up|sign-up|follow us|locations|location finder|store locator)\b/i;
 
 const addressPattern =
-  /(?:路|街|道|大道|巷|号|广场|商场|里|弄|floor|fl\.|street|st\b|road|rd\b|avenue|ave\b|boulevard|blvd\b|lane|ln\b|drive|dr\b|suite|ste\b|building|bldg\b)/i;
+  /(?:路|街|道|大道|巷|号|广场|商场|里|弄|floor|fl\.|street|\bst\b|road|\brd\b|avenue|\bave\b|boulevard|\bblvd\b|lane|\bln\b|drive|\bdr\b|suite|\bste\b|building|\bbldg\b)/i;
 
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();

@@ -52,6 +52,10 @@ export type RestaurantExtractionDiagnostics = {
   structuredDataTypes: string[];
   hasRestaurantOrLocalBusiness: boolean;
   hasPostalAddress: boolean;
+  hasRawGenericPlaceEvidence?: boolean;
+  hasGenericPlaceEvidence?: boolean;
+  finalCategory?: RestaurantCategory | null;
+  fallbackReason?: string | null;
   acceptedFieldEvidence: Partial<
     Record<"name" | "city" | "address" | "cuisine", RestaurantFieldEvidenceSource>
   >;

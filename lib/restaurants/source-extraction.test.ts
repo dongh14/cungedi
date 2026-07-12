@@ -17,6 +17,44 @@ function createHtmlResponse(html: string, url: string) {
   });
 }
 
+function renderDevFixtureHtml(input: {
+  metadataTitle: string;
+  metadataDescription: string;
+  ogTitle: string;
+  ogDescription: string;
+  pageTitle: string;
+  pageDescription: string;
+  body: string[];
+  jsonLd: Record<string, unknown> | Array<Record<string, unknown>>;
+}) {
+  return `
+    <html>
+      <head>
+        <title>${input.metadataTitle}</title>
+        <meta name="description" content="${input.metadataDescription}" />
+        <meta property="og:title" content="${input.ogTitle}" />
+        <meta property="og:description" content="${input.ogDescription}" />
+        <script type="application/ld+json">
+          ${JSON.stringify(input.jsonLd)}
+        </script>
+      </head>
+      <body>
+        <main>
+          <div>
+            <p>Development/Test Only</p>
+            <h1>${input.pageTitle}</h1>
+            <p>${input.pageDescription}</p>
+            <p>这个页面只用于本地开发时做确定性提取验证。请把当前 localhost URL 粘贴进地点保存入口，继续走真实的 Step 11 / Step 12 提取与确认流程。</p>
+          </div>
+          <section>
+            ${input.body.map((paragraph) => `<p>${paragraph}</p>`).join("")}
+          </section>
+        </main>
+      </body>
+    </html>
+  `;
+}
+
 test("classifies source kinds and support levels correctly", () => {
   assert.equal(
     classifyRestaurantSource("https://www.google.com/maps/place/Example"),
@@ -998,6 +1036,496 @@ test("accepts a generic EntertainmentBusiness with blank subtype when subtype ev
 
   assert.equal(result.candidate.category, "玩乐");
   assert.equal(result.candidate.fields.cuisine.value, null);
+});
+
+test("accepts a strong single Place with a reliable address as 其他", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Harbor Service Center</title>
+        <meta
+          name="description"
+          content="Harbor Service Center offers visitor support near the ferry pier."
+        />
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Place",
+            "name": "Harbor Service Center",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "海港路 10 号",
+              "addressLocality": "厦门"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Visitor help desk and route guidance near the terminal.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/harbor-service", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/harbor-service"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "其他");
+  assert.equal(result.candidate.fields.name.value, "Harbor Service Center");
+  assert.equal(result.candidate.fields.city.value, "厦门");
+  assert.equal(result.candidate.fields.address.value, "海港路 10 号, 厦门");
+  assert.equal(result.candidate.fields.cuisine.value, "服务中心");
+});
+
+test("accepts a strong LocalBusiness with a reliable city and address as 其他", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>North Pier Visitor Hub</title>
+        <meta
+          name="description"
+          content="North Pier Visitor Hub provides assistance for arrivals in Qingdao."
+        />
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": "North Pier Visitor Hub",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "海滨路 20 号",
+              "addressLocality": "青岛"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Arrival support, lockers and route guidance.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/north-pier-hub", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/north-pier-hub"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "其他");
+  assert.equal(result.candidate.fields.city.value, "青岛");
+  assert.equal(result.candidate.fields.address.value, "海滨路 20 号, 青岛");
+});
+
+test("falls back for Place structured data without reliable address or city evidence", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Harbor Marker</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Place",
+            "name": "Harbor Marker"
+          }
+        </script>
+      </head>
+      <body>
+        <p>A saved place marker for later review.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/harbor-marker", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/harbor-marker"),
+  });
+
+  assert.equal(result.status, "fallback");
+});
+
+test("falls back for generic LocalBusiness alone when reliable location evidence is missing", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Visitor Hub</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": "Visitor Hub"
+          }
+        </script>
+      </head>
+      <body>
+        <p>Plan your stop here.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/visitor-hub", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/visitor-hub"),
+  });
+
+  assert.equal(result.status, "fallback");
+});
+
+test("falls back for a generic place directory page", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Service Center Directory</title>
+        <meta
+          name="description"
+          content="Browse all service centers and visitor hubs across the city."
+        />
+        <script type="application/ld+json">
+          [
+            {
+              "@context": "https://schema.org",
+              "@type": "Place",
+              "name": "East Service Center",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "东一路 8 号",
+                "addressLocality": "上海"
+              }
+            },
+            {
+              "@context": "https://schema.org",
+              "@type": "Place",
+              "name": "West Service Center",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "西一路 18 号",
+                "addressLocality": "上海"
+              }
+            }
+          ]
+        </script>
+      </head>
+      <body>
+        <p>All locations</p>
+        <p>East Service Center</p>
+        <p>West Service Center</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/service-directory", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/service-directory"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.equal(result.pageType, "restaurant_list");
+});
+
+test("falls back when generic place evidence and strong restaurant evidence both appear", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Harbor Hall & Noodle Bar</title>
+        <script type="application/ld+json">
+          [
+            {
+              "@context": "https://schema.org",
+              "@type": "Place",
+              "name": "Harbor Hall",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "港湾路 1 号",
+                "addressLocality": "上海"
+              }
+            },
+            {
+              "@context": "https://schema.org",
+              "@type": "Restaurant",
+              "name": "Noodle Bar",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "港湾路 1 号",
+                "addressLocality": "上海"
+              }
+            }
+          ]
+        </script>
+      </head>
+      <body>
+        <p>A hall with an attached restaurant.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/harbor-hall", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/harbor-hall"),
+  });
+
+  assert.equal(result.status, "fallback");
+});
+
+test("keeps generic-place subtype blank when the label is vague marketing text", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Open Hub</title>
+        <meta
+          name="description"
+          content="Open Hub is a flexible space for arrivals and everyday convenience."
+        />
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Place",
+            "name": "Open Hub",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "江边路 9 号",
+              "addressLocality": "武汉"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>A flexible, welcoming place for all kinds of city moments.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/open-hub", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/open-hub"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "其他");
+  assert.equal(result.candidate.fields.cuisine.value, null);
+});
+
+test("matches the live generic-place fixture shape and succeeds as 其他", async () => {
+  const html = renderDevFixtureHtml({
+    metadataTitle: "DEV ONLY Generic Place Fixture",
+    metadataDescription:
+      "Development-only extraction fixture for a successful generic Place candidate.",
+    ogTitle: "Harbor Service Center",
+    ogDescription: "A single visitor support point near the ferry terminal.",
+    pageTitle: "Harbor Service Center",
+    pageDescription: "A single visitor support point near the ferry terminal.",
+    body: [
+      "Harbor Service Center focuses on route guidance, baggage help and simple arrival support for one specific point of interest.",
+      "The page is intentionally category-neutral so Step 3E can accept it only as a conservative 其他 candidate.",
+    ],
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "Place",
+      name: "Harbor Service Center",
+      description: "A single visitor support point near the ferry terminal.",
+      url: "http://localhost:3000/dev-fixtures/extraction/generic-place",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "海港路 10 号",
+        addressLocality: "厦门",
+      },
+    },
+  });
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/live-generic-place", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/live-generic-place"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "其他");
+  assert.equal(result.candidate.fields.cuisine.value, "服务中心");
+});
+
+test("matches the live generic-local-business fixture shape and succeeds as 其他", async () => {
+  const html = renderDevFixtureHtml({
+    metadataTitle: "DEV ONLY Generic LocalBusiness Fixture",
+    metadataDescription:
+      "Development-only extraction fixture for a successful generic LocalBusiness candidate.",
+    ogTitle: "North Pier Visitor Hub",
+    ogDescription: "Arrival assistance and route guidance at one specific harbor point.",
+    pageTitle: "North Pier Visitor Hub",
+    pageDescription: "Arrival assistance and route guidance at one specific harbor point.",
+    body: [
+      "North Pier Visitor Hub provides lockers, help-desk service and printed route information for one arrival area.",
+      "The copy avoids shopping, dining, lodging and entertainment labels so the extractor keeps this in the conservative 其他 path.",
+    ],
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      name: "North Pier Visitor Hub",
+      description: "Arrival assistance and route guidance at one specific harbor point.",
+      url: "http://localhost:3000/dev-fixtures/extraction/generic-local-business",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "海滨路 20 号",
+        addressLocality: "青岛",
+      },
+    },
+  });
+
+  const result = await extractRestaurantDraftFromSource(
+    "https://example.com/live-generic-local-business",
+    {
+      fetchImpl: async () =>
+        createHtmlResponse(html, "https://example.com/live-generic-local-business"),
+    },
+  );
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "其他");
+  assert.equal(result.candidate.fields.cuisine.value, null);
+});
+
+test("matches the live missing-location fixture shape and falls back", async () => {
+  const html = renderDevFixtureHtml({
+    metadataTitle: "DEV ONLY Generic Place Missing Location Fixture",
+    metadataDescription:
+      "Development-only extraction fixture for a generic Place fallback without reliable location evidence.",
+    ogTitle: "Harbor Marker",
+    ogDescription: "A placeholder marker with no reliable city or address evidence.",
+    pageTitle: "Harbor Marker",
+    pageDescription: "A placeholder marker with no reliable city or address evidence.",
+    body: [
+      "This page intentionally omits any reliable city or precise location information.",
+      "Step 3E should therefore fall back instead of creating an automatic 其他 draft.",
+    ],
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "Place",
+      name: "Harbor Marker",
+      description: "A placeholder marker with no reliable city or address evidence.",
+      url: "http://localhost:3000/dev-fixtures/extraction/generic-place-missing-location",
+    },
+  });
+
+  const result = await extractRestaurantDraftFromSource(
+    "https://example.com/live-generic-place-missing-location",
+    {
+      fetchImpl: async () =>
+        createHtmlResponse(html, "https://example.com/live-generic-place-missing-location"),
+    },
+  );
+
+  assert.equal(result.status, "fallback");
+});
+
+test("matches the live generic-directory fixture shape and falls back", async () => {
+  const html = renderDevFixtureHtml({
+    metadataTitle: "DEV ONLY Generic Directory Fixture",
+    metadataDescription:
+      "Development-only extraction fixture for a generic directory fallback.",
+    ogTitle: "Service Center Directory",
+    ogDescription: "Browse all service centers and visitor hubs across the city.",
+    pageTitle: "Service Center Directory",
+    pageDescription: "Browse all service centers and visitor hubs across the city.",
+    body: [
+      "All locations",
+      "East Service Center and West Service Center are shown together on purpose so the extractor treats this as a directory page.",
+    ],
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "Place",
+        name: "East Service Center",
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: "东一路 8 号",
+          addressLocality: "上海",
+        },
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Place",
+        name: "West Service Center",
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: "西一路 18 号",
+          addressLocality: "上海",
+        },
+      },
+    ],
+  });
+
+  const result = await extractRestaurantDraftFromSource(
+    "https://example.com/live-generic-directory",
+    {
+      fetchImpl: async () => createHtmlResponse(html, "https://example.com/live-generic-directory"),
+    },
+  );
+
+  assert.equal(result.status, "fallback");
+  assert.equal(result.pageType, "restaurant_list");
+});
+
+test("matches the live mixed generic-plus-restaurant fixture shape and falls back", async () => {
+  const html = renderDevFixtureHtml({
+    metadataTitle: "DEV ONLY Mixed Generic Restaurant Fixture",
+    metadataDescription:
+      "Development-only extraction fixture for mixed generic-place and restaurant evidence fallback.",
+    ogTitle: "Harbor Hall & Noodle Bar",
+    ogDescription: "A hall with an attached restaurant and mixed structured data.",
+    pageTitle: "Harbor Hall & Noodle Bar",
+    pageDescription: "A hall with an attached restaurant and mixed structured data.",
+    body: [
+      "The page intentionally mixes a generic place record with a restaurant record.",
+      "Step 3E should fall back rather than silently picking 其他 or 美食.",
+    ],
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "Place",
+        name: "Harbor Hall",
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: "港湾路 1 号",
+          addressLocality: "上海",
+        },
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Restaurant",
+        name: "Noodle Bar",
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: "港湾路 1 号",
+          addressLocality: "上海",
+        },
+      },
+    ],
+  });
+
+  const result = await extractRestaurantDraftFromSource(
+    "https://example.com/live-mixed-generic-restaurant",
+    {
+      fetchImpl: async () =>
+        createHtmlResponse(html, "https://example.com/live-mixed-generic-restaurant"),
+    },
+  );
+
+  assert.equal(result.status, "fallback");
 });
 
 test("keeps parsing valid structured data when another JSON-LD block is malformed", async () => {
