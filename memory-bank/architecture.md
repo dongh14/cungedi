@@ -1,7 +1,7 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, and the validated Step 3E generic-place extraction expansion.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, and the validated MapLibre foundation step.
 
 It does not include Step 13 or later architecture yet.
 
@@ -36,7 +36,7 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `app/restaurants/page.tsx`: Step 8 protected full saved-list page
 - `app/restaurants/[id]/edit/page.tsx`: Step 9 protected restaurant edit page
 - `app/restaurants/actions.ts`: Step 7, Step 9, Step 10, and Step 12 server actions for create, update, source-intake flow control, and review-confirmation save handling
-- `app/map/page.tsx`: Step 6 protected map placeholder page
+- `app/map/page.tsx`: protected map page that now renders the validated reusable MapLibre foundation while intentionally stopping short of PMTiles, saved-place rendering, and city browsing features
 - `app/dev-fixtures/layout.tsx`: development-only route guard for deterministic extraction fixture pages
 - `app/dev-fixtures/extraction/*`: development-only deterministic fixture pages used to manually validate extraction behavior through the real source-intake and review flow
 - `app/auth/actions.ts`: Step 3 server actions for auth flows
@@ -60,6 +60,7 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `components/extraction-confirmation-card.tsx`: Step 12 reusable confirmation form that lets users edit, complete, and save extraction results
 - `components/source-intake-card.tsx`: Step 10 reusable source intake card for `/restaurants/new`
 - `components/source-review-card.tsx`: Step 11 reusable source review card for `/restaurants/review`
+- `components/maplibre-foundation.tsx`: reusable client-side MapLibre component that initializes the current local empty-map foundation and basic zoom controls
 - `components/site-brand.tsx`: reusable product brand block
 - `components/surface-card.tsx`: shared rounded card wrapper used across the UI
 
@@ -72,6 +73,10 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 ### Auth Utilities
 - `lib/auth/require-user.ts`: shared helper for protected pages that require a signed-in user
 - `lib/utils.ts`: small class-name helper for reusable UI composition
+
+### Map Utilities
+- `lib/map/map-style.ts`: local MapLibre style factory and default view config for the validated empty-map foundation
+- `lib/map/map-style.test.js`: focused regression test confirming the current local map style has no external style resources and returns fresh objects per instance
 
 ### Restaurant Utilities
 - `lib/restaurants/constants.ts`: shared category, subtype-suggestion, cuisine, and privacy definitions for the current restaurant-first place form
@@ -127,6 +132,7 @@ These are starter static assets from the base app scaffold. They are not product
 - `lint` runs TypeScript static checks with `tsc --noEmit`.
 - Includes the `@supabase/supabase-js` dependency for the current Step 2 setup layer.
 - Includes the `@supabase/ssr` dependency for the current Step 3 authentication layer.
+- Includes the official `maplibre-gl` dependency for the current validated map foundation step.
 
 ### `.env.example`
 - Documents the two public Supabase variables the app currently expects.
@@ -241,9 +247,12 @@ These are starter static assets from the base app scaffold. They are not product
 - Keeps the current fetch timeout, response-size, and extraction security limits unchanged while allowing development-only fixture URLs to go through the same extractor for deterministic manual validation.
 
 ### `app/map/page.tsx`
-- Provides the protected placeholder page for the future map flow.
+- Provides the protected map page for the current validated map-foundation step.
 - Establishes the map page location in the signed-in navigation.
-- Shows layout-only placeholder content rather than a real map integration.
+- Renders the reusable client-side MapLibre foundation in the existing mobile-first shell.
+- Uses concise Chinese copy to state that the basemap and saved-place markers will arrive in later validated steps.
+- Does not query Supabase for saved places.
+- Does not start PMTiles integration, marker rendering, popups, clustering, search, geolocation, city filtering, or coordinate fallback.
 
 ### `app/auth/actions.ts`
 - Contains the Step 3 server actions for sign up, login, and logout.
@@ -252,9 +261,28 @@ These are starter static assets from the base app scaffold. They are not product
 
 ### `app/globals.css`
 - Imports Tailwind CSS.
+- Imports the required MapLibre CSS.
 - Defines the Step 6 visual tokens for the orange-accent, rounded-card UI.
 - Sets the mobile-first background treatment, colors, and typography stack.
 - Applies site-wide base styles for the new shell layout.
+- Applies lightweight MapLibre control styling so the validated foundation fits the existing UI language.
+
+### `components/maplibre-foundation.tsx`
+- Provides the reusable client-side MapLibre foundation component used by `/map`.
+- Initializes the MapLibre instance inside `useEffect`.
+- Prevents duplicate initialization during development and refresh cycles by storing the current map instance in a ref.
+- Calls `map.remove()` during cleanup on unmount.
+- Uses a fully local style with only a background layer, so no external tile, sprite, glyph, or hosted map requests are made.
+- Adds only basic zoom controls suitable for the existing mobile-first shell.
+
+### `lib/map/map-style.ts`
+- Provides the current fully local MapLibre style and default map view configuration.
+- Returns a style with no external sources and only a background layer.
+- Intentionally stops short of PMTiles integration and any saved-place rendering.
+
+### `lib/map/map-style.test.js`
+- Verifies that the current local map style contains no external style resources.
+- Verifies that the style factory returns a fresh object for each map instance.
 
 ### `components/app-shell.tsx`
 - Provides the shared protected-page shell for signed-in routes.

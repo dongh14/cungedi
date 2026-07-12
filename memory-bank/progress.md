@@ -47,6 +47,39 @@ All six V1 categories now have conservative extraction support:
 - `玩乐`
 - `其他`
 
+The MapLibre foundation step is now complete and has been validated without starting PMTiles integration, city-level coordinate fallback, marker rendering, city filtering, or Step 13.
+
+## Validated MapLibre Foundation
+
+### Map Scope
+- `/map` now renders a reusable client-side MapLibre GL JS foundation.
+- `maplibre-gl` is the only map SDK added.
+- The current style is fully local and contains no external tile, sprite, glyph, or hosted map requests.
+- The current map style makes no external network tile requests.
+- The foundation currently renders only a background layer and basic zoom controls.
+- No PMTiles basemap has been integrated yet.
+- No saved-place queries, markers, popups, clustering, search, geolocation, city filtering, or coordinate fallback have been added.
+
+### Component Behavior
+- The MapLibre component initializes inside `useEffect`.
+- Duplicate initialization is prevented with a stored map ref.
+- Cleanup calls `map.remove()` on unmount.
+- Refreshes did not create duplicate canvases.
+
+### Validation
+- The component was manually validated on desktop and iPhone-sized viewports.
+- `npm run build` passed.
+- `npm run lint` passed.
+- The focused local map-style test passed.
+
+### Product State
+- PMTiles integration is the next map step.
+- City-level coordinate fallback has not started.
+- Marker rendering has not started.
+- City filtering has not started.
+- Step 13 has not started.
+- Routes, database schema, extraction, auth, RLS, and Step 12 confirmation behavior remain unchanged.
+
 ## Validated Reversible Generalization Step 1
 
 ### Database
