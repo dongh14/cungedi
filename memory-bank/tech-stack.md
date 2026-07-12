@@ -7,18 +7,23 @@ For V1, the simplest robust stack is:
 - Styling: Tailwind CSS
 - Backend and database: Supabase
 - Auth: Supabase Auth with email and password
-- Maps, POI search, and geocoding: 高德地图 / Amap
+- Map rendering: 高德地图 / Amap JavaScript API
+- POI search and geocoding: 高德地图 / Amap Web Service API
 - Deployment: Vercel
 - Extraction approach: simple server-side URL fetch plus metadata parsing, always followed by user confirmation
 
-This stack is a good fit for V1 because it keeps the number of moving parts low while still covering login, data storage, APIs, map display, and deployment in a beginner-friendly way.
+This stack fits V1 because it keeps the system small, keeps auth and data in one backend platform, uses one map provider for mainland-China use cases, and preserves a conservative review-before-save workflow.
 
 Product direction note:
 - The main V1 audience is Chinese users.
-- The primary V1 map and geocoding provider should be 高德地图 / Amap.
-- The main mainland-China discovery sources are 高德地图, 大众点评, 小红书, 抖音, and ordinary public web pages.
-- Keep extraction realistic for 大众点评, 小红书, and 抖音 and treat them as best-effort sources in V1.
-- Google Maps is optional support for overseas restaurants, not part of the core mainland-China V1 promise.
+- The default V1 UI language should be Simplified Chinese.
+- English can remain a later secondary option.
+- The primary mainland-China V1 provider for maps, POI search, and geocoding should be 高德地图 / Amap.
+- The main discovery sources are 高德地图、大众点评、小红书、抖音 and ordinary public web pages.
+- 大众点评、小红书 and 抖音 remain best-effort sources in V1.
+- 百度地图 is a secondary, best-effort input source only.
+- Google Maps is optional overseas support, not the core mainland-China V1 promise.
+- Keep one map provider in V1 for mainland-China flows.
 
 ## Why This Stack
 
@@ -26,85 +31,110 @@ Product direction note:
 Use Next.js as the main application framework.
 
 Why:
-- It handles frontend pages and backend endpoints in one project.
-- It is widely used, well documented, and beginner friendly.
-- It makes it easy to build a simple list view, map page, login flow, and URL submission flow without setting up a separate frontend and backend repo.
+- It handles frontend routes and backend logic in one codebase.
+- It is widely used and easy to iterate with.
+- It works well for authenticated flows, source intake, review/confirmation, list, edit, setup, and map pages.
 
 V1 fit:
-- One codebase for UI and server logic
-- Easy route structure for pages like `login`, `add`, `restaurants`, and `map`
-- Good deployment experience on Vercel
+- One codebase
+- App Router pages for `login`, `sign-up`, `restaurants`, `map`, and `setup`
+- Server actions and server-side helpers for extraction, save, and enrichment flows
+- Smooth deployment on Vercel
 
 ### 2. Tailwind CSS for styling
-Use Tailwind CSS for UI styling.
+Use Tailwind CSS for the UI layer.
 
 Why:
-- It is easy to start with and avoids spending too much time on CSS architecture.
-- It works very well with Next.js.
-- It is fast for building a clean V1 interface with forms, cards, tables, and a map layout.
+- Fast iteration for mobile-first card layouts
+- Low overhead for a small V1 product
+- Works naturally with Next.js
 
 V1 fit:
-- Simple login screens
-- Restaurant list cards
-- Confirmation and edit forms
-- Responsive map and list layout
+- Auth screens
+- Source intake and review cards
+- Manual create and edit forms
+- Saved-place list
+- Map page layout and city filter controls
 
 ### 3. Supabase for backend and database
 Use Supabase as the main backend platform.
 
 Why:
-- It combines Postgres database, authentication, APIs, and fileless backend setup in one product.
-- It is much simpler for a beginner than setting up a separate Node backend, ORM, auth library, database hosting, and API deployment.
-- It can scale beyond V1 without forcing an early rewrite.
+- It combines Postgres, auth, and API access in one platform.
+- It reduces backend setup complexity.
+- It supports owner-only access rules cleanly.
 
 V1 fit:
-- Store users
-- Store restaurants
-- Store source URLs
-- Store optional notes
-- Store privacy settings
-- Support user-specific access rules
+- User accounts
+- Place records
+- Source URLs
+- Notes
+- Privacy flags
+- Existing optional coordinate storage
+- Row Level Security for owner-only data access
 
 ### 4. Supabase Auth for email/password login
 Use Supabase Auth with email and password for V1.
 
 Why:
 - It directly matches the V1 requirement.
-- It is much simpler than adding Google login or WeChat login now.
-- It works well with Next.js and Supabase database access patterns.
+- It keeps the auth stack simple.
+- It works well with Next.js SSR and protected routes.
 
 V1 fit:
 - Sign up
 - Log in
 - Log out
-- Protected user data
+- Protected user-specific data
 
-### 5. 高德地图 / Amap for maps, POI search, and geocoding
-Use 高德地图 / Amap as the primary V1 provider for interactive maps, POI search, and address-to-coordinate lookup.
+### 5. 高德地图 / Amap for V1 location flows
+Use 高德地图 / Amap as the single V1 provider for mainland-China map rendering, POI search, and geocoding.
 
 Why:
-- It matches the product's mainland-China-first direction better than a global-first provider.
-- It gives you one provider for map display, POI search, and geocoding in the core V1 market.
-- It avoids introducing a second map provider for the main use case in V1.
+- It matches the China-first product direction better than a global-first provider.
+- It allows one provider to power link normalization, POI lookup, geocoding, and map display.
+- It avoids V1 complexity from maintaining multiple provider behaviors.
+
+#### Amap Web Service API
+Use the Web Service API on the server side for:
+- POI search when a 高德 link or share text needs normalization
+- Forward geocoding from address or city text to coordinates
+- Optional POI fallback when forward geocoding is too weak for a save flow
+
+Rules:
+- Server-side Web Service keys or secret-bearing credentials must never be exposed to the browser.
+- Requests using sensitive keys must stay in server-side code only.
+- If Amap returns weak matches, errors, or quota-limit responses, the system must preserve the saved place without blocking the user.
+
+#### Amap JavaScript API
+Use the JavaScript API in the browser for:
+- Rendering the interactive map
+- Showing markers for saved places with coordinates
+- Supporting basic zoom and simple city-based browsing
+
+Rules:
+- Only browser-safe client credentials should ever be used in the frontend.
+- Do not embed server-side secret keys in client bundles.
+- Keep the map experience simple in V1: no advanced clustering, no second provider, no complex viewport intelligence.
 
 V1 fit:
-- Show saved restaurant pins on a simple map
-- Convert address or city text into coordinates when possible
-- Support China-first POI and location normalization flows later
-- Still allow saving restaurants even when geocoding fails
+- High-confidence mainland-China map rendering
+- Simple marker display for saved places with coordinates
+- One provider for geocoding and POI flows
+- Graceful fallback when enrichment fails
 
 ### 6. Vercel for deployment
-Use Vercel to deploy the web app.
+Use Vercel to deploy the app.
 
 Why:
-- It is the easiest deployment path for a Next.js app.
-- It reduces infrastructure setup and ongoing maintenance.
-- It is friendly for quick iteration in V1.
+- Very low friction for Next.js deployment
+- Easy environment variable management
+- Good preview and iteration workflow
 
 V1 fit:
 - Fast deployment
-- Preview links for changes later
-- Simple environment variable management
+- Simple environment variable setup
+- Suitable for a small authenticated web app
 
 ## Recommended V1 Architecture
 
@@ -112,24 +142,29 @@ V1 fit:
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
+- Amap JavaScript API on the map page only
 
 ### Backend
-- Next.js server routes for URL submission and extraction
-- Supabase for database and auth
+- Next.js server actions and server-side helpers
+- Supabase for persistence and auth
+- Amap Web Service client for server-side location enrichment and source normalization
 
 ### Database
 Use Supabase Postgres with a very small schema.
 
-Suggested core tables:
-- `profiles`
-- `restaurants`
+Current V1-compatible schema direction:
+- Keep `public.restaurants` unchanged during V1
+- Keep existing `latitude` and `longitude` columns as optional storage
+- Keep `category` as the six-value additive place classification
+- Keep `cuisine` as temporary subtype storage during V1
 
-Suggested `restaurants` fields:
+Suggested core `restaurants` fields:
 - `id`
 - `user_id`
 - `name`
 - `city`
 - `address`
+- `category`
 - `cuisine`
 - `source_url`
 - `note`
@@ -140,92 +175,94 @@ Suggested `restaurants` fields:
 - `updated_at`
 
 Notes:
-- `latitude` and `longitude` should be optional.
-- A restaurant must still be saveable without map coordinates.
-- `privacy` can start as a simple enum like `private` or `public`.
+- `latitude` and `longitude` remain optional.
+- A place must still be saveable without coordinates.
+- `privacy` can remain a simple `private` / `public` field.
+- No rename work is required before V1 completion.
 
 ## Recommended Extraction Approach For V1
 
-### Keep extraction intentionally simple
-Do not build a full scraping or AI extraction system in V1.
+### Keep extraction intentionally simple and conservative
+Do not build a full scraping or AI extraction pipeline in V1.
 
 Recommended approach:
-- User pastes a public URL.
-- Server fetches the page and reads basic metadata and visible text.
-- System tries to infer restaurant candidates from the page title, description, Open Graph metadata, and URL text.
-- If the source seems to contain multiple restaurants, return multiple candidate entries.
-- Always show a confirmation and editing step before save.
+- User pastes a public URL or sharing text.
+- Server extracts the first valid URL from the intake.
+- Server fetches public page metadata and visible text where available.
+- System attempts conservative single-place extraction from structured data and strong page signals.
+- System shows an editable confirmation step before save.
+- If extraction is weak, ambiguous, or blocked, the app falls back to manual completion with the source URL preserved.
 
 Official V1 source stance:
-- Ordinary public web pages and 高德地图 links or sharing text are officially supported sources for V1.
-- 大众点评 is an important China-first source and should be treated as best-effort unless reliable official API access becomes available.
-- Xiaohongshu (RedNote) and Douyin are accepted on a best-effort basis only.
-- 百度地图 may be accepted as a secondary best-effort input source, but V1 should not integrate a second map provider around it.
-- Google Maps is optional support for overseas restaurants, not part of the core mainland-China V1 promise.
-- TikTok and Instagram are future or best-effort sources, not part of the main V1 promise.
-
-### Why this is the right V1 approach
-- It matches the PRD requirement that users confirm and edit extracted data.
-- It avoids overbuilding brittle source-specific scrapers too early.
-- It keeps platform risk lower for 大众点评, Xiaohongshu (RedNote), Douyin, TikTok, and Instagram links where extraction quality can vary or public page content may be limited.
-- It allows you to ship the workflow first, then improve extraction later.
+- Ordinary public web pages and 高德地图 links or share text are the official V1 sources.
+- 大众点评 is important but best-effort unless reliable official API access appears later.
+- 小红书 and 抖音 are best-effort only.
+- 百度地图 is accepted only as a secondary, best-effort input source.
+- Google Maps is optional overseas support.
 
 Practical limitation for V1:
-- 大众点评, Xiaohongshu (RedNote), and Douyin often do not expose page content as cleanly as ordinary public web pages or map links.
-- V1 should not rely on full scraping, browser automation, login-required access, or platform-specific extraction systems.
-- If extraction fails or returns weak results, the product should fall back to manual entry with `source_url` prefilled.
+- Different categories and different source types will not perform equally well.
+- Structured public pages may work better than socially gated or rate-limited sources.
+- The system should prefer fallback over overconfident guessing.
 
 ### What not to do in V1
 - No headless browser scraping pipeline
-- No queue system
-- No AI agent flow for every URL
-- No attempt to guarantee perfect extraction from social platforms
-- No custom scraping infrastructure built specifically for Xiaohongshu (RedNote) or Douyin in V1
+- No login-required source access
+- No AI agent pipeline for every URL
+- No provider explosion across multiple mainland-China map SDKs
+- No second map provider for the core V1 mainland-China flow
 
 ### Practical V1 rule
-Treat extraction as a helper, not as the source of truth.
+Treat extraction as a helper, not the source of truth.
 
-The source of truth is the user-reviewed restaurant record.
+The source of truth is the user-reviewed place record.
+
+## Location Reliability And Fallback Rules
+- Save first, enrich second when coordinates are missing.
+- If forward geocoding fails, preserve the saved record without coordinates.
+- If POI search fallback fails, preserve the saved record without coordinates.
+- If Amap is unavailable, returns quota errors, or returns weak results, the app should degrade gracefully rather than block save flows.
+- No-coordinate places must remain clearly usable in the saved list.
+- V1 should not add a second provider just to patch individual Amap failure cases.
 
 ## Data Access And Privacy
-Use Supabase Row Level Security so each user can access only their own restaurant records by default.
+Use Supabase Row Level Security so each user can access only their own place records by default.
 
 For V1:
-- Private restaurants should only be visible to the owner.
-- Public restaurants can be stored with a public flag now, even if broader discovery is added later.
-
-This is the simplest secure model and fits the product direction.
+- Owner-only access remains the default
+- `public` stays a stored flag only
+- No public discovery feature is required
 
 ## Why I Am Not Recommending A More Complex Stack
 
 ### Not recommended for V1
-- Separate React frontend plus Express backend
+- Separate frontend and backend repos
 - Prisma on top of Supabase
-- Custom auth setup with NextAuth as the primary auth layer
-- Microservices
-- Docker-heavy local development
-- Elasticsearch or advanced search infra
+- NextAuth as the main auth layer
+- Multiple map providers for mainland-China use cases
 - Browser automation for extraction
-- A dedicated AI pipeline for every pasted URL
+- Queue-heavy enrichment architecture
+- Complex AI extraction infrastructure
 
 Why not:
-- These add complexity without helping the core V1 workflow enough.
-- They increase setup burden for a beginner.
-- They create more places for bugs before the product is even validated.
+- These add complexity without improving the core V1 enough.
+- They increase failure modes before the product is fully validated.
+- They conflict with the goal of keeping V1 conservative and easy to reason about.
 
 ## Final Recommendation
-If we optimize for simplicity, beginner-friendliness, and a realistic path to shipping V1, the best stack is:
+If we optimize for simplicity, compatibility with the current repo, and a realistic path to V1, the best stack is:
 
 - Next.js
 - TypeScript
 - Tailwind CSS
 - Supabase Postgres
 - Supabase Auth
-- 高德地图 / Amap
+- Amap Web Service API
+- Amap JavaScript API
 - Vercel
-- Server-side metadata extraction with manual confirmation
+- Conservative server-side extraction with explicit review before save
 
-This gives the project one main app, one backend platform, one auth system, one database, one map provider, and one easy deployment path.
+This gives the project one main app, one backend platform, one auth system, one database, one mainland-China map provider, one geocoding/POI provider, and one clear deployment path.
 
 ## References
 - Next.js App Router docs: [nextjs.org/docs/app/getting-started/project-structure](https://nextjs.org/docs/app/getting-started/project-structure)
@@ -233,8 +270,8 @@ This gives the project one main app, one backend platform, one auth system, one 
 - Supabase Auth password docs: [supabase.com/docs/guides/auth/passwords](https://supabase.com/docs/guides/auth/passwords)
 - Supabase Database overview: [supabase.com/docs/guides/database/overview](https://supabase.com/docs/guides/database/overview)
 - Supabase Row Level Security: [supabase.com/docs/guides/database/postgres/row-level-security](https://supabase.com/docs/guides/database/postgres/row-level-security)
-- Amap JS API docs: [lbs.amap.com/api/javascript-api/summary](https://lbs.amap.com/api/javascript-api/summary)
+- Amap JavaScript API docs: [lbs.amap.com/api/javascript-api/summary](https://lbs.amap.com/api/javascript-api/summary)
 - Amap Web Service docs: [lbs.amap.com/api/webservice/summary](https://lbs.amap.com/api/webservice/summary)
 
 ## Source Notes
-The specific recommendation to pair Next.js, Supabase, 高德地图 / Amap, and Vercel is an inference based on the V1 requirements in the PRD and the current official documentation for those tools. The extraction approach is also a product recommendation, not something taken from a single vendor source.
+The recommendation to use Next.js, Supabase, Vercel, and 高德地图 / Amap is an implementation recommendation derived from the current V1 product requirements. The separation between Amap Web Service usage and Amap JavaScript usage reflects the current intended architecture, not proof that those integrations are already implemented in the repository.

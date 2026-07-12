@@ -1,193 +1,208 @@
 # Product Requirements Document
 
 ## Product Name
-Restaurant Information Collector
+存个地
 
 ## Product Vision
-Help travelers save restaurants they discover online so they can easily find and revisit them later when they travel.
+帮助中文用户把在网上看到、以后想去的地点存下来，后续可以按列表和地图重新找到。
 
-The product starts as a simple web app where users paste links from social media or the web, review extracted restaurant details, save the places they care about, and browse them later in a personal list and on a map.
+产品从一个简单的网页应用开始：用户粘贴来源链接或分享文案，查看系统保守提取出的地点草稿，手动确认和编辑后保存到自己的账户里，之后再按列表或地图浏览。
 
-The app is Chinese-user-first and should support Chinese UI options from the beginning.
-The product should feel closer to a mobile web app or PWA than a desktop-first web tool.
+产品应当是中文优先，并从一开始就支持中文输入与中文界面。
+产品体验应更接近移动端网页应用或 PWA，而不是桌面优先工具。
 
 ## Primary User
-A Chinese user who enjoys traveling and frequently discovers restaurants through social media, China-first map products, and web content, especially 小红书, 抖音, 高德地图, 大众点评, and ordinary public web pages.
+一位中文用户，平时会在社交平台、地图产品和普通网页中发现以后想去的地点，尤其来自小红书、抖音、高德地图、大众点评和公开网页内容。
 
 ## Core User Problem
-Users often see restaurants they want to visit in the future, but those discoveries are scattered across social platforms, hard to organize, and easy to forget by the time they actually travel.
+用户经常看到未来想去的地方，但这些发现分散在不同平台里，不容易整理，也很容易在真正出行或安排生活时忘记。
 
 ## V1 Goal
-Let a user sign up, paste a source URL, review and edit extracted restaurant information, save one or more restaurants to their account, and browse saved restaurants in a list and on a map.
+让用户能够注册登录，粘贴来源链接或分享文案，查看并编辑提取出的地点信息，保存到自己的账户里，并在列表和地图中回看这些地点。
 
 ## Success Criteria For V1
-- A user can create an account and sign in with email and password.
-- A user can paste a URL from a supported public source and start a save flow.
-- The app extracts restaurant candidates from the URL and asks the user to confirm or edit them before saving.
-- A user can save restaurants even if exact map coordinates are not found.
-- A user can browse saved restaurants in a personal list and on a simple map.
-- A user can explore saved places by zooming the map and viewing restaurants by city.
+- 用户可以用邮箱和密码创建账户并登录。
+- 用户可以从支持的公开来源粘贴链接或分享文案并开始保存流程。
+- 应用会尝试提取地点草稿，并在保存前要求用户显式确认或编辑。
+- 即使没有精确坐标，用户也仍然可以保存地点。
+- 用户可以在个人列表中浏览已保存地点。
+- 用户可以在简单地图中查看有坐标的已保存地点。
+- 用户可以按城市查看地点，并在地图中进行基本缩放浏览。
 
 ## Non-Goals For V1
-- No fully automated, high-accuracy extraction across every platform.
-- No rich AI-generated restaurant summaries.
-- No spreadsheet export requirement.
-- No desktop app.
-- No advanced social features, ranking systems, or community feeds.
-- No fine-grained neighborhood map experience beyond a simple useful map.
+- 不做覆盖所有平台的高精度全自动提取。
+- 不做富文本 AI 地点介绍或总结。
+- 不做桌面应用。
+- 不做高级社交功能、推荐系统、排行榜或社区流。
+- 不做精细到街区级别的高级地图体验。
+- 不做图片识别、标签系统、合集系统或其他扩展收藏能力。
+
+## Primary V1 Categories
+- 美食
+- 购物
+- 玩乐
+- 景点
+- 住宿
+- 其他
 
 ## Key Use Cases
 
-### 1. Save a restaurant from a social post
-A user pastes a 高德地图, 小红书, 抖音, 大众点评, 百度地图, Google Maps, or public web page link. The app extracts possible restaurant entries and shows them in an editable confirmation step before save.
+### 1. Save a place from a source link or share text
+用户粘贴高德地图、小红书、抖音、大众点评、百度地图、Google Maps 或普通公开网页的链接或分享文案。系统尝试提取一个地点草稿，并在保存前展示可编辑确认步骤。
 
-### 2. Save multiple restaurants from one source
-If a source references multiple restaurants, such as a 抖音 or 小红书 post listing five places, the app shows multiple restaurant candidates. The user can select one, several, or all of them and edit them together before saving.
+### 2. Keep a future personal place list
+用户稍后返回应用，通过列表或地图重新查看自己存过的地点。
 
-### 3. Keep a future travel list
-A user returns later and browses their saved places by list or map so they can remember where they wanted to go.
+### 3. Add personal context
+用户可以补充可选备注，例如为什么想去、想买什么、想体验什么，或者后续提醒自己注意什么。
 
-### 4. Add personal context
-A user can add an optional note, such as why they saved the place or what they want to try.
+### 4. Control visibility
+用户可以把每条地点记录保存为 `private` 或 `public`。V1 中这个字段只作为存储标记，不开启公共发现。
 
-### 5. Control visibility
-A user can decide whether a saved restaurant is private or public.
+### 5. Recover from weak extraction
+当来源页面信息不足、平台限制较强、或者提取置信度不够时，用户仍然可以回退到手动补全并保存。
 
 ## V1 Features
 
 ### Accounts
-- Email and password sign-up and login.
-- Each user has their own saved restaurant collection.
+- 邮箱和密码注册、登录。
+- 每个用户拥有自己的地点收藏数据。
+- 使用 owner-only 数据访问规则，默认只能访问自己的记录。
 
-### URL Intake
-- User can paste a source URL into the app.
-- App attempts to extract restaurant information from the URL or its public page metadata.
-- Extraction should never silently auto-save.
-- V1 officially supports ordinary public web pages and 高德地图 links or sharing text.
-- 大众点评 is an important China-first source and should be handled on a best-effort basis unless reliable official API access is available later.
-- 小红书 and 抖音 links are accepted on a best-effort basis only.
-- 百度地图 can be accepted as a secondary best-effort input source, but V1 should not integrate a second map provider around it.
-- Google Maps is optional support for overseas restaurants, not part of the core mainland-China V1 promise.
-- TikTok and Instagram are future or best-effort sources, not part of the main V1 promise.
+### Source Intake
+- 用户可以粘贴来源链接或包含链接的分享文案。
+- 系统尝试从来源页面公开信息中提取地点草稿。
+- 提取必须保持保守，不应因为弱信号而自动生成看似确定的结果。
+- 提取绝不能绕过确认步骤自动保存。
+- V1 官方支持普通公开网页和高德地图链接或分享文案。
+- 大众点评是重要的中文优先来源，但在 V1 中仍为 best-effort，除非未来获得可靠官方 API。
+- 小红书和抖音在 V1 中为 best-effort 来源。
+- 百度地图可以作为次要、best-effort 输入来源，但 V1 不引入第二个大陆中国地图提供商。
+- Google Maps 是可选的海外支持，不属于大陆中国 V1 核心承诺。
 
 ### Confirmation And Editing
-- After extraction, the user reviews each restaurant candidate before saving.
-- User can edit restaurant fields manually.
-- The extraction flow should attempt to infer cuisine from the pasted source content when possible.
-- Any inferred cuisine must remain editable by the user before saving.
-- If cuisine cannot be inferred confidently, the system should leave it blank rather than guessing.
-- Manual cuisine entry must always remain available.
-- User can bulk-select and save multiple restaurant candidates from a single source.
-- User can save incomplete entries if map location data is unavailable.
+- 保存前必须有显式的查看、编辑、确认步骤。
+- 用户可以手动修改所有提取出的字段。
+- 当前提取策略应保持 conservative extraction，而不是积极猜测。
+- 当某些分类、来源或页面结构更容易提供可靠信号时，提取效果可能更好；当来源受限或信息模糊时，应优先回退而不是强行输出。
+- 对美食分类，系统应在置信度合理时尝试推断菜系或类型。
+- 对其他分类，系统可以在强证据足够时保守推断对应 subtype。
+- 任何推断值都必须允许用户在保存前修改或清空。
+- 当系统没有足够把握时，应保留为空，不要猜测。
+- 手动补全入口必须始终可用。
+- 用户可以保存缺少精确地图坐标的地点。
+- 是否支持一条来源产出多个候选地点，会在当前产品方向下重新评估，不默认视为 V1 已锁定必做项。
 
-### Restaurant Record
-Each restaurant record in V1 should support:
-- Name
-- City
-- Address
-- Cuisine type
-- Source URL
-- Optional personal note
-- Privacy setting: private or public
+### Place Record
+每条 V1 地点记录应支持：
+- 名称
+- 城市
+- 地址
+- 分类
+- subtype 或类型信息
+- 来源 URL
+- 可选个人备注
+- 可见性：`private` 或 `public`
 
-Restaurant fields must support Chinese text input in V1.
+地点字段必须支持中文输入。
 
 ### Language And Localization
-- Default UI language in V1 should be Simplified Chinese.
-- English should be available as a secondary language option.
-- Restaurant fields should support Chinese text input.
-- Cuisine options should include Chinese-friendly categories.
-- Source examples in the UI and product copy should use 高德地图, 小红书, 抖音, 大众点评, and public web pages.
-- Do not build full translation infrastructure yet unless it is part of the current implementation step.
-- Future UI should avoid hardcoding copy in a way that makes English support difficult later.
+- V1 默认界面语言为简体中文。
+- 英文作为后续可补充的次要语言选项。
+- 字段输入必须支持中文。
+- 分类与 subtype 文案应当对中文用户自然易懂。
+- UI 示例和产品文案应优先使用高德地图、小红书、抖音、大众点评和公开网页来源。
+- 除非当前步骤明确需要，否则不要提前搭完整国际化基础设施。
+- 同时避免把未来英语支持写死得很难扩展。
 
 ### Visual And UI Direction
-- The product should be mobile-first, closer to a mobile web app or PWA than a desktop-first experience.
-- Future UI work should prioritize iPhone usability.
-- The visual style should be clean, modern, vibrant, and card-based.
-- The main accent color should be a vibrant orange close to `#FF5B00`, not purple.
-- The attached meal planner reference image is design direction only, not a screen to copy exactly.
-- Future screens should borrow the reference's strengths: clean mobile layouts, rounded cards, clear spacing, and a vibrant accent style.
+- 产品应 mobile-first，并优先考虑 iPhone 使用体验。
+- 整体风格应干净、现代、鲜明、卡片化。
+- 主强调色保持接近 `#FF5B00` 的橙色，而不是紫色。
+- 优先使用圆角卡片、清晰留白和轻量但明确的视觉层次。
 
 ### Browse Experience
-- Saved restaurants appear in an in-app list view.
-- Saved restaurants also appear on a simple world map.
-- Map supports zooming in and out.
-- Users can inspect restaurants by city from the map experience.
+- 已保存地点会显示在应用内列表中。
+- 有坐标的已保存地点也会显示在简单地图中。
+- 地图支持基本缩放。
+- 用户可以按城市查看地点。
+- 没有坐标的地点仍然必须在列表里清晰可用。
 
 ### Location Handling
-- If the app can determine location, it should place the restaurant on the map.
-- If the exact location cannot be determined, the restaurant can still be saved and shown in the list.
-- City is a required field even when precise coordinates are missing.
-- The primary V1 map, POI search, and geocoding provider should be 高德地图 / Amap.
-- V1 should not integrate a second map provider for mainland-China use cases.
+- 如果系统可以确定地点位置，应尝试为地点补全坐标。
+- 如果无法获得精确坐标，地点仍然可以保存并继续显示在列表中。
+- 即使没有坐标，城市仍然是必填字段。
+- V1 在大陆中国场景下的主地图、POI 搜索和地理编码提供商应为高德地图 / Amap。
+- V1 不应为大陆中国用例同时接入第二个地图提供商。
+- 当高德服务不可用、限额不足或返回弱结果时，应用必须优雅降级，不阻止地点保存。
+
+### Data Access And Privacy
+- 用户默认只能看到和编辑自己的地点记录。
+- `public` / `private` 在 V1 中只作为每条记录上的存储字段。
+- V1 不做其他用户可浏览的公共地点发现能力。
 
 ## User Flow
-1. User signs up or logs in.
-2. User pastes a source URL.
-3. App extracts one or more restaurant candidates.
-4. User reviews, edits, and selects which restaurants to save.
-5. User optionally adds notes and chooses private or public visibility.
-6. User saves the restaurant entries.
-7. User browses saved restaurants later in list and map views.
+1. 用户注册或登录。
+2. 用户粘贴来源链接或分享文案。
+3. 系统尝试提取地点草稿。
+4. 用户查看、编辑并确认地点信息。
+5. 用户可补充备注并选择 `private` 或 `public`。
+6. 用户保存地点。
+7. 系统在可能时补全坐标，但失败也不影响记录保留。
+8. 用户稍后在列表和地图中浏览已保存地点。
 
 ## Functional Requirements
-- The system must support user authentication with email and password.
-- The system must default the V1 interface to Simplified Chinese.
-- The system should make English available later as a secondary language option.
-- The system must support Chinese text input for restaurant fields.
-- The system should use cuisine categories that are understandable and natural for Chinese users.
-- The system should be designed mobile-first with strong iPhone usability.
-- The system must allow a user to paste a URL as the starting point for creating restaurant records.
-- The system must treat 高德地图 / Amap as the primary V1 map, POI search, and geocoding provider.
-- The system must officially support 高德地图 links and sharing text in V1.
-- The system should treat 大众点评 as an important China-first best-effort source unless reliable official API access becomes available.
-- The system may accept 百度地图 as a secondary best-effort input source, but must not require integrating a second map provider in V1.
-- The system may support Google Maps for overseas restaurants, but it is not part of the core mainland-China V1 promise.
-- The system must show an editable confirmation step before any restaurant is saved.
-- The system must support one-to-many extraction from a single source URL.
-- The system must allow users to save multiple restaurants from a single source flow.
-- The system must allow manual edits to extracted restaurant details.
-- The system should attempt to infer cuisine from source content during extraction when confidence is reasonable.
-- The system must let the user edit or replace any inferred cuisine value before saving.
-- The system should leave cuisine blank when it cannot infer it confidently.
-- The system must continue to allow manual cuisine entry even when extraction is used.
-- The system must allow saving a restaurant without confirmed map coordinates.
-- The system must store the original source URL for each restaurant.
-- The system must support optional personal notes.
-- The system must support a per-record privacy setting.
-- The system must show saved restaurants in both list and map views.
-- The system should support at least 50 saved restaurants reliably in V1.
+- 系统必须支持邮箱和密码认证。
+- 系统必须默认使用简体中文界面。
+- 系统应为后续英语支持保留空间，但不是当前 V1 必做。
+- 系统必须支持中文文本输入。
+- 系统必须支持六个 V1 分类：`美食`、`购物`、`玩乐`、`景点`、`住宿`、`其他`。
+- 系统必须支持手动创建地点。
+- 系统必须允许用户通过粘贴链接或分享文案开始保存流程。
+- 系统必须在保存前展示可编辑确认步骤。
+- 系统必须保留 conservative extraction 原则。
+- 系统必须允许手动回退和补全。
+- 系统必须保留来源 URL。
+- 系统必须支持可选备注。
+- 系统必须支持每条记录的 `private` / `public` 字段。
+- 系统必须默认使用 owner-only 数据访问。
+- 系统必须允许在没有确认坐标时保存地点。
+- 系统必须把高德地图 / Amap 作为大陆中国 V1 的主要地图、POI 搜索和地理编码提供商。
+- 系统必须支持高德地图链接和分享文案作为官方 V1 来源。
+- 系统应把大众点评视为重要但 best-effort 的来源。
+- 系统应把小红书和抖音视为 best-effort 来源。
+- 系统可以接受百度地图作为次要、best-effort 输入来源，但 V1 不应因此引入第二个大陆中国地图提供商。
+- 系统可以支持 Google Maps 作为海外可选来源，但它不是大陆中国 V1 的核心承诺。
+- 系统必须展示已保存地点的列表视图。
+- 系统必须展示有坐标地点的地图视图。
+- 系统应支持至少 50 条已保存地点记录的可靠使用。
+- 系统内部现有兼容层在 V1 期间可以继续沿用当前名称与存储结构，不要求先做重命名迁移。
 
 ## UX Principles
-- Keep the first version simple and lightweight.
-- Make the default experience feel natural for Simplified Chinese users.
-- Prefer mobile-first layouts and interactions over desktop-first composition.
-- Use a clean, vibrant, card-based visual system with strong spacing and rounded surfaces.
-- Prefer a vibrant orange accent near `#FF5B00` rather than purple.
-- Prefer review-and-confirm over aggressive automation.
-- Make manual correction easy because extraction quality will vary by source.
-- Preserve the user's original discovery source.
-- Help users feel confident they will not forget places they want to visit.
+- 保持第一版轻量、明确、易理解。
+- 让默认体验对简体中文用户自然顺手。
+- 优先 review-and-confirm，而不是激进自动化。
+- 让手动修正足够容易，因为来源质量会明显波动。
+- 保留用户的原始发现来源。
+- 让用户相信即使当下不去，也不会忘记这些地点。
 
 ## Risks And Unknowns
-- Extraction quality will vary significantly across 高德地图 sharing text, 大众点评, 小红书, 抖音, Google Maps, and arbitrary web pages.
-- Some sources may contain multiple restaurants with incomplete or ambiguous details.
-- Geocoding and map placement may fail for partial addresses or international locations.
-- 大众点评, 小红书, and 抖音 may expose limited public metadata or page text, so extraction can fail or return incomplete drafts more often than ordinary public web pages or 高德地图 links.
-- Public vs private sharing may need clearer rules later if public discovery features expand.
+- 不同分类和来源的提取质量会明显不同。
+- 高德分享文案、普通公开网页、Google Maps、百度地图、大众点评、小红书、抖音的公开信息质量并不一致。
+- 大众点评、小红书和抖音常常只能提供有限公开信息，因此更容易回退到手动补全。
+- 高德 POI、地理编码和地图展示虽然是主提供商，但也可能出现限额、超时、弱匹配或不可用情况。
+- 多地点候选是否仍然值得纳入当前 V1，需要在更新后的产品方向下重新评估。
 
 ## Future Direction
 
 ### V2+
-- Better AI extraction from URLs.
-- Richer restaurant introductions and summaries.
-- More reliable multi-platform parsing.
-- Social login such as Google and WeChat.
-- Deeper map zoom and more precise place clustering.
-- Larger-scale collections in the thousands.
-- Desktop app experience.
+- 更强的 URL 提取能力
+- 更稳定的多平台来源识别
+- 更丰富的地点介绍或附加信息
+- 社交登录
+- 更深层地图缩放与更精细的位置组织
+- 更大规模的个人收藏能力
 
 ## Open Product Decisions
-- Whether public restaurants are discoverable by other users in V1, or only marked shareable for later use.
-- How much bulk editing V1 should support in the multi-restaurant confirmation flow.
+- 是否仍需要把“单一来源生成多个地点候选”纳入当前 V1
+- 如果保留多候选，V1 需要多少批量编辑能力
