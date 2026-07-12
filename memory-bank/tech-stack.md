@@ -7,23 +7,24 @@ For V1, the simplest robust stack is:
 - Styling: Tailwind CSS
 - Backend and database: Supabase
 - Auth: Supabase Auth with email and password
-- Map rendering: 高德地图 / Amap JavaScript API
-- POI search and geocoding: 高德地图 / Amap Web Service API
+- Map rendering: MapLibre GL JS
+- Basemap data and hosting: OpenStreetMap-derived vector data packaged as self-hosted Protomaps PMTiles
 - Deployment: Vercel
 - Extraction approach: simple server-side URL fetch plus metadata parsing, always followed by user confirmation
 
-This stack fits V1 because it keeps the system small, keeps auth and data in one backend platform, uses one map provider for mainland-China use cases, and preserves a conservative review-before-save workflow.
+This stack fits V1 because it keeps the system small, keeps auth and data in one backend platform, avoids paid or metered map dependencies, and preserves a conservative review-before-save workflow.
 
 Product direction note:
 - The main V1 audience is Chinese users.
 - The default V1 UI language should be Simplified Chinese.
 - English can remain a later secondary option.
-- The primary mainland-China V1 provider for maps, POI search, and geocoding should be 高德地图 / Amap.
+- The V1 map stack should be open-source and self-hosted where practical.
 - The main discovery sources are 高德地图、大众点评、小红书、抖音 and ordinary public web pages.
 - 大众点评、小红书 and 抖音 remain best-effort sources in V1.
 - 百度地图 is a secondary, best-effort input source only.
 - Google Maps is optional overseas support, not the core mainland-China V1 promise.
-- Keep one map provider in V1 for mainland-China flows.
+- Do not use Google Maps, Apple Maps, 高德, or Mapbox for map rendering in V1.
+- Do not use OpenStreetMap public tile servers as the production tile backend.
 
 ## Why This Stack
 
@@ -87,41 +88,29 @@ V1 fit:
 - Log out
 - Protected user-specific data
 
-### 5. 高德地图 / Amap for V1 location flows
-Use 高德地图 / Amap as the single V1 provider for mainland-China map rendering, POI search, and geocoding.
+### 5. MapLibre + PMTiles for V1 location browsing
+Use MapLibre GL JS for rendering and a self-hosted PMTiles basemap built from OpenStreetMap-derived vector data.
 
 Why:
-- It matches the China-first product direction better than a global-first provider.
-- It allows one provider to power link normalization, POI lookup, geocoding, and map display.
-- It avoids V1 complexity from maintaining multiple provider behaviors.
+- It avoids paid or metered production map APIs in V1.
+- It gives the app a portable, vendor-light basemap architecture.
+- It matches the product requirement that V1 only needs country / region / city context plus approximate saved-place markers, not navigation-grade POI precision.
 
-#### Amap Web Service API
-Use the Web Service API on the server side for:
-- POI search when a 高德 link or share text needs normalization
-- Forward geocoding from address or city text to coordinates
-- Optional POI fallback when forward geocoding is too weak for a save flow
-
-Rules:
-- Server-side Web Service keys or secret-bearing credentials must never be exposed to the browser.
-- Requests using sensitive keys must stay in server-side code only.
-- If Amap returns weak matches, errors, or quota-limit responses, the system must preserve the saved place without blocking the user.
-
-#### Amap JavaScript API
-Use the JavaScript API in the browser for:
+#### MapLibre GL JS
+Use MapLibre GL JS in the browser for:
 - Rendering the interactive map
-- Showing markers for saved places with coordinates
+- Showing markers for saved places
 - Supporting basic zoom and simple city-based browsing
 
 Rules:
-- Only browser-safe client credentials should ever be used in the frontend.
-- Do not embed server-side secret keys in client bundles.
-- Keep the map experience simple in V1: no advanced clustering, no second provider, no complex viewport intelligence.
+- Keep the V1 map experience simple: no advanced clustering, no navigation features, and no second rendering provider.
+- Approximate marker placement must be visually or textually labeled in the UI.
 
 V1 fit:
-- High-confidence mainland-China map rendering
-- Simple marker display for saved places with coordinates
-- One provider for geocoding and POI flows
-- Graceful fallback when enrichment fails
+- Open-source interactive map rendering
+- Simple marker display for exact and approximate saved places
+- No dependency on paid map tiles or metered JavaScript map SDKs
+- A straightforward path to city filtering and no-coordinate fallback UI
 
 ### 6. Vercel for deployment
 Use Vercel to deploy the app.
@@ -142,12 +131,17 @@ V1 fit:
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
-- Amap JavaScript API on the map page only
+- MapLibre GL JS on the map page only
 
 ### Backend
 - Next.js server actions and server-side helpers
 - Supabase for persistence and auth
-- Amap Web Service client for server-side location enrichment and source normalization
+- A lightweight coordinate fallback layer for conservative city-level or region-level map placement when exact coordinates are unavailable
+
+### Map Data
+- Self-hosted PMTiles basemap
+- OpenStreetMap-derived vector data prepared ahead of time
+- No production reliance on public OSM tile servers
 
 ### Database
 Use Supabase Postgres with a very small schema.
@@ -209,8 +203,10 @@ Practical limitation for V1:
 - No headless browser scraping pipeline
 - No login-required source access
 - No AI agent pipeline for every URL
-- No provider explosion across multiple mainland-China map SDKs
-- No second map provider for the core V1 mainland-China flow
+- No self-hosted Nominatim
+- No paid geocoding provider
+- No production use of public OSM tile servers
+- No navigation-grade coordinate claims when only approximate placement is available
 
 ### Practical V1 rule
 Treat extraction as a helper, not the source of truth.
@@ -219,11 +215,10 @@ The source of truth is the user-reviewed place record.
 
 ## Location Reliability And Fallback Rules
 - Save first, enrich second when coordinates are missing.
-- If forward geocoding fails, preserve the saved record without coordinates.
-- If POI search fallback fails, preserve the saved record without coordinates.
-- If Amap is unavailable, returns quota errors, or returns weak results, the app should degrade gracefully rather than block save flows.
+- If exact coordinates are unavailable, preserve the saved record without coordinates or use a clearly marked conservative city-level or region-level fallback when appropriate for browsing.
+- Never invent exact POI coordinates from weak evidence.
 - No-coordinate places must remain clearly usable in the saved list.
-- V1 should not add a second provider just to patch individual Amap failure cases.
+- Approximate placement is acceptable for V1 map browsing as long as the UI clearly marks it as approximate.
 
 ## Data Access And Privacy
 Use Supabase Row Level Security so each user can access only their own place records by default.
@@ -257,12 +252,12 @@ If we optimize for simplicity, compatibility with the current repo, and a realis
 - Tailwind CSS
 - Supabase Postgres
 - Supabase Auth
-- Amap Web Service API
-- Amap JavaScript API
+- MapLibre GL JS
+- Self-hosted PMTiles built from OpenStreetMap-derived data
 - Vercel
 - Conservative server-side extraction with explicit review before save
 
-This gives the project one main app, one backend platform, one auth system, one database, one mainland-China map provider, one geocoding/POI provider, and one clear deployment path.
+This gives the project one main app, one backend platform, one auth system, one database, one open map-rendering stack, and one clear deployment path.
 
 ## References
 - Next.js App Router docs: [nextjs.org/docs/app/getting-started/project-structure](https://nextjs.org/docs/app/getting-started/project-structure)
@@ -270,8 +265,8 @@ This gives the project one main app, one backend platform, one auth system, one 
 - Supabase Auth password docs: [supabase.com/docs/guides/auth/passwords](https://supabase.com/docs/guides/auth/passwords)
 - Supabase Database overview: [supabase.com/docs/guides/database/overview](https://supabase.com/docs/guides/database/overview)
 - Supabase Row Level Security: [supabase.com/docs/guides/database/postgres/row-level-security](https://supabase.com/docs/guides/database/postgres/row-level-security)
-- Amap JavaScript API docs: [lbs.amap.com/api/javascript-api/summary](https://lbs.amap.com/api/javascript-api/summary)
-- Amap Web Service docs: [lbs.amap.com/api/webservice/summary](https://lbs.amap.com/api/webservice/summary)
+- MapLibre GL JS docs: [maplibre.org/maplibre-gl-js/docs](https://maplibre.org/maplibre-gl-js/docs)
+- PMTiles docs: [docs.protomaps.com/pmtiles](https://docs.protomaps.com/pmtiles/)
 
 ## Source Notes
-The recommendation to use Next.js, Supabase, Vercel, and 高德地图 / Amap is an implementation recommendation derived from the current V1 product requirements. The separation between Amap Web Service usage and Amap JavaScript usage reflects the current intended architecture, not proof that those integrations are already implemented in the repository.
+The recommendation to use Next.js, Supabase, Vercel, MapLibre, and self-hosted PMTiles is an implementation recommendation derived from the current V1 product requirements. The approximate-marker and city-level fallback guidance reflects the current intended architecture, not proof that those integrations are already implemented in the repository.

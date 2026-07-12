@@ -8,8 +8,8 @@ Build only the current V1 web app described in the PRD:
 - manual fallback
 - six-category place saving
 - list and edit flows
-- post-save coordinate enrichment when possible
-- simple Amap-based map browsing for records with coordinates
+- conservative coordinate handling when possible
+- simple open-source map browsing for records with exact or approximate placement
 
 This plan is intentionally small and does not include V2 or future expansion ideas.
 
@@ -23,7 +23,9 @@ This plan is intentionally small and does not include V2 or future expansion ide
 - Extraction remains conservative and best-effort.
 - Owner-only data access remains the default.
 - `public` / `private` remains a stored per-record flag only.
-- 高德地图 / Amap is the primary V1 mainland-China provider for map rendering, POI search, and geocoding.
+- The V1 map stack should use MapLibre GL JS with self-hosted PMTiles based on OpenStreetMap-derived data.
+- V1 does not use Google Maps, Apple Maps, 高德, Mapbox, or any paid / metered map API dependency for rendering.
+- V1 does not use OpenStreetMap public tile servers as the production tile backend.
 - 大众点评、小红书、抖音 remain best-effort sources.
 - 百度地图 remains a secondary, best-effort input source only.
 - Google Maps remains optional overseas support.
@@ -187,7 +189,7 @@ Scope completed:
   - `其他`
 - Confirmation architecture remains Step 12 single-candidate review-first
 - No Step 13 multi-candidate work has started
-- No Amap integration has started
+- No open-source map integration has started
 
 ## Current Validated Checkpoint
 The repository is currently validated through:
@@ -196,37 +198,34 @@ The repository is currently validated through:
 - six-category conservative extraction
 
 The main remaining V1 gaps are:
-- real 高德 foundation
-- 高德-aware source normalization
-- coordinate enrichment
-- real map rendering
+- MapLibre foundation
+- PMTiles basemap integration
+- conservative city-level coordinate fallback
+- marker rendering
 - city filtering and no-coordinate polish
+- final V1 acceptance pass
 - reassessment of whether multi-candidate extraction is still truly needed for V1
 
 ## Remaining V1 Sequence
 
-### Next Step A: 高德 foundation and setup health check
+### Next Step A: MapLibre foundation
 Scope:
-- Add Amap environment/config handling
-- Add a server-side Amap Web Service client foundation
-- Normalize Amap request and response error handling
-- Surface Amap setup status on the setup page
-- Do not change save behavior, extraction behavior, or map behavior yet
+- Add the minimal MapLibre client-side foundation for the existing `/map` route
+- Introduce browser-safe map configuration only
+- Keep the current placeholder flow boundaries intact until the map is actually wired in this step
+- Do not change save behavior, extraction behavior, review behavior, auth, or RLS
 
 Dependencies:
-- Completed Step 2 setup foundation
-- Completed Step 3 auth foundation
+- Completed Step 6 app layout foundation
 
 Manual test:
-- Start the app with and without Amap configuration present
-- Open the setup page
-- Confirm the app clearly reports whether Amap configuration is ready
+- Open the existing `/map` route
+- Confirm the page can load the new map foundation without introducing third-party paid SDK dependencies
 - Confirm no create, review, list, or edit behavior changes
 
 Automated test expectations:
-- Environment parsing tests
-- Server-side Amap client request construction tests
-- Normalized error handling tests for missing config, failed response, and quota-like failure cases
+- Basic map page integration smoke coverage where practical
+- Serialization or config tests for browser-safe map initialization
 
 Database migration required:
 - No
@@ -234,28 +233,25 @@ Database migration required:
 Validation rule:
 - Do not start the next step until this step is manually and automatically validated.
 
-### Next Step B: 高德 link/share-text normalization
+### Next Step B: PMTiles basemap integration
 Scope:
-- Recognize 高德 source URLs and sharing text more explicitly
-- Normalize official 高德 source intake into the existing Step 12 review flow
-- Preserve the current review/confirmation architecture
-- Keep no-auto-save behavior
-- Keep graceful fallback when normalization is weak or unavailable
+- Integrate a self-hosted PMTiles basemap for the map page
+- Use OpenStreetMap-derived vector data
+- Do not use OpenStreetMap public tile servers as the production backend
+- Keep the map experience simple and fast
 
 Dependencies:
 - Next Step A complete and validated
-- Existing Step 10 intake and Step 12 review flow
+- Basemap artifact and hosting path prepared
 
 Manual test:
-- Paste a valid 高德 URL
-- Paste representative 高德 sharing text
-- Confirm intake lands in the existing review flow
-- Confirm weak or malformed 高德 input falls back gracefully instead of blocking manual save
+- Open the map page
+- Confirm the basemap loads from the intended self-hosted PMTiles-backed source
+- Confirm no paid or metered map provider is involved
 
 Automated test expectations:
-- Source recognition tests for 高德 URLs
-- Sharing-text normalization tests
-- Graceful fallback tests for malformed or partial 高德 inputs
+- Map source and layer configuration tests where practical
+- Guard tests for missing or malformed basemap configuration
 
 Database migration required:
 - No
@@ -263,29 +259,27 @@ Database migration required:
 Validation rule:
 - Do not start the next step until this step is manually and automatically validated.
 
-### Next Step C: post-save coordinate enrichment
+### Next Step C: city-level coordinate fallback
 Scope:
 - Preserve save-first behavior
-- After save, attempt forward geocoding using Amap Web Service
-- Use POI search fallback only when appropriate
+- Add conservative city-level or region-level coordinate fallback for map browsing
 - Use existing `latitude` / `longitude` columns
-- Preserve saved records even when enrichment fails
-- Do not block save on weak enrichment results
+- Do not invent exact POI coordinates
+- Clearly distinguish exact coordinates from approximate placement in application logic and future UI
 
 Dependencies:
-- Next Step A complete and validated
 - Existing save flow from Step 7 and Step 12
 
 Manual test:
-- Save one place with a strong address or city and confirm coordinates are added
-- Save one place with incomplete location data and confirm the record still saves without coordinates
+- Save one place with exact coordinates and confirm they remain unchanged
+- Save one place without exact coordinates but with a strong city and confirm conservative fallback data can support map browsing
+- Save one place with insufficient location detail and confirm the record still saves without coordinates
 - Confirm existing list/edit behavior remains intact
 
 Automated test expectations:
-- Save-then-enrich flow tests
-- Forward geocoding success and failure handling tests
-- POI fallback tests for appropriate weak-address cases
-- Tests confirming failed enrichment does not remove or corrupt saved records
+- Fallback selection tests for city / region-level placement
+- Tests confirming weak evidence does not produce fake exact coordinates
+- Tests confirming failed fallback does not remove or corrupt saved records
 
 Database migration required:
 - No
@@ -293,11 +287,11 @@ Database migration required:
 Validation rule:
 - Do not start the next step until this step is manually and automatically validated.
 
-### Next Step D: real 高德 map
+### Next Step D: marker rendering
 Scope:
-- Replace the map placeholder with a real Amap-backed map
-- Render markers for records that have coordinates
-- Keep records without coordinates available in the list only
+- Replace the map placeholder with a real MapLibre-based map
+- Render markers for records that have exact or approximate placement
+- Keep records without any usable placement available in the list only
 - Keep the map behavior simple
 
 Dependencies:
@@ -307,7 +301,7 @@ Manual test:
 - Save several records, including some with coordinates
 - Open the map page
 - Confirm the map renders
-- Confirm coordinate-bearing records show markers
+- Confirm exact and approximate coordinate-bearing records show markers
 - Confirm records without coordinates are still not treated as broken
 
 Automated test expectations:
@@ -321,26 +315,26 @@ Database migration required:
 Validation rule:
 - Do not start the next step until this step is manually and automatically validated.
 
-### Next Step E: city filtering and incomplete-location polish
+### Next Step E: city filtering and no-coordinate polish
 Scope:
-- Add a simple city filter or city list
-- Improve no-coordinate states in list and map-adjacent UI
-- Keep the experience understandable when some records cannot be mapped
-- Do not add advanced clustering
+- Add city filtering to the map browsing experience
+- Clearly mark approximate placements in the UI
+- Ensure records without coordinates remain understandable and usable
+- Keep the experience simple and V1-sized
 
 Dependencies:
 - Next Step D complete and validated
 
 Manual test:
-- Save records across at least two cities
-- Confirm city filtering works
-- Confirm records without coordinates remain clearly usable in the list
-- Confirm no-coordinate states are explicit rather than confusing
+- Save records across multiple cities
+- Filter by city and confirm the list and map reflect the selected city correctly
+- Confirm approximate placements are clearly labeled
+- Confirm no-coordinate records still have a clear non-broken fallback presentation
 
 Automated test expectations:
-- City filter behavior tests
-- No-coordinate display-state tests
-- Regression coverage for mixed coordinate and non-coordinate datasets
+- City filtering behavior tests
+- Approximate-marker labeling tests where practical
+- Empty-state and no-coordinate guard tests
 
 Database migration required:
 - No
@@ -348,62 +342,28 @@ Database migration required:
 Validation rule:
 - Do not start the next step until this step is manually and automatically validated.
 
-### Next Step F: reassess multi-candidate extraction
+### Next Step F: V1 acceptance pass
 Scope:
-- Reassess whether multi-candidate extraction is still required by the updated PRD
-- Do not assume it must be built
-- Only retain it if the updated PRD still requires it
-- If retained, merge simple bulk review into the same step rather than splitting them
+- Run a final V1 acceptance pass across auth, source intake, review, save, list, edit, and map browsing
+- Reconfirm that exact-coordinate, approximate-coordinate, and no-coordinate records all behave acceptably
+- Reassess whether multi-candidate extraction is still necessary for V1 before any Step 13 decision
 
 Dependencies:
-- Updated PRD direction confirmed
-- Next Step B complete and validated
+- Next Step E complete and validated
 
 Manual test:
-- If the step is retained, use a representative multi-place source and confirm the user can review and save the intended subset
-- If the step is removed from V1, confirm planning documents clearly reflect that reclassification
+- Execute the core end-to-end flows from the PRD
+- Confirm no validated earlier step regressed
+- Confirm the map experience meets the V1 browsing bar without implying navigation-grade precision
 
 Automated test expectations:
-- If retained: multi-candidate selection and multi-save regression tests
-- If removed: no new automated coverage required beyond documentation alignment
+- Final targeted regression pass across the validated flows most likely to be affected by map integration
 
 Database migration required:
 - No
 
 Validation rule:
-- Do not start the final V1 pass until this step has either been implemented and validated or explicitly removed from V1 with documentation alignment.
-
-### Final Step: V1 acceptance pass
-Scope:
-- Verify the full V1 user journey end to end
-- Check the app against the updated PRD and validated implementation sequence
-- Confirm auth, source intake, extraction/review, manual save, category/subtype handling, list/edit, Amap enrichment, map behavior, and fallback behavior all work together
-
-Dependencies:
-- All retained V1 steps above complete and validated
-
-Manual test:
-1. Sign up with a new account
-2. Paste a supported source URL or sharing text
-3. Review and edit the extracted place draft
-4. Save the place
-5. Manually save another place as a fallback path
-6. Confirm category and subtype persist correctly
-7. Edit a saved record
-8. Confirm enrichment succeeds for at least one place and fails gracefully for another
-9. Open the saved list and confirm all records remain usable
-10. Open the map and confirm coordinate-bearing records appear
-11. Confirm no-coordinate records remain available in the list without breaking the map experience
-
-Automated test expectations:
-- End-to-end regression coverage for critical V1 flows where practical
-- Focused regression coverage for save, review, enrichment, and map data preparation
-
-Database migration required:
-- No, unless a future retained V1 step discovers a truly necessary additive migration
-
-Validation rule:
-- Do not declare V1 complete until this pass is validated.
+- Do not start Step 13 until this pass is complete and accepted.
 
 ## Out Of Scope For This Plan
 - Rich AI-generated place descriptions
@@ -416,10 +376,9 @@ Validation rule:
 - Recommendations, rankings, or community features
 
 ## Revised Remaining Build Order Summary
-1. Next Step A: 高德 foundation and setup health check
-2. Next Step B: 高德 link/share-text normalization
-3. Next Step C: post-save coordinate enrichment
-4. Next Step D: real 高德 map
-5. Next Step E: city filtering and incomplete-location polish
-6. Next Step F: reassess multi-candidate extraction
-7. Final Step: V1 acceptance pass
+1. Next Step A: MapLibre foundation
+2. Next Step B: PMTiles basemap integration
+3. Next Step C: city-level coordinate fallback
+4. Next Step D: marker rendering
+5. Next Step E: city filtering and no-coordinate polish
+6. Next Step F: V1 acceptance pass
