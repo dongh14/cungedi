@@ -37,6 +37,16 @@ The fourth small, reversible `存个地` extraction migration step is now comple
 
 The fifth small, reversible `存个地` extraction migration step is now complete and has been validated without starting Step 13.
 
+Migration Steps 3A through 3E are complete and manually validated.
+
+All six V1 categories now have conservative extraction support:
+- `美食`
+- `住宿`
+- `景点`
+- `购物`
+- `玩乐`
+- `其他`
+
 ## Validated Reversible Generalization Step 1
 
 ### Database
@@ -267,7 +277,6 @@ The fifth small, reversible `存个地` extraction migration step is now complet
 - Fetch timeout, response-size limits, and extraction security boundaries were not loosened.
 
 ### Product State
-- `其他` category-aware extraction has not started.
 - 高德 integration has not started.
 - Step 13 has not started.
 - No route rename has started.
@@ -275,6 +284,70 @@ The fifth small, reversible `存个地` extraction migration step is now complet
 - No module rename has started.
 - No TypeScript type rename has started.
 - No database column rename has started.
+
+## Validated Reversible Generalization Step 3E
+
+### Extraction Scope
+- Category-aware extraction now supports all six V1 categories:
+  - `美食`
+  - `住宿`
+  - `景点`
+  - `购物`
+  - `玩乐`
+  - `其他`
+- Existing `美食`, `住宿`, `景点`, `购物`, and `玩乐` extraction behavior remains unchanged.
+- `其他` remains intentionally manual-first and has the highest acceptance threshold.
+- `其他` only accepts strong `Place` or `LocalBusiness` structured-data cases when:
+  - the page represents one concrete place
+  - name is reliable
+  - address or city evidence is reliable
+  - no stronger category-specific evidence exists
+- `Place` or `LocalBusiness` alone is not sufficient.
+- Weak generic pages, missing-location pages, directories and lists, ambiguous pages, and mixed-category pages now fall back to manual completion.
+- Subtype inference for `其他` is minimal and conservative.
+- `其他` subtype may remain blank.
+- The subtype is still temporarily stored through the existing `cuisine` database column.
+
+### Review And Save Behavior
+- Successful generic-place candidates now default the review form category to `其他`.
+- Explicit user category choices still take precedence.
+- All extracted fields remain editable before save.
+- Nothing auto-saves.
+- Successful saves still redirect to `/restaurants`.
+- Saved `其他` category and subtype editing remain functional in the existing saved-record edit flow.
+
+### Step 3E Bug Fix
+- Initial manual validation failed because the development fixture chrome injected `/restaurants/new` into visible page text and triggered restaurant-like blocking.
+- Generic weak-signal dispatch guards were evaluated too early.
+- The address regex incorrectly matched `Development/Test Only` because `st` was treated as a street abbreviation without sufficient boundaries.
+- Candidate category propagation and review defaulting were already correct.
+- The fix was limited to generic-place extraction, field validation, fixture scaffolding, diagnostics, and regression coverage.
+- Existing category acceptance thresholds were not loosened.
+
+### Validation
+- Focused extraction and review tests now pass `83/83`.
+- Generic `Place` fixture validation now succeeds as `其他 / 服务中心` with accepted `name`, `city`, and `address`.
+- Generic `LocalBusiness` fixture validation now succeeds as `其他` with a blank subtype plus accepted `name`, `city`, and `address`.
+- Missing-location fixture validation now correctly falls back.
+- Generic directory fixture validation now correctly falls back.
+- Mixed `generic + Restaurant` fixture validation now correctly falls back.
+- Save, list, and edit flow for a successful `其他` candidate were manually validated.
+- Deterministic development fixtures remain unlinked from the product UI and are disabled in production.
+- Fetch timeout, response-size limits, and extraction security boundaries were not loosened.
+
+### Product State
+- Migration Steps 3A through 3E are complete and manually validated.
+- All six V1 categories now have conservative extraction support.
+- 高德 integration has not started.
+- Step 13 has not started.
+- No route rename has started.
+- No table rename has started.
+- No module rename has started.
+- No TypeScript type rename has started.
+- No database column rename has started.
+- The current table remains `restaurants`.
+- The current route namespace remains `/restaurants`.
+- The subtype storage column remains `cuisine`.
 
 ## Completed In Step 1
 - Initialized the repository with Git version control.
