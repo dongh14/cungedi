@@ -1,7 +1,7 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, and the validated Step 3C shopping-extraction expansion.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, and the validated Step 3D entertainment-extraction expansion.
 
 It does not include Step 13 or later architecture yet.
 
@@ -89,10 +89,11 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/restaurants/accommodation-inference.ts`: Step 3A conservative accommodation subtype inference and strong lodging structured-data helpers
 - `lib/restaurants/attraction-inference.ts`: Step 3B conservative attraction subtype inference and strong attraction structured-data helpers
 - `lib/restaurants/shopping-inference.ts`: Step 3C conservative shopping subtype inference and strong shopping structured-data helpers
-- `lib/restaurants/source-extraction.ts`: Step 11, Step 3A, Step 3B, and Step 3C orchestration for shared fetching, parsing, validation, category-aware candidate acceptance, diagnostics, and fallback decisions
-- `lib/restaurants/source-extraction.test.ts`: focused Step 11, Step 3A, Step 3B, and Step 3C regression tests for restaurant, accommodation, attraction, and shopping extraction behavior
-- `lib/restaurants/review-form.ts`: helper for turning accepted extraction results plus URL overrides into editable confirmation values, including category defaults for successful `美食`, `住宿`, `景点`, and `购物` candidates
-- `lib/restaurants/review-form.test.ts`: focused tests for accepted-field prefills, category defaults, user overrides, missing fields, fallback-mode manual completion, and accommodation/attraction/shopping default-category behavior
+- `lib/restaurants/entertainment-inference.ts`: Step 3D conservative entertainment subtype inference and strong entertainment structured-data helpers
+- `lib/restaurants/source-extraction.ts`: Step 11, Step 3A, Step 3B, Step 3C, and Step 3D orchestration for shared fetching, parsing, validation, category-aware candidate acceptance, diagnostics, and fallback decisions
+- `lib/restaurants/source-extraction.test.ts`: focused Step 11, Step 3A, Step 3B, Step 3C, and Step 3D regression tests for restaurant, accommodation, attraction, shopping, and entertainment extraction behavior
+- `lib/restaurants/review-form.ts`: helper for turning accepted extraction results plus URL overrides into editable confirmation values, including category defaults for successful `美食`, `住宿`, `景点`, `购物`, and `玩乐` candidates
+- `lib/restaurants/review-form.test.ts`: focused tests for accepted-field prefills, category defaults, user overrides, missing fields, fallback-mode manual completion, and accommodation/attraction/shopping/entertainment default-category behavior
 - `lib/restaurants/record-payloads.ts`: shared insert and update payload builders that keep `category` threaded through current save flows while `cuisine` remains the temporary subtype storage column
 - `lib/restaurants/constants.test.ts`: focused tests for allowed categories, subtype field labels, suggestion sets, and subtype-category compatibility
 - `lib/restaurants/record-payloads.test.ts`: focused tests for category persistence in save and edit payloads
@@ -186,6 +187,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Now also defaults successful accommodation candidates to category `住宿` when strong lodging evidence is accepted.
 - Now also defaults successful attraction candidates to category `景点` when strong attraction evidence is accepted.
 - Now also defaults successful shopping candidates to category `购物` when strong shopping evidence is accepted.
+- Now also defaults successful entertainment candidates to category `玩乐` when strong entertainment evidence is accepted.
 - Keeps all accepted and missing fields editable before explicit save and still does not auto-save anything.
 
 ### `app/restaurants/page.tsx`
@@ -200,6 +202,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Continues to support saved accommodation records through the same existing list and redirect flow.
 - Continues to support saved attraction records through the same existing list and redirect flow.
 - Continues to support saved shopping records through the same existing list and redirect flow.
+- Continues to support saved entertainment records through the same existing list and redirect flow.
 
 ### `app/restaurants/[id]/edit/page.tsx`
 - Provides the protected Step 9 edit page for one saved restaurant.
@@ -210,6 +213,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Continues to support editing saved accommodation category and subtype values through that unchanged saved-record edit flow.
 - Continues to support editing saved attraction category and subtype values through that unchanged saved-record edit flow.
 - Continues to support editing saved shopping category and subtype values through that unchanged saved-record edit flow.
+- Continues to support editing saved entertainment category and subtype values through that unchanged saved-record edit flow.
 
 ### `app/restaurants/actions.ts`
 - Contains the Step 7 server action that validates and creates restaurant records.
@@ -330,6 +334,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Now also shows the accepted extracted category and uses accommodation-specific subtype labeling when the Step 3A lodging path succeeds.
 - Now also shows attraction-specific subtype labeling when the Step 3B attraction path succeeds.
 - Now also shows shopping-specific subtype labeling and conservative-support copy when the Step 3C shopping path succeeds.
+- Now also shows entertainment-specific subtype labeling and conservative-support copy when the Step 3D entertainment path succeeds.
 - Leaves the actual save decision to the Step 12 confirmation form on the same review page.
 
 ### `components/extraction-confirmation-card.tsx`
@@ -344,6 +349,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Now also defaults successful accommodation candidates to category `住宿` while still writing the inferred subtype through the current `cuisine` field.
 - Now also defaults successful attraction candidates to category `景点` while still writing the inferred subtype through the current `cuisine` field.
 - Now also defaults successful shopping candidates to category `购物` while still writing the inferred subtype through the current `cuisine` field.
+- Now also defaults successful entertainment candidates to category `玩乐` while still writing the inferred subtype through the current `cuisine` field.
 
 ### `components/source-intake-card.tsx`
 - Provides the main Step 10 source intake UI on `/restaurants/new`.
@@ -360,6 +366,7 @@ These are starter static assets from the base app scaffold. They are not product
 - Now explains that automatic extraction remains strongest for `美食` while adding conservative support for strong accommodation pages.
 - Now also explains that the same conservative support extends to strong attraction pages.
 - Now also explains that the same conservative support extends to strong shopping pages.
+- Now also explains that the same conservative support extends to strong entertainment pages.
 
 ### `components/site-brand.tsx`
 - Renders the shared product brand lockup.
@@ -428,7 +435,7 @@ These are starter static assets from the base app scaffold. They are not product
 ### `lib/restaurants/extraction-types.ts`
 - Defines the Step 11 extraction result model used by the review flow.
 - Stores the source kind, support level, page type, extracted fields, and success-or-fallback status in one shared type layer.
-- Now also carries the accepted category on successful candidates so the review layer can distinguish `美食`, `住宿`, `景点`, and `购物`.
+- Now also carries the accepted category on successful candidates so the review layer can distinguish `美食`, `住宿`, `景点`, `购物`, and `玩乐`.
 - Adds field-level confidence, evidence source, and optional rejection-reason support.
 - Adds development-only diagnostics types for fetched URL, response metadata, structured-data types, accepted evidence, rejected candidates, and final extraction decision.
 
@@ -482,28 +489,36 @@ These are starter static assets from the base app scaffold. They are not product
 - Infers shopping subtype conservatively and leaves the subtype blank when confidence is low.
 - Keeps subtype output compatible with the existing temporary `cuisine` storage column.
 
+### `lib/restaurants/entertainment-inference.ts`
+- Adds the fourth category-specific inference helper outside the existing `美食`, `住宿`, `景点`, and `购物` paths.
+- Recognizes strong entertainment structured-data types such as `EntertainmentBusiness`, `MovieTheater`, `NightClub`, `BowlingAlley`, `AmusementPark`, `SportsActivityLocation`, `PerformingArtsTheater`, and `EventVenue`.
+- Infers entertainment subtype conservatively and leaves the subtype blank when confidence is low.
+- Keeps subtype output compatible with the existing temporary `cuisine` storage column.
+
 ### `lib/restaurants/source-extraction.ts`
-- Orchestrates the full Step 11 extraction flow plus the validated Step 3A accommodation expansion, Step 3B attraction expansion, and Step 3C shopping expansion from source classification through fetch, parse, validation, and final candidate or fallback decision.
+- Orchestrates the full Step 11 extraction flow plus the validated Step 3A accommodation expansion, Step 3B attraction expansion, Step 3C shopping expansion, and Step 3D entertainment expansion from source classification through fetch, parse, validation, and final candidate or fallback decision.
 - Prioritizes structured data first, then conservative metadata and labeled-section heuristics, while avoiding broad body-text extraction.
 - Supports partial candidates so genuine single-restaurant pages can return a reliable subset of fields when address, city, or cuisine are uncertain.
 - Adds candidate-acceptance thresholds so successful drafts require a valid restaurant name plus sufficient single-restaurant evidence.
 - Keeps the current `美食` extraction behavior and acceptance thresholds unchanged.
 - Keeps the current `住宿` extraction behavior and acceptance thresholds unchanged.
 - Keeps the current `景点` extraction behavior and acceptance thresholds unchanged.
-- Adds the smallest category-aware dispatch needed for `住宿`, `景点`, and `购物`.
+- Adds the smallest category-aware dispatch needed for `住宿`, `景点`, `购物`, and `玩乐`.
 - Accepts `住宿` only when the page looks like a single place, the name passes validation, and strong accommodation structured-data evidence exists.
 - Accepts `景点` only when the page looks like a single place, the name passes validation, and strong attraction structured-data evidence exists.
 - Accepts `购物` only when the page looks like a single place, the name passes validation, and strong shopping structured-data evidence exists.
+- Accepts `玩乐` only when the page looks like a single place, the name passes validation, and strong entertainment structured-data evidence exists.
 - Rejects generic `LocalBusiness` as insufficient accommodation evidence.
 - Rejects generic `Place` or `LocalBusiness` as insufficient attraction evidence.
 - Rejects generic `LocalBusiness` or `Place` as insufficient shopping evidence.
-- Falls back cleanly for ambiguous multi-category sources, shopping directory pages, shopping store lists, shopping search-result pages, attraction directory pages, travel blogs, hotel directory pages, real-world timeout responses, real-world oversized-page responses, and real-world `403` responses.
+- Rejects generic `LocalBusiness` or `Place` as insufficient entertainment evidence.
+- Falls back cleanly for ambiguous multi-category sources, shopping directory pages, shopping store lists, shopping search-result pages, attraction directory pages, travel blogs, hotel directory pages, entertainment directories, event schedules, entertainment search and list pages, real-world timeout responses, real-world oversized-page responses, and real-world `403` responses.
 - Supports development-only deterministic extraction fixtures that still run through the same bounded fetch and extraction pipeline.
 - Records development-only diagnostics for final fetched URL, page type, structured-data coverage, accepted field evidence, rejected field candidates, and the final acceptance or fallback reason.
 
 ### `lib/restaurants/source-extraction.test.ts`
-- Covers the focused Step 11 extraction regression cases plus the validated Step 3A accommodation cases, Step 3B attraction cases, and Step 3C shopping cases with automated tests.
-- Verifies success and fallback behavior for structured-data restaurant pages, hotel pages, attraction pages, shopping pages, resort pages, directory pages, generic pages, malformed JSON-LD, partial candidates, metadata-based address extraction, low-confidence subtype inference, ambiguous mixed-category pages, development-only fixture-aligned shopping cases, and limited-fetch Google Maps fallback.
+- Covers the focused Step 11 extraction regression cases plus the validated Step 3A accommodation cases, Step 3B attraction cases, Step 3C shopping cases, and Step 3D entertainment cases with automated tests.
+- Verifies success and fallback behavior for structured-data restaurant pages, hotel pages, attraction pages, shopping pages, entertainment pages, resort pages, directory pages, generic pages, malformed JSON-LD, partial candidates, metadata-based address extraction, low-confidence subtype inference, ambiguous mixed-category pages, development-only fixture-aligned shopping and entertainment cases, and limited-fetch Google Maps fallback.
 - Locks in the validated rule that weak pages should fall back cleanly and that missing data is preferred over incorrect data.
 
 ### `lib/restaurants/review-form.ts`
@@ -513,12 +528,13 @@ These are starter static assets from the base app scaffold. They are not product
 - Now defaults successful accommodation candidates to `住宿` without silently overriding an explicit user-selected category override.
 - Now defaults successful attraction candidates to `景点` without silently overriding an explicit user-selected category override.
 - Now defaults successful shopping candidates to `购物` without silently overriding an explicit user-selected category override.
+- Now defaults successful entertainment candidates to `玩乐` without silently overriding an explicit user-selected category override.
 - Lets URL query overrides win after validation errors so user-entered values are preserved.
 - Reports missing required and optional fields so partial candidates and fallback results can be manually completed.
 
 ### `lib/restaurants/review-form.test.ts`
 - Covers the focused Step 12 confirmation-form state behavior.
-- Verifies accepted-field prefills, user-entered overrides, partial-candidate missing fields, fallback-mode manual completion labels, and successful accommodation/attraction/shopping default-category behavior.
+- Verifies accepted-field prefills, user-entered overrides, partial-candidate missing fields, fallback-mode manual completion labels, and successful accommodation/attraction/shopping/entertainment default-category behavior.
 
 ### `lib/utils.ts`
 - Provides a minimal shared helper for joining CSS class names in reusable components.
@@ -613,13 +629,17 @@ These are starter static assets from the base app scaffold. They are not product
 - Step 3C adds the third category-aware extraction expansion for `购物` only while preserving the existing `美食`, `住宿`, and `景点` paths unchanged.
 - Step 3C requires strong shopping structured-data evidence and falls back cleanly for generic `LocalBusiness` or `Place`, shopping directories, store lists, search-result pages, and mixed-category pages.
 - Step 3C allows development-only deterministic fixture pages for manual validation without loosening fetch timeout, response-size, or extraction security limits.
-- `玩乐` and `其他` category-aware extraction have not started.
+- Step 3D adds the fourth category-aware extraction expansion for `玩乐` only while preserving the existing `美食`, `住宿`, `景点`, and `购物` paths unchanged.
+- Step 3D requires strong entertainment structured-data evidence and falls back cleanly for generic `LocalBusiness` or `Place`, entertainment directories, event schedules, search and list pages, and mixed-category pages.
+- Step 3D keeps the deterministic development fixtures unlinked from product UI and disabled in production without loosening fetch timeout, response-size, or extraction security limits.
+- `其他` category-aware extraction has not started.
 - The planning documents now define a China-first direction where 高德地图 / Amap is the primary future V1 map, POI, and geocoding provider.
 - The planning documents now define the source stance as: 高德 links and share text are official V1 sources; 大众点评, 小红书, and 抖音 are best-effort; 百度地图 is secondary input only; Google Maps is optional overseas support.
 - Inferred cuisine remains editable and should stay blank when confidence is low.
 - Accommodation subtype remains editable and is still stored through the temporary `cuisine` field.
 - Attraction subtype remains editable and is still stored through the temporary `cuisine` field.
 - Shopping subtype remains editable and is still stored through the temporary `cuisine` field.
+- Entertainment subtype remains editable and is still stored through the temporary `cuisine` field.
 - Step 13 multi-candidate work is paused while the product direction generalizes into `存个地`.
 
 ## Restaurants Table Schema

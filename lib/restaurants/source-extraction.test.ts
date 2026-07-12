@@ -733,6 +733,273 @@ test("accepts a generic Store with blank subtype when subtype evidence is weak",
   assert.equal(result.candidate.fields.cuisine.value, null);
 });
 
+test("infers 电影院 from MovieTheater structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Skyline Cinema</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "MovieTheater",
+            "name": "Skyline Cinema",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "长宁路 88 号",
+              "addressLocality": "上海"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Daily screenings and weekend movie nights.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/skyline-cinema", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/skyline-cinema"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "玩乐");
+  assert.equal(result.candidate.fields.cuisine.value, "电影院");
+});
+
+test("infers 酒吧 from NightClub structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Moonrise Club</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "NightClub",
+            "name": "Moonrise Club",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "永康路 6 号",
+              "addressLocality": "上海"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Late-night music and cocktails.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/moonrise-club", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/moonrise-club"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "玩乐");
+  assert.equal(result.candidate.fields.cuisine.value, "酒吧");
+});
+
+test("infers 保龄球馆 from BowlingAlley structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Strike Lane</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "BowlingAlley",
+            "name": "Strike Lane",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "新华路 30 号",
+              "addressLocality": "杭州"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Casual bowling for groups and families.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/strike-lane", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/strike-lane"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "玩乐");
+  assert.equal(result.candidate.fields.cuisine.value, "保龄球馆");
+});
+
+test("infers 游乐园 from AmusementPark structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Wonder Harbor Park</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "AmusementPark",
+            "name": "Wonder Harbor Park",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "海岸大道 1 号",
+              "addressLocality": "青岛"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Rides, family attractions and seaside views.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/wonder-harbor", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/wonder-harbor"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "玩乐");
+  assert.equal(result.candidate.fields.cuisine.value, "游乐园");
+});
+
+test("infers 运动场馆 from SportsActivityLocation structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Pulse Arena</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "SportsActivityLocation",
+            "name": "Pulse Arena",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "滨江大道 15 号",
+              "addressLocality": "深圳"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Indoor courts and evening training sessions.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/pulse-arena", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/pulse-arena"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "玩乐");
+  assert.equal(result.candidate.fields.cuisine.value, "运动场馆");
+});
+
+test("infers 剧院 from PerformingArtsTheater structured data", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Harbor Theater</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "PerformingArtsTheater",
+            "name": "Harbor Theater",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "海边路 9 号",
+              "addressLocality": "厦门"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <p>Drama, music and contemporary stage productions.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/harbor-theater", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/harbor-theater"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "玩乐");
+  assert.equal(result.candidate.fields.cuisine.value, "剧院");
+});
+
+test("accepts a generic EntertainmentBusiness with blank subtype when subtype evidence is weak", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Playfield Hub</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "EntertainmentBusiness",
+            "name": "Playfield Hub",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "中山路 66 号",
+              "addressLocality": "苏州"
+            }
+          }
+        </script>
+        <meta name="description" content="An indoor entertainment venue for casual group outings." />
+      </head>
+      <body>
+        <p>Relaxed evening plans and group hangouts.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/playfield-hub", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/playfield-hub"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "玩乐");
+  assert.equal(result.candidate.fields.cuisine.value, null);
+});
+
 test("keeps parsing valid structured data when another JSON-LD block is malformed", async () => {
   const html = `
     <html>
@@ -1074,6 +1341,38 @@ test("falls back when generic LocalBusiness is the only shopping-like evidence",
   assert.equal(result.status, "fallback");
 });
 
+test("falls back when generic LocalBusiness is the only entertainment-like evidence", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Night KTV Hub</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": "Night KTV Hub",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "解放路 18 号",
+              "addressLocality": "长沙"
+            }
+          }
+        </script>
+        <meta name="description" content="Private karaoke rooms and late-night KTV sessions." />
+      </head>
+      <body>
+        <p>Private karaoke rooms for group KTV nights.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/night-ktv-hub", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/night-ktv-hub"),
+  });
+
+  assert.equal(result.status, "fallback");
+});
+
 test("keeps cuisine blank when confidence is low", async () => {
   const html = `
     <html>
@@ -1226,6 +1525,45 @@ test("keeps shopping subtype blank when confidence is low", async () => {
   }
 
   assert.equal(result.candidate.category, "购物");
+  assert.equal(result.candidate.fields.cuisine.value, null);
+});
+
+test("keeps entertainment subtype blank when confidence is low", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Evening Playhouse</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "EntertainmentBusiness",
+            "name": "Evening Playhouse",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "城中路 12 号",
+              "addressLocality": "南京"
+            }
+          }
+        </script>
+        <meta name="description" content="An indoor venue for relaxed social outings." />
+      </head>
+      <body>
+        <p>Casual evening entertainment in the city center.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/evening-playhouse", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/evening-playhouse"),
+  });
+
+  assert.equal(result.status, "success");
+
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "玩乐");
   assert.equal(result.candidate.fields.cuisine.value, null);
 });
 
@@ -1413,6 +1751,87 @@ test("falls back for a shopping directory or list page", async () => {
   assert.match(result.reason, /购物目录|门店列表|搜索结果页/);
 });
 
+test("falls back for an entertainment directory or list page", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Venues | City Fun Guide</title>
+        <meta name="description" content="Browse cinemas, bowling alleys and event venues across the district." />
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "MovieTheater",
+                "name": "Skyline Cinema",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "Central Road 1",
+                  "addressLocality": "Shanghai"
+                }
+              },
+              {
+                "@type": "BowlingAlley",
+                "name": "Strike Lane",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "Central Road 2",
+                  "addressLocality": "Shanghai"
+                }
+              }
+            ]
+          }
+        </script>
+      </head>
+      <body>
+        <h1>Venues</h1>
+        <p>Find a venue by neighborhood, activity type or tonight's plans.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/venues", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/venues"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.equal(result.pageType, "restaurant_list");
+  assert.match(result.reason, /玩乐目录|活动排期|场馆集合页/);
+});
+
+test("falls back for an event schedule page", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Show Schedule | Harbor Stage</title>
+        <meta name="description" content="Check this week's performances, schedule and upcoming events at the venue." />
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "EventVenue",
+            "name": "Harbor Stage",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "海边路 20 号",
+              "addressLocality": "青岛"
+            }
+          }
+        </script>
+      </head>
+      <body>
+        <h1>Show Schedule</h1>
+        <p>View this week's performances, lineup and upcoming events.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/show-schedule", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/show-schedule"),
+  });
+
+  assert.equal(result.status, "fallback");
+});
+
 test("falls back for a travel blog page", async () => {
   const html = `
     <html>
@@ -1548,6 +1967,116 @@ test("falls back when shopping and hotel structured data are both strong", async
 
   const result = await extractRestaurantDraftFromSource("https://example.com/harbor-destination", {
     fetchImpl: async () => createHtmlResponse(html, "https://example.com/harbor-destination"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.match(result.reason, /不会静默改写分类|手动确认/);
+});
+
+test("falls back when entertainment and restaurant structured data are both strong", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>City Night Complex</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "NightClub",
+                "name": "City Night Club"
+              },
+              {
+                "@type": "Restaurant",
+                "name": "Late Supper Kitchen"
+              }
+            ]
+          }
+        </script>
+      </head>
+      <body>
+        <p>Nightlife and late dinner in one complex.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/city-night-complex", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/city-night-complex"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.match(result.reason, /不会静默改写分类|手动确认/);
+});
+
+test("falls back when entertainment and hotel structured data are both strong", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Harbor Leisure Tower</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "MovieTheater",
+                "name": "Harbor Screen"
+              },
+              {
+                "@type": "Hotel",
+                "name": "Harbor Hotel",
+                "address": {
+                  "@type": "PostalAddress",
+                  "streetAddress": "Harbor Road 8",
+                  "addressLocality": "Qingdao"
+                }
+              }
+            ]
+          }
+        </script>
+      </head>
+      <body>
+        <p>Screenings above the hotel lobby.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/harbor-leisure-tower", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/harbor-leisure-tower"),
+  });
+
+  assert.equal(result.status, "fallback");
+  assert.match(result.reason, /不会静默改写分类|手动确认/);
+});
+
+test("falls back when entertainment and shopping structured data are both strong", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Central Leisure Plaza</title>
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "MovieTheater",
+                "name": "Central Screen"
+              },
+              {
+                "@type": "ShoppingCenter",
+                "name": "Central Mall"
+              }
+            ]
+          }
+        </script>
+      </head>
+      <body>
+        <p>A cinema inside a shopping plaza.</p>
+      </body>
+    </html>
+  `;
+
+  const result = await extractRestaurantDraftFromSource("https://example.com/central-leisure-plaza", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/central-leisure-plaza"),
   });
 
   assert.equal(result.status, "fallback");

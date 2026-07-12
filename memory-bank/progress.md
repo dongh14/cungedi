@@ -35,6 +35,8 @@ The third small, reversible `存个地` extraction migration step is now complet
 
 The fourth small, reversible `存个地` extraction migration step is now complete and has been validated without starting Step 13.
 
+The fifth small, reversible `存个地` extraction migration step is now complete and has been validated without starting Step 13.
+
 ## Validated Reversible Generalization Step 1
 
 ### Database
@@ -217,6 +219,55 @@ The fourth small, reversible `存个地` extraction migration step is now comple
 
 ### Product State
 - `玩乐` and `其他` category-aware extraction have not started.
+- 高德 integration has not started.
+- Step 13 has not started.
+- No route rename has started.
+- No table rename has started.
+- No module rename has started.
+- No TypeScript type rename has started.
+- No database column rename has started.
+
+## Validated Reversible Generalization Step 3D
+
+### Extraction Scope
+- Category-aware extraction now supports `玩乐` alongside the existing `美食`, `住宿`, `景点`, and `购物` paths.
+- Existing `美食`, `住宿`, `景点`, and `购物` extraction behavior remains unchanged.
+- `玩乐` extraction now requires strong entertainment structured-data evidence.
+- Supported entertainment types now include:
+  - `EntertainmentBusiness`
+  - `MovieTheater`
+  - `NightClub`
+  - `BowlingAlley`
+  - `AmusementPark`
+  - `SportsActivityLocation`
+  - `PerformingArtsTheater`
+  - `EventVenue`
+- Generic `LocalBusiness` or `Place` alone is insufficient entertainment evidence.
+- Only single-place entertainment pages are accepted for `玩乐`.
+- Entertainment directories, event schedules, search and list pages, and mixed-category pages now fall back to manual completion.
+- Generic `EntertainmentBusiness` may now produce a partial candidate with a blank subtype when the place evidence is strong but subtype confidence stays low.
+
+### Review And Save Behavior
+- Entertainment subtype inference is conservative and is still stored temporarily through the existing `cuisine` field.
+- Successful entertainment candidates now default the review form category to `玩乐`.
+- All extracted fields remain editable before save.
+- Nothing auto-saves.
+- Successful saves still redirect to `/restaurants`.
+- Saved `玩乐` category and subtype editing remain functional in the existing saved-record edit flow.
+
+### Validation
+- Focused extraction tests now pass `74/74`.
+- `movie-theater` fixture validation now succeeds as `玩乐 / 电影院`.
+- `generic-entertainment` fixture validation now succeeds as `玩乐` with a blank subtype.
+- Entertainment directory fixture validation now correctly falls back.
+- Event schedule fixture validation now correctly falls back.
+- Mixed `EntertainmentBusiness + Restaurant` fixture validation now correctly falls back.
+- Save, list, and edit flow for a `玩乐` candidate were manually validated.
+- Deterministic development fixtures remain unlinked from the product UI and are disabled in production.
+- Fetch timeout, response-size limits, and extraction security boundaries were not loosened.
+
+### Product State
+- `其他` category-aware extraction has not started.
 - 高德 integration has not started.
 - Step 13 has not started.
 - No route rename has started.

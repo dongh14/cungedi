@@ -34,6 +34,9 @@ export const entertainmentSubtypeSuggestions = [
   "展览",
   "运动场馆",
   "游乐园",
+  "保龄球馆",
+  "剧院",
+  "演出场地",
 ] as const;
 
 export const attractionSubtypeSuggestions = [

@@ -303,3 +303,58 @@ test("defaults extracted shopping candidates to 购物 unless the user already c
   assert.equal(defaultValues.cuisine, "书店");
   assert.equal(overriddenValues.category, "住宿");
 });
+
+test("defaults extracted entertainment candidates to 玩乐 unless the user already chose another category", () => {
+  const result: RestaurantExtractionResult = {
+    status: "success",
+    sourceUrl: "https://example.com/cinema",
+    sourceKind: "public-web",
+    supportLevel: "official",
+    pageType: "single_restaurant",
+    fetchedUrl: "https://example.com/cinema",
+    httpStatus: 200,
+    contentType: "text/html",
+    notes: ["entertainment structured data accepted"],
+    acceptanceReasons: ["single entertainment signals are strong enough"],
+    candidate: {
+      sourceUrl: "https://example.com/cinema",
+      category: "玩乐",
+      fields: {
+        name: {
+          value: "Skyline Cinema",
+          confidence: "high",
+          evidenceSource: "structured_data",
+          accepted: true,
+        },
+        city: {
+          value: "上海",
+          confidence: "high",
+          evidenceSource: "structured_data",
+          accepted: true,
+        },
+        address: {
+          value: null,
+          confidence: "none",
+          evidenceSource: null,
+          accepted: false,
+          rejectionReason: "missing",
+        },
+        cuisine: {
+          value: "电影院",
+          confidence: "high",
+          evidenceSource: "structured_data",
+          accepted: true,
+        },
+      },
+    },
+  };
+
+  const defaultValues = getInitialDraftFormValues(result, {});
+  const overriddenValues = getInitialDraftFormValues(result, {
+    category: "景点",
+  });
+
+  assert.equal(defaultValues.category, "玩乐");
+  assert.equal(defaultValues.cuisine, "电影院");
+  assert.equal(overriddenValues.category, "景点");
+});

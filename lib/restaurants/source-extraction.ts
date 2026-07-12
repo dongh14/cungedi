@@ -3,6 +3,10 @@ import { inferAttractionSubtype, hasAttractionStructuredType } from "./attractio
 import { inferCuisineFromSourceContent } from "./cuisine-inference";
 import { defaultRestaurantCategory } from "./constants";
 import {
+  inferEntertainmentSubtype,
+  hasEntertainmentStructuredType,
+} from "./entertainment-inference";
+import {
   buildEmptyField,
   formatStructuredAddress,
   validateAddress,
@@ -42,7 +46,7 @@ type FieldProposal = {
 };
 
 type CandidateFieldKey = "name" | "city" | "address" | "cuisine";
-type ExtractionCategory = "美食" | "住宿" | "景点" | "购物";
+type ExtractionCategory = "美食" | "住宿" | "景点" | "购物" | "玩乐";
 
 const relevantStructuredTypes = new Set([
   "restaurant",
@@ -76,6 +80,14 @@ const relevantStructuredTypes = new Set([
   "electronicsstore",
   "beautysalon",
   "healthandbeautybusiness",
+  "entertainmentbusiness",
+  "movietheater",
+  "nightclub",
+  "bowlingalley",
+  "amusementpark",
+  "sportsactivitylocation",
+  "performingartstheater",
+  "eventvenue",
 ]);
 const restaurantStructuredTypes = new Set([
   "restaurant",
@@ -119,6 +131,10 @@ const shoppingListPattern =
   /\b(stores|shopping|shop directory|store directory|our stores|find a store|locations|brands|search results|category page|mall directory)\b/i;
 const shoppingKeywordPattern =
   /\b(store|shop|shopping|mall|bookstore|clothing|grocery|supermarket|convenience store|department store|home goods|electronics|beauty)\b/i;
+const entertainmentListPattern =
+  /\b(events|event listings|upcoming events|calendar|showtimes|venues|things to do|our venues|schedule|lineup|all venues)\b/i;
+const entertainmentKeywordPattern =
+  /\b(cinema|movie theater|nightclub|club|bowling|amusement park|theme park|sports venue|stadium|arena|theater|theatre|event venue|karaoke|ktv|escape room|board game|exhibition|concert|live house|bar)\b/i;
 
 const knownCities = [
   { city: "上海", patterns: ["上海", "上海市", "shanghai"] },
@@ -199,6 +215,10 @@ function attractionStructuredNodes(nodes: StructuredDataNode[]) {
 
 function shoppingStructuredNodes(nodes: StructuredDataNode[]) {
   return nodes.filter(hasShoppingStructuredType);
+}
+
+function entertainmentStructuredNodes(nodes: StructuredDataNode[]) {
+  return nodes.filter(hasEntertainmentStructuredType);
 }
 
 function extractCity(value: string | null) {
@@ -327,6 +347,19 @@ function pickShoppingStructuredNode(nodes: StructuredDataNode[]) {
   );
 }
 
+function pickEntertainmentStructuredNode(nodes: StructuredDataNode[]) {
+  return (
+    nodes.find(
+      (node) =>
+        hasEntertainmentStructuredType(node) &&
+        Boolean(node.name) &&
+        (Boolean(node.address?.streetAddress) || Boolean(node.address?.addressLocality)),
+    ) ??
+    nodes.find((node) => hasEntertainmentStructuredType(node) && Boolean(node.name)) ??
+    null
+  );
+}
+
 function hasStrongRestaurantStructuredEvidence(nodes: StructuredDataNode[]) {
   return restaurantStructuredNodes(nodes).some(
     (node) =>
@@ -349,16 +382,22 @@ function hasStrongShoppingStructuredEvidence(nodes: StructuredDataNode[]) {
   );
 }
 
+function hasStrongEntertainmentStructuredEvidence(nodes: StructuredDataNode[]) {
+  return entertainmentStructuredNodes(nodes).some((node) => Boolean(node.name));
+}
+
 function determineExtractionCategory(nodes: StructuredDataNode[]) {
   const hasRestaurantEvidence = hasStrongRestaurantStructuredEvidence(nodes);
   const hasAccommodationEvidence = hasStrongAccommodationStructuredEvidence(nodes);
   const hasAttractionEvidence = hasStrongAttractionStructuredEvidence(nodes);
   const hasShoppingEvidence = hasStrongShoppingStructuredEvidence(nodes);
+  const hasEntertainmentEvidence = hasStrongEntertainmentStructuredEvidence(nodes);
   const strongCategoryCount = [
     hasRestaurantEvidence,
     hasAccommodationEvidence,
     hasAttractionEvidence,
     hasShoppingEvidence,
+    hasEntertainmentEvidence,
   ].filter(Boolean).length;
 
   if (strongCategoryCount >= 2) {
@@ -367,6 +406,10 @@ function determineExtractionCategory(nodes: StructuredDataNode[]) {
 
   if (hasAttractionEvidence) {
     return "景点" as const;
+  }
+
+  if (hasEntertainmentEvidence) {
+    return "玩乐" as const;
   }
 
   if (hasShoppingEvidence) {
@@ -441,6 +484,31 @@ function looksLikeShoppingWithoutStrongStructuredData(input: {
     .join(" ");
 
   return shoppingKeywordPattern.test(headlineText);
+}
+
+function looksLikeEntertainmentWithoutStrongStructuredData(input: {
+  title: string | null;
+  description: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  structuredNodes: StructuredDataNode[];
+  visibleTextSegments: string[];
+}) {
+  if (!hasOnlyGenericLocalBusiness(input.structuredNodes)) {
+    return false;
+  }
+
+  const headlineText = [
+    input.ogTitle,
+    input.title,
+    input.ogDescription,
+    input.description,
+    ...input.visibleTextSegments.slice(0, 12),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return entertainmentKeywordPattern.test(headlineText);
 }
 
 function detectRestaurantSpecificHeuristic(input: {
@@ -595,6 +663,46 @@ function determinePageType(input: {
     }
 
     if (/\b(home|about|contact|newsletter|privacy|brand directory|catalog|search)\b/i.test(combinedHeadline)) {
+      return "generic_page" satisfies RestaurantPageType;
+    }
+
+    return "unknown" satisfies RestaurantPageType;
+  }
+
+  if (input.extractionCategory === "玩乐") {
+    const title = input.ogTitle ?? input.title ?? "";
+    const description = input.ogDescription ?? input.description ?? "";
+    const combinedHeadline = `${title} ${description}`.trim();
+    const entertainmentNodes = entertainmentStructuredNodes(input.structuredNodes);
+    const addressStructuredCount = entertainmentNodes.filter(
+      (node) => node.address?.streetAddress || node.address?.addressLocality,
+    ).length;
+    const locationSegmentCount = input.visibleTextSegments.filter((segment) =>
+      /\b(events|event listings|upcoming events|calendar|showtimes|venues|our venues|schedule|lineup)\b/i.test(
+        segment,
+      ),
+    ).length;
+
+    if (
+      entertainmentNodes.length >= 2 ||
+      addressStructuredCount >= 2 ||
+      locationSegmentCount >= 2
+    ) {
+      return "restaurant_list" satisfies RestaurantPageType;
+    }
+
+    if (entertainmentListPattern.test(combinedHeadline) && entertainmentNodes.length !== 1) {
+      return "restaurant_list" satisfies RestaurantPageType;
+    }
+
+    if (
+      entertainmentNodes.length === 1 &&
+      !/\b(showtimes|calendar|lineup|schedule|upcoming events)\b/i.test(combinedHeadline)
+    ) {
+      return "single_restaurant" satisfies RestaurantPageType;
+    }
+
+    if (/\b(home|about|contact|newsletter|privacy|events calendar|show schedule|program)\b/i.test(combinedHeadline)) {
       return "generic_page" satisfies RestaurantPageType;
     }
 
@@ -1000,6 +1108,21 @@ function findShoppingSubtypeField(
   diagnostics: RestaurantExtractionDiagnostics,
 ) {
   const proposals = inferShoppingSubtype(input);
+
+  return evaluateProposals("cuisine", proposals, diagnostics, validateCuisine);
+}
+
+function findEntertainmentSubtypeField(
+  input: {
+    structuredNode: StructuredDataNode | null;
+    title: string | null;
+    description: string | null;
+    ogTitle: string | null;
+    ogDescription: string | null;
+  },
+  diagnostics: RestaurantExtractionDiagnostics,
+) {
+  const proposals = inferEntertainmentSubtype(input);
 
   return evaluateProposals("cuisine", proposals, diagnostics, validateCuisine);
 }
@@ -1445,6 +1568,110 @@ function buildShoppingCandidate(
   };
 }
 
+function buildEntertainmentCandidate(
+  input: {
+    sourceUrl: string;
+    sourceKind: RestaurantSourceKind;
+    pageType: RestaurantPageType;
+    structuredNodes: StructuredDataNode[];
+    title: string | null;
+    description: string | null;
+    ogTitle: string | null;
+    ogDescription: string | null;
+    visibleTextSegments: string[];
+  },
+  diagnostics: RestaurantExtractionDiagnostics,
+) {
+  const structuredNode = pickEntertainmentStructuredNode(input.structuredNodes);
+  const name = findNameField(
+    {
+      sourceKind: input.sourceKind,
+      structuredNode,
+      title: input.title,
+      ogTitle: input.ogTitle,
+    },
+    diagnostics,
+  );
+  const address = findAddressField(
+    {
+      pageType: input.pageType,
+      structuredNode,
+      ogDescription: input.ogDescription,
+      description: input.description,
+      visibleTextSegments: input.visibleTextSegments,
+    },
+    diagnostics,
+  );
+  const city = findCityField(
+    {
+      structuredNode,
+      acceptedAddress: address,
+      ogDescription: input.ogDescription,
+      description: input.description,
+    },
+    diagnostics,
+  );
+  const cuisine = findEntertainmentSubtypeField(
+    {
+      structuredNode,
+      title: input.title,
+      description: input.description,
+      ogTitle: input.ogTitle,
+      ogDescription: input.ogDescription,
+    },
+    diagnostics,
+  );
+
+  const candidate: RestaurantExtractionCandidate = {
+    sourceUrl: input.sourceUrl,
+    category: "玩乐",
+    fields: {
+      name,
+      city,
+      address,
+      cuisine,
+    },
+  };
+
+  const hasStructuredEntertainmentEvidence = Boolean(
+    structuredNode &&
+      hasEntertainmentStructuredType(structuredNode) &&
+      structuredNode.name,
+  );
+  const acceptanceReasons: string[] = [];
+
+  if (candidate.fields.name.accepted) {
+    acceptanceReasons.push("地点名称通过了严格校验。");
+  }
+
+  if (hasStructuredEntertainmentEvidence) {
+    acceptanceReasons.push("页面存在明确的玩乐类结构化数据。");
+  }
+
+  if (address.accepted) {
+    acceptanceReasons.push("地址来源具备可接受的强地址证据。");
+  }
+
+  if (input.pageType === "single_restaurant") {
+    acceptanceReasons.push("页面类型判定为单地点页。");
+  }
+
+  const isAccepted =
+    input.pageType === "single_restaurant" &&
+    candidate.fields.name.accepted &&
+    hasStructuredEntertainmentEvidence;
+
+  diagnostics.finalDecision = isAccepted
+    ? "accepted_single_entertainment_candidate"
+    : "fallback_weak_or_non_single_entertainment_page";
+
+  return {
+    candidate,
+    acceptanceReasons,
+    isAccepted,
+  };
+}
+
 function emitDiagnosticsIfNeeded(diagnostics: RestaurantExtractionDiagnostics) {
   if (process.env.NODE_ENV !== "development") {
     return;
@@ -1472,6 +1699,10 @@ function getFallbackReason(input: {
       return "当前页面更像景点目录或列表页，请先手动选择并补全单个地点。";
     }
 
+    if (input.extractionCategory === "玩乐") {
+      return "当前页面更像玩乐目录、活动排期或场馆集合页，请先手动选择并补全单个地点。";
+    }
+
     if (input.extractionCategory === "购物") {
       return "当前页面更像购物目录、门店列表或搜索结果页，请先手动选择并补全单个地点。";
     }
@@ -1486,6 +1717,10 @@ function getFallbackReason(input: {
 
     if (input.extractionCategory === "景点") {
       return "当前页面更像通用页面，没有足够明确的单景点信号，请先手动补全。";
+    }
+
+    if (input.extractionCategory === "玩乐") {
+      return "当前页面更像通用页面，没有足够明确的单玩乐地点信号，请先手动补全。";
     }
 
     if (input.extractionCategory === "购物") {
@@ -1700,6 +1935,46 @@ export async function extractRestaurantDraftFromSource(
     };
   }
 
+  if (
+    looksLikeEntertainmentWithoutStrongStructuredData({
+      title: documentContent.metadata.title,
+      description: documentContent.metadata.description,
+      ogTitle: documentContent.metadata.ogTitle,
+      ogDescription: documentContent.metadata.ogDescription,
+      structuredNodes,
+      visibleTextSegments: documentContent.visibleTextSegments,
+    })
+  ) {
+    const pageType = "unknown" satisfies RestaurantPageType;
+    const diagnostics = createDiagnostics({
+      sourceKind,
+      finalFetchedUrl: fetchResult.url,
+      httpStatus: fetchResult.status,
+      contentType: fetchResult.contentType,
+      pageType,
+      structuredNodes: documentContent.structuredData,
+    });
+    diagnostics.finalDecision = "fallback_weak_entertainment_localbusiness_only";
+    emitDiagnosticsIfNeeded(diagnostics);
+
+    return {
+      status: "fallback",
+      sourceUrl,
+      sourceKind,
+      supportLevel,
+      pageType,
+      fetchedUrl: fetchResult.url,
+      httpStatus: fetchResult.status,
+      contentType: fetchResult.contentType,
+      reason: "当前页面看起来像玩乐地点，但只有过于泛化的 LocalBusiness 信号，系统不会强行猜测，请先手动补全。",
+      notes: [
+        "玩乐提取目前只接受 EntertainmentBusiness、MovieTheater、NightClub、BowlingAlley、AmusementPark、SportsActivityLocation、PerformingArtsTheater、EventVenue 等强结构化证据。",
+        "只有泛化商家类型时，当前步骤会直接回退到手动确认。",
+      ],
+      diagnostics: process.env.NODE_ENV === "development" ? diagnostics : undefined,
+    };
+  }
+
   const inferredCategory = determineExtractionCategory(structuredNodes);
 
   if (inferredCategory === "ambiguous") {
@@ -1727,7 +2002,7 @@ export async function extractRestaurantDraftFromSource(
       reason: "当前来源同时出现了多类强结构化地点信号，系统不会静默改写分类，请先手动确认。",
       notes: [
         "当页面同时出现多类强地点信号时，当前步骤会优先回退到手动补全。",
-        "这样可以避免把购物、景点、住宿或美食页面误判到错误分类。",
+        "这样可以避免把玩乐、购物、景点、住宿或美食页面误判到错误分类。",
       ],
       diagnostics: process.env.NODE_ENV === "development" ? diagnostics : undefined,
     };
@@ -1782,6 +2057,21 @@ export async function extractRestaurantDraftFromSource(
             },
             diagnostics,
           )
+        : inferredCategory === "玩乐"
+          ? buildEntertainmentCandidate(
+              {
+                sourceUrl,
+                sourceKind,
+                pageType,
+                structuredNodes,
+                title: documentContent.metadata.title,
+                description: documentContent.metadata.description,
+                ogTitle: documentContent.metadata.ogTitle,
+                ogDescription: documentContent.metadata.ogDescription,
+                visibleTextSegments: documentContent.visibleTextSegments,
+              },
+              diagnostics,
+            )
         : inferredCategory === "购物"
           ? buildShoppingCandidate(
               {
@@ -1833,6 +2123,8 @@ export async function extractRestaurantDraftFromSource(
             ? "当前页面没有提供足够明确的单住宿地点信息，请先改为手动补全。"
             : inferredCategory === "景点"
               ? "当前页面没有提供足够明确的单景点信息，请先改为手动补全。"
+            : inferredCategory === "玩乐"
+              ? "当前页面没有提供足够明确的单玩乐地点信息，请先改为手动补全。"
             : inferredCategory === "购物"
               ? "当前页面没有提供足够明确的单购物地点信息，请先改为手动补全。"
             : "当前页面没有提供足够明确的单餐厅信息，请先改为手动补全。",
@@ -1842,6 +2134,8 @@ export async function extractRestaurantDraftFromSource(
           ? "只有当页面被判定为单地点页，且地点名称与住宿结构化证据都通过门槛时，系统才会生成草稿。"
           : inferredCategory === "景点"
             ? "只有当页面被判定为单地点页，且地点名称与景点结构化证据都通过门槛时，系统才会生成草稿。"
+          : inferredCategory === "玩乐"
+            ? "只有当页面被判定为单地点页，且地点名称与玩乐结构化证据都通过门槛时，系统才会生成草稿。"
           : inferredCategory === "购物"
             ? "只有当页面被判定为单地点页，且地点名称与购物结构化证据都通过门槛时，系统才会生成草稿。"
           : "只有当页面被判定为单餐厅页，且餐厅名称与餐厅证据都通过门槛时，系统才会生成草稿。",
@@ -1875,6 +2169,8 @@ export async function extractRestaurantDraftFromSource(
           ? "住宿类型来自强结构化数据或明确的页面元数据。"
           : extraction.candidate.category === "景点"
             ? "景点类型来自强结构化数据或明确的页面元数据。"
+          : extraction.candidate.category === "玩乐"
+            ? "玩乐类型来自强结构化数据或明确的页面元数据。"
           : extraction.candidate.category === "购物"
             ? "购物类型来自强结构化数据或明确的页面元数据。"
           : "菜系来自结构化数据或清晰关键词证据。"
@@ -1882,6 +2178,8 @@ export async function extractRestaurantDraftFromSource(
           ? "住宿类型信号不足时会保持为空。"
           : extraction.candidate.category === "景点"
             ? "景点类型信号不足时会保持为空。"
+            : extraction.candidate.category === "玩乐"
+              ? "玩乐类型信号不足时会保持为空。"
             : extraction.candidate.category === "购物"
               ? "购物类型信号不足时会保持为空。"
           : "菜系信号不足时会保持为空。",
