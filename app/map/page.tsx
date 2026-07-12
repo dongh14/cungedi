@@ -11,9 +11,9 @@ export default async function MapPage() {
   return (
     <AppShell
       currentPath="/map"
-      eyebrow="MapLibre 基础"
-      title="地图页已接入最小可复用的 MapLibre 基础"
-      description="这一步只替换 `/map` 占位内容，先让本地 MapLibre 画布和基础缩放控件稳定运行。底图、已保存地点标记和更完整的浏览能力会在后续已验证步骤里继续加入。"
+      eyebrow="本地 PMTiles 底图"
+      title="地图页已接入本地 PMTiles 底图能力"
+      description="这一步把 `/map` 从空白样式升级为本地、自托管的开源 PMTiles 底图入口，同时继续保持现有页面壳层、移动端布局和 MapLibre 基础行为稳定。"
       userEmail={user.email}
       userId={user.userId}
       actions={
@@ -38,13 +38,13 @@ export default async function MapPage() {
           <div className="space-y-4">
             <div>
               <p className="text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-                空白地图画布
+                本地开源底图
               </p>
               <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-                先把地图容器、初始化和移动端控件边界搭好
+                现在期望从本地 `PMTiles` 文件加载底图
               </h2>
               <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-                当前样式是本地空样式，不会请求外部瓦片或第三方地图服务。你现在看到的是后续地图能力的稳定基础层。
+                地图会优先读取仓库 `public` 目录下的本地 PMTiles 底图文件，不依赖付费地图 SDK、公共 OSM 瓦片服务器或第三方托管样式资源。
               </p>
             </div>
 
@@ -53,7 +53,7 @@ export default async function MapPage() {
             </div>
 
             <div className="rounded-[24px] border border-[var(--border-soft)] bg-white/72 px-4 py-4 text-sm leading-7 text-[var(--ink-soft)]">
-              底图数据会在后续已验证步骤中接入，已保存地点标记也会在后续步骤加入。这一步只确保 `/map` 页面已经从占位说明切换到可复用的 MapLibre 基础组件。
+              默认底图文件路径是 `public/maps/base.pmtiles`，也可以通过 `NEXT_PUBLIC_PM_TILES_BASEMAP_PATH` 改成其他同源 public 路径。当前仍然没有加入已保存地点标记、城市筛选或坐标补全逻辑。
             </div>
           </div>
         </SurfaceCard>
@@ -63,14 +63,14 @@ export default async function MapPage() {
             title="这一步刻意还没开始的内容"
             description="先把边界收紧，避免把后续地图步骤提前揉进这次提交。"
             items={[
-              "PMTiles 底图还没有接入。",
-              "已保存地点标记、弹层和筛选都还没有开始。",
-              "没有坐标的地点处理方式会放到后续已验证步骤继续实现。",
+              "还没有接入已保存地点标记、弹层或聚合。",
+              "还没有开始城市筛选或没有坐标地点的城市级回退。",
+              "还没有开始 geocoding、搜索或 Step 13 相关能力。",
             ]}
           />
           <PlaceholderCard
             title="这一步先验证什么"
-            description="先确认地图页仍然服从现有导航和移动端壳层，且空白地图画布能稳定加载。"
+            description="先确认地图页仍然服从现有导航和移动端壳层，且本地 PMTiles 底图在文件存在时可加载、缺失时可清晰回退。"
             actionHref="/dashboard"
             actionLabel="回到总览页"
           />

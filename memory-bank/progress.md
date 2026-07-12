@@ -47,7 +47,49 @@ All six V1 categories now have conservative extraction support:
 - `玩乐`
 - `其他`
 
-The MapLibre foundation step is now complete and has been validated without starting PMTiles integration, city-level coordinate fallback, marker rendering, city filtering, or Step 13.
+The MapLibre foundation step is now complete and has been validated.
+
+The PMTiles basemap step is now complete and has been validated without starting markers, Supabase place queries, city filtering, city-level coordinate fallback, geocoding, or Step 13.
+
+## Validated PMTiles Basemap
+
+### Map Scope
+- The official `pmtiles` dependency has been added.
+- `/map` now renders a local PMTiles vector basemap successfully through the existing MapLibre foundation.
+- The expected local basemap file path is `public/maps/base.pmtiles`.
+- `public/maps/base.pmtiles` is intentionally gitignored and is not committed to the repository.
+- The basemap path can be configured only through a same-origin public `/maps/...` path.
+- No paid or metered hosted map API is involved.
+- No OpenStreetMap public tile server is used.
+- No Mapbox, Google, Apple, or 高德 map rendering dependency has been added.
+
+### Protocol And Configuration
+- PMTiles protocol registration is reusable and global rather than tied to one React render cycle.
+- Duplicate protocol registration is avoided across React development rerenders.
+- Registration is not torn down on component unmount, so other MapLibre instances are not broken.
+- The local basemap continues to use the existing MapLibre browser-only foundation.
+
+### Fallback And Current Limitations
+- Missing or unloadable local PMTiles files now fail gracefully instead of crashing the map page.
+- `/map` shows a clear Simplified Chinese fallback message when the local PMTiles file is missing, unloadable, or configured with an invalid path.
+- The current local background remains visible during fallback.
+- The current basemap has no labels because local glyph hosting has not been added.
+- External sprite, glyph, and hosted style dependencies are still intentionally absent.
+
+### Validation
+- Focused PMTiles and local map-style tests passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Manual browser validation passed.
+
+### Product State
+- Saved-place markers have not started.
+- Supabase place queries on `/map` have not started.
+- City filtering has not started.
+- City-level coordinate fallback has not started.
+- Geocoding has not started.
+- Step 13 has not started.
+- Labels and local glyph hosting have not started.
 
 ## Validated MapLibre Foundation
 
@@ -73,7 +115,7 @@ The MapLibre foundation step is now complete and has been validated without star
 - The focused local map-style test passed.
 
 ### Product State
-- PMTiles integration is the next map step.
+- PMTiles integration was the next map step after this foundation checkpoint and is now separately validated above.
 - City-level coordinate fallback has not started.
 - Marker rendering has not started.
 - City filtering has not started.

@@ -9,6 +9,13 @@ Step 1 sets up the base Next.js app for the V1 product described in `memory-bank
 - `npm run start`: run the production build locally
 - `npm run lint`: run TypeScript static checks
 
+## Local PMTiles Basemap Setup
+
+- Place your self-hosted PMTiles basemap file at `public/maps/base.pmtiles`.
+- If you want a different same-origin public path, set `NEXT_PUBLIC_PM_TILES_BASEMAP_PATH` in `.env.local`, for example `/maps/your-basemap.pmtiles`.
+- Do not commit large production PMTiles archives to the repository by default.
+- If the file is missing or the path is invalid, `/map` will stay on the local fallback background and show a Simplified Chinese setup message instead of crashing.
+
 ## Current Scope
 
 This repository currently includes:

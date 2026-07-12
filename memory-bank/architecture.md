@@ -1,7 +1,7 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, and the validated MapLibre foundation step.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, and the validated PMTiles basemap step.
 
 It does not include Step 13 or later architecture yet.
 
@@ -21,7 +21,7 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `postcss.config.mjs`: PostCSS configuration used by Tailwind CSS
 - `next-env.d.ts`: Next.js TypeScript environment types
 - `.gitignore`: ignored files for the repository
-- `.env.example`: sample public Supabase environment variables
+- `.env.example`: sample public Supabase environment variables plus the optional local PMTiles public path
 - `README.md`: current project overview and available scripts
 
 ### App Router Files
@@ -36,7 +36,7 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `app/restaurants/page.tsx`: Step 8 protected full saved-list page
 - `app/restaurants/[id]/edit/page.tsx`: Step 9 protected restaurant edit page
 - `app/restaurants/actions.ts`: Step 7, Step 9, Step 10, and Step 12 server actions for create, update, source-intake flow control, and review-confirmation save handling
-- `app/map/page.tsx`: protected map page that now renders the validated reusable MapLibre foundation while intentionally stopping short of PMTiles, saved-place rendering, and city browsing features
+- `app/map/page.tsx`: protected map page that now renders the validated local PMTiles-backed MapLibre basemap while intentionally stopping short of saved-place rendering, Supabase place queries, city browsing, and Step 13 features
 - `app/dev-fixtures/layout.tsx`: development-only route guard for deterministic extraction fixture pages
 - `app/dev-fixtures/extraction/*`: development-only deterministic fixture pages used to manually validate extraction behavior through the real source-intake and review flow
 - `app/auth/actions.ts`: Step 3 server actions for auth flows
@@ -60,7 +60,7 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `components/extraction-confirmation-card.tsx`: Step 12 reusable confirmation form that lets users edit, complete, and save extraction results
 - `components/source-intake-card.tsx`: Step 10 reusable source intake card for `/restaurants/new`
 - `components/source-review-card.tsx`: Step 11 reusable source review card for `/restaurants/review`
-- `components/maplibre-foundation.tsx`: reusable client-side MapLibre component that initializes the current local empty-map foundation and basic zoom controls
+- `components/maplibre-foundation.tsx`: reusable client-side MapLibre component that initializes the current local PMTiles-backed basemap, preserves the current basic zoom controls, and shows a Chinese fallback message when the local basemap cannot load
 - `components/site-brand.tsx`: reusable product brand block
 - `components/surface-card.tsx`: shared rounded card wrapper used across the UI
 
@@ -75,8 +75,10 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/utils.ts`: small class-name helper for reusable UI composition
 
 ### Map Utilities
-- `lib/map/map-style.ts`: local MapLibre style factory and default view config for the validated empty-map foundation
-- `lib/map/map-style.test.js`: focused regression test confirming the current local map style has no external style resources and returns fresh objects per instance
+- `lib/map/map-style.ts`: local MapLibre style factory and default view config for the validated PMTiles vector basemap
+- `lib/map/map-style.test.js`: focused regression test confirming the local PMTiles style structure, same-origin config handling, no external tile/sprite/glyph hosts, and fresh objects per instance
+- `lib/map/pmtiles-config.ts`: local PMTiles public-path resolution and fallback message helpers
+- `lib/map/pmtiles-protocol.ts`: reusable global PMTiles protocol registration layer for MapLibre
 
 ### Restaurant Utilities
 - `lib/restaurants/constants.ts`: shared category, subtype-suggestion, cuisine, and privacy definitions for the current restaurant-first place form
@@ -116,11 +118,13 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 ### Public Assets
 - `public/file.svg`
 - `public/globe.svg`
+- `public/maps/README.md`
 - `public/next.svg`
 - `public/vercel.svg`
 - `public/window.svg`
 
 These are starter static assets from the base app scaffold. They are not product-specific yet.
+The actual local PMTiles archive is intentionally not committed and is expected at `public/maps/base.pmtiles`.
 
 ## What The Current Files Do
 
@@ -132,10 +136,12 @@ These are starter static assets from the base app scaffold. They are not product
 - `lint` runs TypeScript static checks with `tsc --noEmit`.
 - Includes the `@supabase/supabase-js` dependency for the current Step 2 setup layer.
 - Includes the `@supabase/ssr` dependency for the current Step 3 authentication layer.
-- Includes the official `maplibre-gl` dependency for the current validated map foundation step.
+- Includes the official `maplibre-gl` dependency for the current validated map foundation and PMTiles basemap steps.
+- Includes the official `pmtiles` dependency for the current validated local basemap step.
 
 ### `.env.example`
 - Documents the two public Supabase variables the app currently expects.
+- Documents the optional same-origin `NEXT_PUBLIC_PM_TILES_BASEMAP_PATH` override for the local PMTiles basemap.
 - Gives the user a safe starting point for creating `.env.local`.
 
 ### `app/layout.tsx`
@@ -247,12 +253,12 @@ These are starter static assets from the base app scaffold. They are not product
 - Keeps the current fetch timeout, response-size, and extraction security limits unchanged while allowing development-only fixture URLs to go through the same extractor for deterministic manual validation.
 
 ### `app/map/page.tsx`
-- Provides the protected map page for the current validated map-foundation step.
+- Provides the protected map page for the current validated PMTiles basemap step.
 - Establishes the map page location in the signed-in navigation.
-- Renders the reusable client-side MapLibre foundation in the existing mobile-first shell.
-- Uses concise Chinese copy to state that the basemap and saved-place markers will arrive in later validated steps.
+- Renders the reusable client-side MapLibre plus local PMTiles basemap in the existing mobile-first shell.
+- Uses concise Chinese copy to explain that the current basemap is expected from a local `public/maps/base.pmtiles` file or another same-origin `/maps/...` path.
 - Does not query Supabase for saved places.
-- Does not start PMTiles integration, marker rendering, popups, clustering, search, geolocation, city filtering, or coordinate fallback.
+- Does not start marker rendering, popups, clustering, search, geolocation, city filtering, city-level coordinate fallback, geocoding, labels, local glyph hosting, or Step 13 work.
 
 ### `app/auth/actions.ts`
 - Contains the Step 3 server actions for sign up, login, and logout.
@@ -268,21 +274,38 @@ These are starter static assets from the base app scaffold. They are not product
 - Applies lightweight MapLibre control styling so the validated foundation fits the existing UI language.
 
 ### `components/maplibre-foundation.tsx`
-- Provides the reusable client-side MapLibre foundation component used by `/map`.
+- Provides the reusable client-side MapLibre map component used by `/map`.
 - Initializes the MapLibre instance inside `useEffect`.
 - Prevents duplicate initialization during development and refresh cycles by storing the current map instance in a ref.
 - Calls `map.remove()` during cleanup on unmount.
-- Uses a fully local style with only a background layer, so no external tile, sprite, glyph, or hosted map requests are made.
+- Resolves the expected PMTiles public path from local configuration before map creation.
+- Reuses one global PMTiles protocol registration so React rerenders do not register it repeatedly.
+- Uses a fully local style with no external tile, sprite, glyph, or hosted map requests.
+- Checks for the local PMTiles asset and shows a Simplified Chinese fallback message instead of crashing when the file is missing or unloadable.
 - Adds only basic zoom controls suitable for the existing mobile-first shell.
 
 ### `lib/map/map-style.ts`
 - Provides the current fully local MapLibre style and default map view configuration.
-- Returns a style with no external sources and only a background layer.
-- Intentionally stops short of PMTiles integration and any saved-place rendering.
+- Returns a PMTiles-backed vector style using a same-origin `pmtiles://` source.
+- Keeps the current style intentionally simple with land, water, boundary, and road context only.
+- Intentionally omits labels because local glyph hosting has not been added yet.
+- Intentionally stops short of any saved-place rendering.
 
 ### `lib/map/map-style.test.js`
-- Verifies that the current local map style contains no external style resources.
+- Verifies that the current local PMTiles style contains no external tile, sprite, or glyph hosts.
+- Verifies same-origin PMTiles path resolution and invalid-path rejection.
+- Verifies the Simplified Chinese fallback-message helpers.
 - Verifies that the style factory returns a fresh object for each map instance.
+
+### `lib/map/pmtiles-config.ts`
+- Restricts local PMTiles configuration to same-origin public `/maps/...` paths.
+- Defaults the current basemap location to `/maps/base.pmtiles`.
+- Provides the fallback messages used when configuration is invalid or the local PMTiles file cannot be loaded.
+
+### `lib/map/pmtiles-protocol.ts`
+- Registers the PMTiles protocol with MapLibre through one reusable global singleton.
+- Reuses the same PMTiles protocol instance across development rerenders.
+- Avoids removing the protocol on component unmount so other MapLibre instances are not broken.
 
 ### `components/app-shell.tsx`
 - Provides the shared protected-page shell for signed-in routes.
