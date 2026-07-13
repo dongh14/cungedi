@@ -59,6 +59,36 @@ The city filtering and no-coordinate polish step is now complete and has been va
 
 The V1 map polish step is now complete and has been validated without changing the map architecture or starting deferred map work.
 
+The Step 13 local place search checkpoint is now complete and has been validated with local-only `/map` search, without schema changes, external APIs, or geocoding.
+
+## Validated Step 13 Local Place Search Checkpoint
+
+### Map Scope
+- `/map` now provides local client-side place search on top of the existing RLS-scoped saved-place load.
+- Search matches the existing loaded place data by `name`, `city`, and `category`.
+- Search combines with the existing city filter instead of replacing it.
+- The current user's places are still loaded once through the existing `/map` query and then filtered locally in the browser.
+- No database schema, migration, or server query shape changed for this checkpoint.
+
+### Filtering And Marker Behavior
+- Search filtering happens before coordinate resolution and before MapLibre marker rendering.
+- Only the filtered subset is passed into the existing marker-resolution path.
+- The existing exact-coordinate and approximate city-center resolver behavior remains unchanged.
+- Existing exact versus approximate marker presentation remains unchanged.
+- Unresolved places are still skipped rather than receiving invented locations.
+
+### Boundaries
+- No database schema changes were made.
+- No external APIs were added.
+- No geocoding was added.
+- No coordinate writeback behavior was added.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `node --test lib/map/*.test.js` passed (`31` tests).
+
 ## Validated V1 Map Polish
 
 ### Presentation And Feedback

@@ -2,16 +2,29 @@ import {
   createMapMarkerResolution,
   type PlaceMarkerInput,
 } from "./place-markers.ts";
+import { normalizeCityForComparison } from "./city-centers.ts";
 
 export const allCitiesFilterValue = "";
 export const emptyPlaceSearchQuery = "";
 
 function normalizePlaceSearchQuery(query: string) {
-  return query.trim().toLocaleLowerCase("zh-CN");
+  const trimmedQuery = query.trim();
+  const normalizedCityQuery = normalizeCityForComparison(trimmedQuery);
+
+  return (normalizedCityQuery ?? trimmedQuery).toLocaleLowerCase("zh-CN");
 }
 
 function getPlaceSearchHaystack(place: PlaceMarkerInput) {
-  return [place.name, place.city, place.category ?? ""]
+  const normalizedComparableCity = normalizeCityForComparison(place.city);
+
+  return [
+    place.name,
+    place.city,
+    normalizedComparableCity && normalizedComparableCity !== place.city
+      ? normalizedComparableCity
+      : "",
+    place.category ?? "",
+  ]
     .join("\n")
     .toLocaleLowerCase("zh-CN");
 }
@@ -37,7 +50,13 @@ export function filterPlacesByCity(places: PlaceMarkerInput[], selectedCity: str
     return places;
   }
 
-  return places.filter((place) => place.city === selectedCity);
+  const normalizedSelectedCity = normalizeCityForComparison(selectedCity);
+
+  return places.filter((place) => {
+    const normalizedPlaceCity = normalizeCityForComparison(place.city);
+
+    return normalizedPlaceCity === normalizedSelectedCity;
+  });
 }
 
 export function filterPlacesForMap(input: {

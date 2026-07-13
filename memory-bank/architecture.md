@@ -1,19 +1,19 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, and the validated V1 map polish step.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, the validated V1 map polish step, and the validated Step 13 local place search checkpoint.
 
-It does not include Step 13 or later architecture yet.
+It does not include Step 13 multi-candidate extraction or later architecture yet.
 
 The product is currently paused before Step 13 so the restaurant-only app can be generalized into `存个地`, a Chinese-first personal place collection app.
 
 ## Validated V1 Map Polish
 - The existing local PMTiles and MapLibre architecture now exposes route-level, map-load, place-load, empty, city-empty, and asset-failure presentation states in Chinese.
-- The server-side RLS-scoped place query, local city filtering, pure location resolution, and reusable marker layer remain unchanged; this polish pass adds no new map data flow.
-- The city filter remains a local `<select>` over already loaded saved-place city values, with a refined responsive presentation.
+- The server-side RLS-scoped place query, pure location resolution, and reusable marker layer remain unchanged; this checkpoint adds only local client-side place search composed with the existing city filtering flow.
+- The local search and city filter remain browser-side controls over already loaded saved-place values, with no server-side search service added.
 - Marker popups remain touch-compatible and now render as compact cards containing the place name, city, optional category, and approximate city-level warning when relevant.
 - The authenticated `/map` experience was manually validated at `390x844` with no horizontal scrolling and with bottom navigation unaffected.
-- No schema change, Supabase coordinate write, external API, clustering, search, geocoding, map editing, or Step 13 work is part of this checkpoint.
+- No schema change, Supabase coordinate write, external API, geocoding, clustering, or map editing is part of this checkpoint.
 
 ## Current Structure
 
@@ -44,7 +44,7 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `app/restaurants/page.tsx`: Step 8 protected full saved-list page
 - `app/restaurants/[id]/edit/page.tsx`: Step 9 protected restaurant edit page
 - `app/restaurants/actions.ts`: Step 7, Step 9, Step 10, and Step 12 server actions for create, update, source-intake flow control, and review-confirmation save handling
-- `app/map/page.tsx`: protected map page that loads the current user's RLS-scoped saved places and delegates local city filtering, marker rendering, and no-coordinate summary presentation to the client map browser
+- `app/map/page.tsx`: protected map page that loads the current user's RLS-scoped saved places and delegates local place search, local city filtering, marker rendering, and no-coordinate summary presentation to the client map browser
 - `app/map/loading.tsx`: route-level mobile-friendly loading skeleton for the protected map page while place data is loading
 - `app/dev-fixtures/layout.tsx`: development-only route guard for deterministic extraction fixture pages
 - `app/dev-fixtures/extraction/*`: development-only deterministic fixture pages used to manually validate extraction behavior through the real source-intake and review flow
@@ -71,7 +71,7 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `components/source-review-card.tsx`: Step 11 reusable source review card for `/restaurants/review`
 - `components/maplibre-foundation.tsx`: reusable client-side MapLibre component that initializes the local PMTiles-backed basemap, manages the current marker layer, preserves basic zoom controls, and shows Chinese loading and asset-fallback states
 - `components/map-marker-layer.ts`: reusable client-side MapLibre marker and compact popup-card layer for serializable resolved place-marker data
-- `components/map-browser.tsx`: client-side composition layer that applies the selected local city filter before deriving map markers and presents place-load, empty, city-empty, and no-coordinate states
+- `components/map-browser.tsx`: client-side composition layer that applies local place search plus the selected city filter before deriving map markers and presents place-load, empty, city-empty, and no-coordinate states
 - `components/map-city-filter.tsx`: refined compact mobile-friendly city selector UI for the map browser
 - `components/site-brand.tsx`: reusable product brand block
 - `components/surface-card.tsx`: shared rounded card wrapper used across the UI
@@ -96,8 +96,8 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/map/place-location.test.js`: focused regression test for exact-coordinate priority, conservative normalization, approximate city fallback, unresolved cases, and invalid-coordinate rejection
 - `lib/map/place-markers.ts`: pure conversion from saved-place records to marker data through `resolvePlaceLocation()`, skipping unresolved records
 - `lib/map/place-markers.test.js`: focused regression test for exact marker data, approximate city fallback marker data, and unresolved-place skipping
-- `lib/map/place-filter.ts`: pure city-option, local filtering, and filtered map-display helpers that resolve selected records and summarize unresolved reasons
-- `lib/map/place-filter.test.js`: focused regression test for city matching, empty-filter behavior, unresolved-place summary, and exact versus approximate markers after filtering
+- `lib/map/place-filter.ts`: pure city-option, local search-and-city filtering, and filtered map-display helpers that resolve selected records and summarize unresolved reasons
+- `lib/map/place-filter.test.js`: focused regression test for local search matching, search-plus-city filtering, unresolved-place summary, and exact versus approximate markers after filtering
 - `lib/map/map-page-state.ts`: pure helper for map place-loading, error, empty, city-empty, and ready presentation states
 - `lib/map/map-page-state.test.js`: focused regression test for map loading, error, empty, and city-empty state selection
 
@@ -274,14 +274,14 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Keeps the current fetch timeout, response-size, and extraction security limits unchanged while allowing development-only fixture URLs to go through the same extractor for deterministic manual validation.
 
 ### `app/map/page.tsx`
-- Provides the protected map page for the validated city filtering, no-coordinate polish, and V1 map polish steps.
+- Provides the protected map page for the validated city filtering, local place search, no-coordinate polish, and V1 map polish steps.
 - Establishes the map page location in the signed-in navigation.
 - Loads the current user's saved place fields needed for map rendering through the existing server Supabase helper and owner-only RLS scope.
 - Passes the loaded records to the client map browser, where filtering occurs locally before location resolution and marker rendering.
-- Renders the reusable client-side MapLibre, local PMTiles basemap, marker layer, refined city filter, no-coordinate summary, and friendly map/place feedback in the existing mobile-first shell.
+- Renders the reusable client-side MapLibre, local PMTiles basemap, marker layer, local place search UI, refined city filter, no-coordinate summary, and friendly map/place feedback in the existing mobile-first shell.
 - Uses concise Chinese copy to explain that the current basemap is expected from a local `public/maps/base.pmtiles` file or another same-origin `/maps/...` path.
 - Does not write exact or fallback coordinates back to Supabase.
-- Does not start clustering, search, geolocation, geocoding, map editing, labels, local glyph hosting, or Step 13 work.
+- Does not start external search services, geolocation, geocoding, map editing, labels, local glyph hosting, or Step 13 multi-candidate extraction work.
 
 ### `app/auth/actions.ts`
 - Contains the Step 3 server actions for sign up, login, and logout.
@@ -315,8 +315,8 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Attaches touch-compatible compact popup cards with place name, city, category when present, and a Simplified Chinese approximate-location notice when applicable.
 
 ### `components/map-browser.tsx`
-- Holds only local client state for the selected city; it does not fetch data or write data.
-- Filters the already loaded current-user records before requesting marker data.
+- Holds only local client state for the search query and selected city; it does not fetch data or write data.
+- Filters the already loaded current-user records by local text search and city selection before requesting marker data.
 - Shows the selected scope's marker count and no-coordinate summary without creating fake locations.
 - Presents friendly place-load, no-saved-place, and selected-city-empty states without changing filtering or marker-resolution behavior.
 
@@ -373,11 +373,11 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 
 ### `lib/map/place-filter.ts`
 - Builds distinct local city options from the existing saved `city` field and filters the already loaded records locally.
-- Applies city selection before calling the marker-resolution helper.
+- Applies local text search across `name`, `city`, and `category`, then composes that result with city selection before calling the marker-resolution helper.
 - Returns the selected records' markers plus unresolved count and reason summary without mutating place data.
 
 ### `lib/map/place-filter.test.js`
-- Verifies matching-city filtering, all-city empty-filter behavior, unresolved-place counting without marker creation, and preserved exact/approximate marker behavior.
+- Verifies local search matching, composed search-plus-city filtering, all-city and empty-search behavior, unresolved-place counting without marker creation, and preserved exact/approximate marker behavior.
 
 ### `components/app-shell.tsx`
 - Provides the shared protected-page shell for signed-in routes.
@@ -772,7 +772,7 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - The validated map marker step reads the current user's saved places through the existing server Supabase helper and owner-only RLS policies, without changing the database schema or saved records.
 - Marker data is produced through the pure `resolvePlaceLocation()` path so exact stored coordinates win, conservative city centers remain clearly approximate, and unresolved records are not placed on the map.
 - Marker popups show only existing saved-place metadata and do not introduce map editing, search, clustering, or geocoding.
-- The validated city filtering step uses the existing saved `city` field locally after RLS-scoped loading; it does not add database filtering, change Supabase schema, or write coordinates.
+- The validated city filtering and local search steps use the existing saved `name`, `city`, and `category` fields locally after RLS-scoped loading; they do not add database filtering, change Supabase schema, or write coordinates.
 - Step 3A adds the first category-aware extraction expansion for `住宿` only while preserving the existing `美食` path unchanged.
 - Step 3A requires strong accommodation structured-data evidence and falls back cleanly for generic `LocalBusiness`, ambiguous hotel-plus-restaurant sources, hotel directory pages, and real-world timeout or `403` responses.
 - Step 3B adds the second category-aware extraction expansion for `景点` only while preserving the existing `美食` and `住宿` paths unchanged.
@@ -879,8 +879,8 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - `/restaurants/review` is now the Step 12 source review, extraction preview, and explicit confirmation page
 - `/restaurants` is now the real Step 8 saved restaurant list page
 - `/restaurants/[id]/edit` is now the real Step 9 saved-record edit page
-- `/map` is the validated MapLibre and local PMTiles map page with saved-place marker rendering, local city filtering, and no-coordinate summary polish
-- These pages are navigable now, with source intake, extraction review, explicit confirmation, manual creation, the saved list, saved-record editing, and city-filtered map browsing in place while Step 13+ multi-candidate confirmation, clustering, search, and geocoding remain for later steps
+- `/map` is the validated MapLibre and local PMTiles map page with saved-place marker rendering, local place search, local city filtering, and no-coordinate summary polish
+- These pages are navigable now, with source intake, extraction review, explicit confirmation, manual creation, the saved list, saved-record editing, and searchable city-filtered map browsing in place while Step 13+ multi-candidate confirmation and geocoding remain for later steps
 
 ### Visual Direction Now In Use
 - mobile-first layouts, closer to a mobile web app than a desktop-first site
@@ -895,7 +895,7 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - The restaurant create flow, Step 10 source intake flow, and Step 9 edit flow exist, but there is still no delete flow.
 - `/restaurants` shows the full saved-list experience, but it does not yet support deleting, filtering, or pagination.
 - Step 12 explicit single-candidate confirmation exists, but there is still no Step 13 multi-candidate extraction flow yet.
-- `/map` now provides city-filtered MapLibre marker browsing with exact and clearly marked city-level approximate placements, plus an unresolved-place summary; clustering, search, map editing, and geocoding remain unstarted.
+- `/map` now provides local client-side search by `name`, `city`, and `category`, composed with city-filtered MapLibre marker browsing and the existing unresolved-place summary; clustering, external search services, map editing, and geocoding remain unstarted.
 - There is no 高德地图 / Amap integration; the current map rendering remains the validated local MapLibre and PMTiles architecture.
 - There is no geocoding or coordinate input in the user-facing create flow yet.
 - There is no multilingual switching yet, only Chinese-first copy with future English support planned.
