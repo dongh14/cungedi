@@ -57,6 +57,38 @@ The marker rendering step is now complete and has been validated without startin
 
 The city filtering and no-coordinate polish step is now complete and has been validated without starting clustering, search, geocoding, map editing, or Step 13.
 
+The V1 map polish step is now complete and has been validated without changing the map architecture or starting deferred map work.
+
+## Validated V1 Map Polish
+
+### Presentation And Feedback
+- `/map` now has stable loading feedback for both route-level place loading and local MapLibre basemap loading.
+- The map provides Chinese-first empty states when the current user has no saved places and city-empty states when the selected city has no matching places.
+- Place-loading failures and local map asset failures show friendly Chinese recovery messages without changing saved data.
+- The city filter keeps its existing local filtering behavior while using a more compact, mobile-friendly presentation.
+- Marker popups now use a compact card layout with the place name, city, optional category, and a clear approximate-location warning when the marker is city-level.
+
+### Mobile Validation
+- The authenticated `/map` route was manually validated at `390x844`.
+- The city filter, markers, popup card, and bottom navigation remain usable with no horizontal scrolling.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused map tests passed (`27` tests).
+- Manual browser validation passed.
+
+### Architecture Boundaries
+- No database schema changes were made.
+- No exact or fallback coordinates are written back to Supabase.
+- No external APIs were added.
+- Clustering has not started.
+- Search has not started.
+- Geocoding has not started.
+- Map editing has not started.
+- Step 13 has not started.
+
 ## Validated City Filtering And No-Coordinate Polish
 
 ### Map Scope
