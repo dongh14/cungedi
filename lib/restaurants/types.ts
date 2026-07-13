@@ -52,6 +52,7 @@ export type RestaurantMapItem = {
   name: string;
   city: string;
   category: RestaurantCategory;
+  address: string | null;
   latitude: number | null;
   longitude: number | null;
 };

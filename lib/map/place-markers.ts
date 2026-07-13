@@ -5,6 +5,7 @@ export type PlaceMarkerInput = {
   name: string;
   city: string;
   category?: string | null;
+  address?: string | null;
   latitude?: number | null;
   longitude?: number | null;
 };
@@ -14,6 +15,7 @@ export type PlaceMarkerData = {
   name: string;
   city: string;
   category: string | null;
+  address: string | null;
   latitude: number;
   longitude: number;
   precision: "exact" | "city";
@@ -59,6 +61,7 @@ export function createMapMarkerResolution(places: PlaceMarkerInput[]): MapMarker
       name: place.name,
       city: place.city,
       category: place.category ?? null,
+      address: place.address ?? null,
       latitude: resolvedLocation.location.latitude,
       longitude: resolvedLocation.location.longitude,
       precision: resolvedLocation.location.precision,

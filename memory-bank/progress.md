@@ -65,6 +65,28 @@ The city normalization checkpoint is now complete and has been validated with a 
 
 The map search interaction polish checkpoint is now complete and has been validated with selection-driven map focus and popup behavior, without changing the map data pipeline.
 
+The map clustering checkpoint is now complete and has been validated with map-only cluster rendering on top of the existing marker data flow.
+
+## Validated Map Clustering Checkpoint
+
+### Clustering Scope
+- Marker clustering was added on top of the existing map marker data flow.
+- Clustering is map-only and does not affect the Supabase schema or saved place data.
+- Clusters group nearby markers at lower zoom levels and expand back into individual markers as zoom increases.
+- Clicking or tapping a cluster zooms into that area to reveal more markers.
+
+### Preserved Marker Behavior
+- Exact and approximate marker behavior remains unchanged after cluster expansion.
+- Normal marker popup behavior remains unchanged.
+- Search selection continues to focus and open the correct marker popup.
+- Existing Supabase queries, saved records, and local map filtering inputs remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `node --test lib/map/*.test.js` passed (`44` tests).
+
 ## Validated Map Search Interaction Polish Checkpoint
 
 ### Search Interaction Scope

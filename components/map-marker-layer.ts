@@ -6,6 +6,7 @@ import {
   defaultMaxClusterZoom,
 } from "@/lib/map/marker-clusters";
 import type { PlaceMarkerData } from "@/lib/map/place-markers";
+import { createMapPlacePopupViewModel } from "@/lib/map/place-popup";
 
 type RenderedPlaceMarkerLayer = {
   cleanup: () => void;
@@ -13,36 +14,55 @@ type RenderedPlaceMarkerLayer = {
 };
 
 function createPopupContent(marker: PlaceMarkerData) {
+  const viewModel = createMapPlacePopupViewModel(marker);
   const content = document.createElement("div");
   content.className = "map-place-popup";
 
   const name = document.createElement("p");
   name.className = "map-place-popup-name";
-  name.textContent = marker.name;
+  name.textContent = viewModel.name;
   content.append(name);
 
   const details = document.createElement("div");
   details.className = "map-place-popup-details";
 
   const city = document.createElement("span");
-  city.textContent = marker.city;
+  city.textContent = viewModel.city;
   details.append(city);
 
-  if (marker.category) {
+  const locationBadge = document.createElement("span");
+  locationBadge.className = marker.approximate
+    ? "map-place-popup-location map-place-popup-location-approximate"
+    : "map-place-popup-location";
+  locationBadge.textContent = viewModel.locationLabel;
+  details.append(locationBadge);
+
+  if (viewModel.category) {
     const category = document.createElement("p");
     category.className = "map-place-popup-category";
-    category.textContent = marker.category;
+    category.textContent = viewModel.category;
     details.append(category);
   }
 
   content.append(details);
 
-  if (marker.approximate) {
-    const approximateNotice = document.createElement("p");
-    approximateNotice.className = "map-place-popup-notice";
-    approximateNotice.textContent = "近似位置，位于城市中心附近，不代表精确地点。";
-    content.append(approximateNotice);
+  if (viewModel.address) {
+    const address = document.createElement("p");
+    address.className = "map-place-popup-address";
+    address.textContent = viewModel.address;
+    content.append(address);
   }
+
+  const locationNotice = document.createElement("p");
+  locationNotice.className = "map-place-popup-notice";
+  locationNotice.textContent = `${viewModel.locationLabel}：${viewModel.locationDescription}`;
+  content.append(locationNotice);
+
+  const detailLink = document.createElement("a");
+  detailLink.className = "map-place-popup-action";
+  detailLink.href = viewModel.detailHref;
+  detailLink.textContent = "查看详情";
+  content.append(detailLink);
 
   return content;
 }

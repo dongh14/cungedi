@@ -40,7 +40,7 @@ export async function getCurrentUserRestaurantsForMap() {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("restaurants")
-    .select("id, name, city, category, latitude, longitude")
+    .select("id, name, city, category, address, latitude, longitude")
     .order("created_at", { ascending: false });
 
   return {
