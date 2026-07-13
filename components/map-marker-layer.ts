@@ -5,29 +5,33 @@ import type { PlaceMarkerData } from "@/lib/map/place-markers";
 
 function createPopupContent(marker: PlaceMarkerData) {
   const content = document.createElement("div");
-  content.className = "min-w-48 space-y-2 p-1 text-sm text-[var(--ink-strong)]";
+  content.className = "map-place-popup";
 
   const name = document.createElement("p");
-  name.className = "font-semibold leading-5";
+  name.className = "map-place-popup-name";
   name.textContent = marker.name;
   content.append(name);
 
-  const city = document.createElement("p");
-  city.className = "text-xs leading-5 text-[var(--ink-soft)]";
-  city.textContent = `城市：${marker.city}`;
-  content.append(city);
+  const details = document.createElement("div");
+  details.className = "map-place-popup-details";
+
+  const city = document.createElement("span");
+  city.textContent = marker.city;
+  details.append(city);
 
   if (marker.category) {
     const category = document.createElement("p");
-    category.className = "text-xs leading-5 text-[var(--ink-soft)]";
-    category.textContent = `分类：${marker.category}`;
-    content.append(category);
+    category.className = "map-place-popup-category";
+    category.textContent = marker.category;
+    details.append(category);
   }
+
+  content.append(details);
 
   if (marker.approximate) {
     const approximateNotice = document.createElement("p");
-    approximateNotice.className = "rounded-xl bg-orange-50 px-2 py-1.5 text-xs leading-5 text-[var(--accent-deep)]";
-    approximateNotice.textContent = "近似位置：这是城市中心附近的位置，不代表精确地点。";
+    approximateNotice.className = "map-place-popup-notice";
+    approximateNotice.textContent = "近似位置，位于城市中心附近，不代表精确地点。";
     content.append(approximateNotice);
   }
 

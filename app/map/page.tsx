@@ -50,17 +50,12 @@ export default async function MapPage() {
               </p>
             </div>
 
-            <MapBrowser places={restaurants} />
+            <MapBrowser places={restaurants} placeLoadError={error?.message ?? null} />
 
             <div className="rounded-[24px] border border-[var(--border-soft)] bg-white/72 px-4 py-4 text-sm leading-7 text-[var(--ink-soft)]">
               默认底图文件路径是 `public/maps/base.pmtiles`，也可以通过 `NEXT_PUBLIC_PM_TILES_BASEMAP_PATH` 改成其他同源 public 路径。已保存地点会显示为地图标记；城市级回退标记会在点开后明确说明是近似位置。
             </div>
 
-            {error ? (
-              <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-7 text-rose-700">
-                读取地图地点时出现问题：{error.message}
-              </div>
-            ) : null}
           </div>
         </SurfaceCard>
 

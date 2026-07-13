@@ -26,6 +26,7 @@ export function MapLibreFoundation({
   const markerCleanupRef = useRef<(() => void) | null>(null);
   const placeMarkersRef = useRef<PlaceMarkerData[]>(placeMarkers);
   const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
+  const [isMapLoading, setIsMapLoading] = useState(true);
 
   useEffect(() => {
     placeMarkersRef.current = placeMarkers;
@@ -47,6 +48,7 @@ export function MapLibreFoundation({
 
     if (resolvedBasemapConfig.status !== "ready") {
       setFallbackMessage(createPmtilesConfigErrorMessage(resolvedBasemapConfig.publicPath));
+      setIsMapLoading(false);
       return;
     }
 
@@ -65,6 +67,7 @@ export function MapLibreFoundation({
 
         if (!basemapResponse.ok) {
           setFallbackMessage(createPmtilesMissingFileMessage(basemapConfig.publicPath));
+          setIsMapLoading(false);
           return;
         }
 
@@ -81,6 +84,13 @@ export function MapLibreFoundation({
         map.on("error", (event) => {
           if (event.error && !cancelled) {
             setFallbackMessage(createPmtilesMissingFileMessage(basemapConfig.publicPath));
+            setIsMapLoading(false);
+          }
+        });
+
+        map.once("load", () => {
+          if (!cancelled) {
+            setIsMapLoading(false);
           }
         });
 
@@ -97,6 +107,7 @@ export function MapLibreFoundation({
       } catch {
         if (!cancelled) {
           setFallbackMessage(createPmtilesMissingFileMessage(basemapConfig.publicPath));
+          setIsMapLoading(false);
         }
       }
     }
@@ -125,9 +136,21 @@ export function MapLibreFoundation({
         className="h-full w-full"
         aria-label="MapLibre 地图基础画布"
       />
-      {fallbackMessage ? (
+      {isMapLoading && !fallbackMessage ? (
         <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,243,234,0.92))] p-5 text-center text-sm leading-7 text-[var(--ink-soft)]">
-          <p>{fallbackMessage}</p>
+          <div className="space-y-2">
+            <div className="mx-auto h-8 w-8 animate-pulse rounded-full border-4 border-orange-100 border-t-[var(--accent)]" />
+            <p>正在加载本地地图...</p>
+          </div>
+        </div>
+      ) : null}
+      {fallbackMessage ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(255,243,234,0.96))] p-5 text-center text-sm leading-7 text-[var(--ink-soft)]">
+          <div className="max-w-xs rounded-[22px] border border-orange-100 bg-white/92 p-5 shadow-[0_16px_36px_rgba(122,61,21,0.12)]">
+            <p className="font-semibold text-[var(--ink-strong)]">本地底图暂时无法显示</p>
+            <p className="mt-2">{fallbackMessage}</p>
+            <p className="mt-2 text-xs leading-5">请确认本地 PMTiles 文件可访问后再刷新页面。</p>
+          </div>
         </div>
       ) : null}
     </div>

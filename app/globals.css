@@ -25,6 +25,74 @@
   border-style: dashed;
   background: #d97706;
 }
+
+.maplibregl-popup-content {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 16px 36px rgba(67, 31, 15, 0.2);
+}
+
+.maplibregl-popup-close-button {
+  z-index: 1;
+  right: 4px;
+  top: 3px;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  color: var(--ink-soft);
+  font-size: 18px;
+}
+
+.maplibregl-popup-close-button:hover {
+  background: var(--surface-muted);
+}
+
+.map-place-popup {
+  width: min(250px, calc(100vw - 56px));
+  padding: 17px 40px 16px 17px;
+  background: #ffffff;
+  color: var(--ink-strong);
+}
+
+.map-place-popup-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.map-place-popup-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.map-place-popup-category {
+  margin: 0;
+  border-radius: 9999px;
+  background: var(--surface-muted);
+  padding: 3px 7px;
+  color: var(--accent-deep);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.map-place-popup-notice {
+  margin: 12px 0 0;
+  border-radius: 10px;
+  background: #fff3e8;
+  padding: 7px 8px;
+  color: var(--accent-deep);
+  font-size: 11px;
+  line-height: 1.5;
+}
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
