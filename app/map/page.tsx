@@ -1,16 +1,14 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { MapBrowser } from "@/components/map-browser";
 import { PlaceholderCard } from "@/components/placeholder-card";
-import { MapLibreFoundation } from "@/components/maplibre-foundation";
 import { SurfaceCard } from "@/components/surface-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
-import { createPlaceMarkerData } from "@/lib/map/place-markers";
 import { getCurrentUserRestaurantsForMap } from "@/lib/restaurants/queries";
 
 export default async function MapPage() {
   const user = await requireAuthenticatedUser();
   const { restaurants, error } = await getCurrentUserRestaurantsForMap();
-  const placeMarkers = createPlaceMarkerData(restaurants);
 
   return (
     <AppShell
@@ -52,12 +50,7 @@ export default async function MapPage() {
               </p>
             </div>
 
-            <div className="rounded-[28px] border border-[var(--border-soft)] bg-[linear-gradient(135deg,rgba(255,91,0,0.16),rgba(255,211,186,0.58))] p-4">
-              <MapLibreFoundation
-                className="relative aspect-[4/5] overflow-hidden rounded-[24px] border border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,243,234,0.9))] sm:aspect-[16/10]"
-                placeMarkers={placeMarkers}
-              />
-            </div>
+            <MapBrowser places={restaurants} />
 
             <div className="rounded-[24px] border border-[var(--border-soft)] bg-white/72 px-4 py-4 text-sm leading-7 text-[var(--ink-soft)]">
               默认底图文件路径是 `public/maps/base.pmtiles`，也可以通过 `NEXT_PUBLIC_PM_TILES_BASEMAP_PATH` 改成其他同源 public 路径。已保存地点会显示为地图标记；城市级回退标记会在点开后明确说明是近似位置。
@@ -76,7 +69,7 @@ export default async function MapPage() {
             title="这一步刻意还没开始的内容"
             description="先把边界收紧，避免把后续地图步骤提前揉进这次提交。"
             items={[
-              "还没有开始城市筛选、搜索或聚合。",
+              "还没有开始搜索或聚合。",
               "不会把城市级近似位置写回已保存数据。",
               "还没有开始 geocoding、地图编辑或 Step 13 相关能力。",
             ]}

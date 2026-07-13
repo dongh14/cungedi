@@ -49,11 +49,41 @@ All six V1 categories now have conservative extraction support:
 
 The MapLibre foundation step is now complete and has been validated.
 
-The PMTiles basemap step is now complete and has been validated without starting city filtering, geocoding, or Step 13.
+The PMTiles basemap step is now complete and has been validated without starting geocoding or Step 13.
 
-The city-level coordinate fallback step is now complete and has been validated without starting city filtering, geocoding, or Step 13.
+The city-level coordinate fallback step is now complete and has been validated without starting geocoding or Step 13.
 
-The marker rendering step is now complete and has been validated without starting city filtering, clustering, search, geocoding, or Step 13.
+The marker rendering step is now complete and has been validated without starting clustering, search, geocoding, or Step 13.
+
+The city filtering and no-coordinate polish step is now complete and has been validated without starting clustering, search, geocoding, map editing, or Step 13.
+
+## Validated City Filtering And No-Coordinate Polish
+
+### Map Scope
+- `/map` now provides local city filtering from each saved place's existing `city` field.
+- The current user's RLS-scoped places are loaded once through the existing server-side query, then filtering occurs locally in the client map browser.
+- Filtering occurs before location resolution and MapLibre marker rendering.
+- No database column, migration, or Supabase query shape was added for filtering.
+
+### Marker And No-Coordinate Behavior
+- Exact-coordinate and approximate city-center marker behavior remain unchanged after filtering.
+- Only markers belonging to the selected city are rendered.
+- Unresolved places never receive fake markers and remain available through the saved-place list.
+- The selected filter scope shows how many saved places cannot be rendered and distinguishes missing usable location data from invalid stored coordinates.
+- No exact or fallback coordinates are written back to Supabase.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused map tests passed (`23` tests).
+
+### Product State
+- Clustering has not started.
+- Search has not started.
+- Geocoding has not started.
+- Map editing has not started.
+- Step 13 has not started.
 
 ## Validated Marker Rendering
 
@@ -82,7 +112,7 @@ The marker rendering step is now complete and has been validated without startin
 - Focused MapLibre, location-resolution, and marker-data node tests passed (`19` tests).
 
 ### Product State
-- City filtering has not started.
+- City filtering and no-coordinate polish are now separately validated above.
 - Clustering has not started.
 - Search has not started.
 - Geocoding has not started.
@@ -115,7 +145,7 @@ The marker rendering step is now complete and has been validated without startin
 
 ### Product State
 - Marker rendering and Supabase place queries on `/map` are now separately validated above.
-- City filtering has not started.
+- City filtering and no-coordinate polish are now separately validated above.
 - Geocoding has not started.
 - Step 13 has not started.
 
@@ -152,7 +182,7 @@ The marker rendering step is now complete and has been validated without startin
 
 ### Product State
 - Saved-place markers and Supabase place queries on `/map` are now separately validated above.
-- City filtering has not started.
+- City filtering and no-coordinate polish are now separately validated above.
 - City-level coordinate fallback is now separately validated above.
 - Geocoding has not started.
 - Step 13 has not started.
@@ -166,8 +196,8 @@ The marker rendering step is now complete and has been validated without startin
 - The current style is fully local and contains no external tile, sprite, glyph, or hosted map requests.
 - The current map style makes no external network tile requests.
 - The foundation currently renders only a background layer and basic zoom controls.
-- No clustering, search, geolocation, or city filtering has been added.
-- PMTiles integration, city-level coordinate fallback, and marker rendering are now separately validated above.
+- No clustering, search, or geolocation has been added.
+- PMTiles integration, city-level coordinate fallback, marker rendering, and city filtering are now separately validated above.
 
 ### Component Behavior
 - The MapLibre component initializes inside `useEffect`.
@@ -185,7 +215,7 @@ The marker rendering step is now complete and has been validated without startin
 - PMTiles integration was the next map step after this foundation checkpoint and is now separately validated above.
 - City-level coordinate fallback is now separately validated above.
 - Marker rendering is now separately validated above.
-- City filtering has not started.
+- City filtering and no-coordinate polish are now separately validated above.
 - Step 13 has not started.
 - Routes, database schema, extraction, auth, RLS, and Step 12 confirmation behavior remain unchanged.
 

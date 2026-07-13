@@ -20,15 +20,41 @@ export type PlaceMarkerData = {
   approximate: boolean;
 };
 
-export function createPlaceMarkerData(places: PlaceMarkerInput[]): PlaceMarkerData[] {
-  return places.flatMap((place) => {
+export type UnresolvedMapPlaceSummary = {
+  total: number;
+  missingLocation: number;
+  invalidCoordinates: number;
+};
+
+export type MapMarkerResolution = {
+  markers: PlaceMarkerData[];
+  unresolved: UnresolvedMapPlaceSummary;
+};
+
+export function createMapMarkerResolution(places: PlaceMarkerInput[]): MapMarkerResolution {
+  const markers: PlaceMarkerData[] = [];
+  const unresolved: UnresolvedMapPlaceSummary = {
+    total: 0,
+    missingLocation: 0,
+    invalidCoordinates: 0,
+  };
+
+  places.forEach((place) => {
     const resolvedLocation = resolvePlaceLocation(place);
 
     if (resolvedLocation.status === "unresolved") {
-      return [];
+      unresolved.total += 1;
+
+      if (resolvedLocation.reason === "invalid_coordinates") {
+        unresolved.invalidCoordinates += 1;
+      } else {
+        unresolved.missingLocation += 1;
+      }
+
+      return;
     }
 
-    return [{
+    markers.push({
       id: place.id,
       name: place.name,
       city: place.city,
@@ -37,6 +63,12 @@ export function createPlaceMarkerData(places: PlaceMarkerInput[]): PlaceMarkerDa
       longitude: resolvedLocation.location.longitude,
       precision: resolvedLocation.location.precision,
       approximate: resolvedLocation.location.approximate,
-    }];
+    });
   });
+
+  return { markers, unresolved };
+}
+
+export function createPlaceMarkerData(places: PlaceMarkerInput[]): PlaceMarkerData[] {
+  return createMapMarkerResolution(places).markers;
 }
