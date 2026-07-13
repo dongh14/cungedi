@@ -1,7 +1,7 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, the validated V1 map polish step, and the validated Step 13 local place search checkpoint.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, the validated V1 map polish step, the validated Step 13 local place search checkpoint, and the validated city normalization checkpoint.
 
 It does not include Step 13 multi-candidate extraction or later architecture yet.
 
@@ -14,6 +14,14 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - Marker popups remain touch-compatible and now render as compact cards containing the place name, city, optional category, and approximate city-level warning when relevant.
 - The authenticated `/map` experience was manually validated at `390x844` with no horizontal scrolling and with bottom navigation unaffected.
 - No schema change, Supabase coordinate write, external API, geocoding, clustering, or map editing is part of this checkpoint.
+
+## Validated City Normalization Checkpoint
+- The local map system now uses one conservative city normalization layer for city filtering, local search matching, and location resolution.
+- Normalization happens only during comparison, filtering, and resolution; original stored `city` values are not rewritten.
+- The normalization layer supports only explicit Chinese and English aliases for cities present in the local known city dataset.
+- Unknown city values stay unchanged for comparison and remain unresolved for approximate location fallback.
+- The server-side RLS-scoped place query, marker rendering flow, and saved-place presentation remain unchanged apart from normalized comparisons.
+- No schema change, saved-data rewrite, external API, or geocoding is part of this checkpoint.
 
 ## Current Structure
 
@@ -91,13 +99,13 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/map/map-style.test.js`: focused regression test confirming the local PMTiles style structure, same-origin config handling, no external tile/sprite/glyph hosts, and fresh objects per instance
 - `lib/map/pmtiles-config.ts`: local PMTiles public-path resolution and fallback message helpers
 - `lib/map/pmtiles-protocol.ts`: reusable global PMTiles protocol registration layer for MapLibre
-- `lib/map/city-centers.ts`: small local approximate city-center dataset with conservative city-name normalization helpers
+- `lib/map/city-centers.ts`: small local approximate city-center dataset with conservative city-name normalization helpers for shared comparison and resolution
 - `lib/map/place-location.ts`: pure resolver that prioritizes valid stored coordinates and otherwise returns a known approximate city center without writing data
-- `lib/map/place-location.test.js`: focused regression test for exact-coordinate priority, conservative normalization, approximate city fallback, unresolved cases, and invalid-coordinate rejection
+- `lib/map/place-location.test.js`: focused regression test for exact-coordinate priority, conservative normalization, Chinese and English alias handling, approximate city fallback, unresolved cases, and invalid-coordinate rejection
 - `lib/map/place-markers.ts`: pure conversion from saved-place records to marker data through `resolvePlaceLocation()`, skipping unresolved records
 - `lib/map/place-markers.test.js`: focused regression test for exact marker data, approximate city fallback marker data, and unresolved-place skipping
-- `lib/map/place-filter.ts`: pure city-option, local search-and-city filtering, and filtered map-display helpers that resolve selected records and summarize unresolved reasons
-- `lib/map/place-filter.test.js`: focused regression test for local search matching, search-plus-city filtering, unresolved-place summary, and exact versus approximate markers after filtering
+- `lib/map/place-filter.ts`: pure city-option, shared normalized search-and-city filtering, and filtered map-display helpers that resolve selected records and summarize unresolved reasons
+- `lib/map/place-filter.test.js`: focused regression test for local search matching, normalized search-plus-city filtering, unresolved-place summary, and exact versus approximate markers after filtering
 - `lib/map/map-page-state.ts`: pure helper for map place-loading, error, empty, city-empty, and ready presentation states
 - `lib/map/map-page-state.test.js`: focused regression test for map loading, error, empty, and city-empty state selection
 

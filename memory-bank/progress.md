@@ -61,6 +61,35 @@ The V1 map polish step is now complete and has been validated without changing t
 
 The Step 13 local place search checkpoint is now complete and has been validated with local-only `/map` search, without schema changes, external APIs, or geocoding.
 
+The city normalization checkpoint is now complete and has been validated with a conservative local comparison layer, without schema changes or external APIs.
+
+## Validated City Normalization Checkpoint
+
+### Normalization Scope
+- The map system now has a conservative city normalization layer used only during comparison, filtering, and location resolution.
+- The normalization layer supports explicit Chinese and English aliases for cities already present in the local known city dataset.
+- Original database `city` values remain unchanged.
+- Original saved city text remains the text shown when rendering saved places.
+- Unknown cities remain unchanged for comparison and unresolved for location fallback.
+
+### Shared Comparison Behavior
+- City filtering now compares saved city values through the shared normalization layer.
+- Local search matching now uses the same normalization layer when matching city aliases.
+- Location resolution now continues through the same conservative normalization layer used by filtering and search.
+- Search, city filtering, and location resolution now share one normalization path instead of diverging by feature.
+
+### Boundaries
+- No database schema changes were made.
+- No saved city values were rewritten.
+- No external APIs were added.
+- No geocoding was added.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `node --test lib/map/*.test.js` passed (`33` tests).
+
 ## Validated Step 13 Local Place Search Checkpoint
 
 ### Map Scope
