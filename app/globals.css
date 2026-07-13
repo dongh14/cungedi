@@ -34,6 +34,30 @@
   transform: rotate(-45deg) scale(1.08);
 }
 
+.map-place-cluster-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 42px;
+  border: 3px solid rgba(255, 255, 255, 0.96);
+  border-radius: 9999px;
+  background: radial-gradient(circle at 30% 30%, #ff8a3d, var(--accent));
+  box-shadow: 0 12px 26px rgba(255, 91, 0, 0.28);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.map-place-cluster-marker-approximate {
+  background: radial-gradient(circle at 30% 30%, #f5b55e, #d97706);
+}
+
+.map-place-cluster-count {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .maplibregl-popup-content {
   padding: 0;
   overflow: hidden;

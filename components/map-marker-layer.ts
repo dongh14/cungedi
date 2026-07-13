@@ -1,6 +1,10 @@
 "use client";
 
 import maplibregl from "maplibre-gl";
+import {
+  createClusteredMapMarkerFeatures,
+  defaultMaxClusterZoom,
+} from "@/lib/map/marker-clusters";
 import type { PlaceMarkerData } from "@/lib/map/place-markers";
 
 type RenderedPlaceMarkerLayer = {
@@ -64,13 +68,64 @@ function createMarkerElement(marker: PlaceMarkerData, isActive: boolean) {
   return element;
 }
 
+function createClusterMarkerElement(input: {
+  pointCount: number;
+  exactCount: number;
+  approximateCount: number;
+}) {
+  const element = document.createElement("button");
+  element.type = "button";
+  element.className = "map-place-cluster-marker";
+  element.setAttribute(
+    "aria-label",
+    `查看 ${input.pointCount} 个聚合地点`,
+  );
+
+  if (input.approximateCount > 0 && input.exactCount === 0) {
+    element.classList.add("map-place-cluster-marker-approximate");
+  }
+
+  const count = document.createElement("span");
+  count.className = "map-place-cluster-count";
+  count.textContent = String(input.pointCount);
+  element.append(count);
+
+  return element;
+}
+
 export function renderPlaceMarkerLayer(
   map: maplibregl.Map,
   markers: PlaceMarkerData[],
   activeMarkerId: number | null = null,
 ): RenderedPlaceMarkerLayer {
   const markerById = new Map<number, maplibregl.Marker>();
-  const mapMarkers = markers.map((marker) => {
+  const features = createClusteredMapMarkerFeatures(markers, map.getZoom());
+  const mapMarkers = features.map((feature) => {
+    if (feature.kind === "cluster") {
+      const clusterMarker = new maplibregl.Marker({
+        element: createClusterMarkerElement({
+          pointCount: feature.pointCount,
+          exactCount: feature.exactCount,
+          approximateCount: feature.approximateCount,
+        }),
+        anchor: "center",
+      })
+        .setLngLat([feature.longitude, feature.latitude])
+        .addTo(map);
+
+      clusterMarker.getElement().addEventListener("click", () => {
+        map.easeTo({
+          center: [feature.longitude, feature.latitude],
+          zoom: Math.min(map.getZoom() + 2, defaultMaxClusterZoom + 2),
+          essential: true,
+          duration: 450,
+        });
+      });
+
+      return clusterMarker;
+    }
+
+    const marker = feature.marker;
     const popup = new maplibregl.Popup({
       closeButton: true,
       closeOnClick: true,

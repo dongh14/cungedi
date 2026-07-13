@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl, { NavigationControl } from "maplibre-gl";
 import { renderPlaceMarkerLayer } from "@/components/map-marker-layer";
+import { defaultMaxClusterZoom } from "@/lib/map/marker-clusters";
 import { createLocalPmtilesMapStyle, defaultMapCenter, defaultMapZoom } from "@/lib/map/map-style";
 import type { PlaceMarkerData } from "@/lib/map/place-markers";
 import {
@@ -30,6 +31,7 @@ export function MapLibreFoundation({
   const activeMarkerIdRef = useRef<number | null>(activeMarkerId);
   const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
   const [isMapLoading, setIsMapLoading] = useState(true);
+  const [renderZoom, setRenderZoom] = useState(defaultMapZoom);
 
   function focusActiveMarker() {
     if (!mapRef.current || activeMarkerIdRef.current === null) {
@@ -46,7 +48,7 @@ export function MapLibreFoundation({
 
     mapRef.current.flyTo({
       center: [activeMarker.longitude, activeMarker.latitude],
-      zoom: Math.max(mapRef.current.getZoom(), 11),
+      zoom: Math.max(mapRef.current.getZoom(), defaultMaxClusterZoom + 1),
       essential: true,
       duration: 900,
     });
@@ -64,11 +66,15 @@ export function MapLibreFoundation({
     const renderedLayer = renderPlaceMarkerLayer(mapRef.current, placeMarkers, activeMarkerId);
     markerCleanupRef.current = renderedLayer.cleanup;
 
+    if (activeMarkerId !== null && renderedLayer.markerById.has(activeMarkerId)) {
+      renderedLayer.markerById.get(activeMarkerId)?.togglePopup();
+      return;
+    }
+
     if (activeMarkerId !== null) {
       focusActiveMarker();
-      renderedLayer.markerById.get(activeMarkerId)?.togglePopup();
     }
-  }, [placeMarkers, activeMarkerId]);
+  }, [placeMarkers, activeMarkerId, renderZoom]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -122,6 +128,13 @@ export function MapLibreFoundation({
         map.once("load", () => {
           if (!cancelled) {
             setIsMapLoading(false);
+            setRenderZoom(map.getZoom());
+          }
+        });
+
+        map.on("zoomend", () => {
+          if (!cancelled) {
+            setRenderZoom(map.getZoom());
           }
         });
 
@@ -141,9 +154,16 @@ export function MapLibreFoundation({
         );
         markerCleanupRef.current = renderedLayer.cleanup;
 
+        if (
+          activeMarkerIdRef.current !== null &&
+          renderedLayer.markerById.has(activeMarkerIdRef.current)
+        ) {
+          renderedLayer.markerById.get(activeMarkerIdRef.current)?.togglePopup();
+          return;
+        }
+
         if (activeMarkerIdRef.current !== null) {
           focusActiveMarker();
-          renderedLayer.markerById.get(activeMarkerIdRef.current)?.togglePopup();
         }
       } catch {
         if (!cancelled) {
