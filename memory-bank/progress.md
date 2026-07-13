@@ -63,6 +63,31 @@ The Step 13 local place search checkpoint is now complete and has been validated
 
 The city normalization checkpoint is now complete and has been validated with a conservative local comparison layer, without schema changes or external APIs.
 
+The map search interaction polish checkpoint is now complete and has been validated with selection-driven map focus and popup behavior, without changing the map data pipeline.
+
+## Validated Map Search Interaction Polish Checkpoint
+
+### Search Interaction Scope
+- `/map` search results can now be selected directly from the local search UI.
+- Selecting a search result moves the map to the selected place through client-side map focus behavior.
+- The selected place now shows an active marker state on the map.
+- Selecting a search result now opens that place popup automatically.
+- The search UI now includes a clear-search action.
+
+### Unchanged Map Data Flow
+- Supabase place queries remain unchanged.
+- The database schema remains unchanged.
+- City filtering behavior remains unchanged.
+- The coordinate resolver remains unchanged.
+- The marker generation pipeline remains unchanged.
+- This checkpoint adds interaction polish on top of the existing filtered marker set rather than introducing a new map data source.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `node --test lib/map/*.test.js` passed (`36` tests).
+
 ## Validated City Normalization Checkpoint
 
 ### Normalization Scope

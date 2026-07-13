@@ -1,7 +1,7 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, the validated V1 map polish step, the validated Step 13 local place search checkpoint, and the validated city normalization checkpoint.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, the validated V1 map polish step, the validated Step 13 local place search checkpoint, the validated city normalization checkpoint, and the validated map search interaction polish checkpoint.
 
 It does not include Step 13 multi-candidate extraction or later architecture yet.
 
@@ -22,6 +22,13 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - Unknown city values stay unchanged for comparison and remain unresolved for approximate location fallback.
 - The server-side RLS-scoped place query, marker rendering flow, and saved-place presentation remain unchanged apart from normalized comparisons.
 - No schema change, saved-data rewrite, external API, or geocoding is part of this checkpoint.
+
+## Validated Map Search Interaction Polish Checkpoint
+- The local `/map` search UI now supports selecting a rendered result to focus that place on the map.
+- Selecting a result triggers client-side `flyTo` map movement, applies an active marker state, and opens the corresponding popup automatically.
+- The local search UI now includes a clear-search action.
+- The server-side RLS-scoped place query, database schema, local city filtering behavior, coordinate resolver, and marker generation pipeline remain unchanged.
+- This checkpoint adds interaction state on top of the existing filtered marker set and does not introduce any external API, geocoding, clustering, or recommendation behavior.
 
 ## Current Structure
 
@@ -77,9 +84,9 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `components/extraction-confirmation-card.tsx`: Step 12 reusable confirmation form that lets users edit, complete, and save extraction results
 - `components/source-intake-card.tsx`: Step 10 reusable source intake card for `/restaurants/new`
 - `components/source-review-card.tsx`: Step 11 reusable source review card for `/restaurants/review`
-- `components/maplibre-foundation.tsx`: reusable client-side MapLibre component that initializes the local PMTiles-backed basemap, manages the current marker layer, preserves basic zoom controls, and shows Chinese loading and asset-fallback states
-- `components/map-marker-layer.ts`: reusable client-side MapLibre marker and compact popup-card layer for serializable resolved place-marker data
-- `components/map-browser.tsx`: client-side composition layer that applies local place search plus the selected city filter before deriving map markers and presents place-load, empty, city-empty, and no-coordinate states
+- `components/maplibre-foundation.tsx`: reusable client-side MapLibre component that initializes the local PMTiles-backed basemap, manages the current marker layer, supports search-selection map focus and popup opening, preserves basic zoom controls, and shows Chinese loading and asset-fallback states
+- `components/map-marker-layer.ts`: reusable client-side MapLibre marker and compact popup-card layer for serializable resolved place-marker data, including the active-marker presentation state
+- `components/map-browser.tsx`: client-side composition layer that applies local place search plus the selected city filter before deriving map markers, exposes search-result selection and clear-search UI, and presents place-load, empty, city-empty, and no-coordinate states
 - `components/map-city-filter.tsx`: refined compact mobile-friendly city selector UI for the map browser
 - `components/site-brand.tsx`: reusable product brand block
 - `components/surface-card.tsx`: shared rounded card wrapper used across the UI
@@ -106,6 +113,8 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/map/place-markers.test.js`: focused regression test for exact marker data, approximate city fallback marker data, and unresolved-place skipping
 - `lib/map/place-filter.ts`: pure city-option, shared normalized search-and-city filtering, and filtered map-display helpers that resolve selected records and summarize unresolved reasons
 - `lib/map/place-filter.test.js`: focused regression test for local search matching, normalized search-plus-city filtering, unresolved-place summary, and exact versus approximate markers after filtering
+- `lib/map/place-selection.ts`: pure helper for search-selectable marker data and active-marker synchronization against the current rendered marker set
+- `lib/map/place-selection.test.js`: focused regression test for preserved saved-city display text in results, active-marker lookup, and active-selection reset when the rendered marker set changes
 - `lib/map/map-page-state.ts`: pure helper for map place-loading, error, empty, city-empty, and ready presentation states
 - `lib/map/map-page-state.test.js`: focused regression test for map loading, error, empty, and city-empty state selection
 

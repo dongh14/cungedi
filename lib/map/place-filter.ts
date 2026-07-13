@@ -2,7 +2,8 @@ import {
   createMapMarkerResolution,
   type PlaceMarkerInput,
 } from "./place-markers.ts";
-import { normalizeCityForComparison } from "./city-centers.ts";
+import { normalizeCityForComparison, normalizeCityName } from "./city-centers.ts";
+import { isCountryLevelLocation } from "./country-locations.ts";
 
 export const allCitiesFilterValue = "";
 export const emptyPlaceSearchQuery = "";
@@ -30,7 +31,30 @@ function getPlaceSearchHaystack(place: PlaceMarkerInput) {
 }
 
 export function getMapCityOptions(places: PlaceMarkerInput[]) {
-  return [...new Set(places.map((place) => place.city))].sort((first, second) =>
+  const canonicalCityOptions = new Map<string, string>();
+
+  places.forEach((place) => {
+    if (isCountryLevelLocation(place.city)) {
+      return;
+    }
+
+    const normalizedIdentity = normalizeCityForComparison(place.city);
+
+    if (!normalizedIdentity) {
+      return;
+    }
+
+    if (canonicalCityOptions.has(normalizedIdentity)) {
+      return;
+    }
+
+    canonicalCityOptions.set(
+      normalizedIdentity,
+      normalizeCityName(place.city) ?? place.city.trim(),
+    );
+  });
+
+  return [...canonicalCityOptions.values()].sort((first, second) =>
     first.localeCompare(second, "zh-CN"),
   );
 }
