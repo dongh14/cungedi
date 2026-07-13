@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import maplibregl, { NavigationControl } from "maplibre-gl";
+import { renderPlaceMarkerLayer } from "@/components/map-marker-layer";
 import { createLocalPmtilesMapStyle, defaultMapCenter, defaultMapZoom } from "@/lib/map/map-style";
+import type { PlaceMarkerData } from "@/lib/map/place-markers";
 import {
   createPmtilesConfigErrorMessage,
   createPmtilesMissingFileMessage,
@@ -12,14 +14,29 @@ import { registerPmtilesArchive } from "@/lib/map/pmtiles-protocol";
 
 type MapLibreFoundationProps = {
   className?: string;
+  placeMarkers?: PlaceMarkerData[];
 };
 
 export function MapLibreFoundation({
   className,
+  placeMarkers = [],
 }: MapLibreFoundationProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const markerCleanupRef = useRef<(() => void) | null>(null);
+  const placeMarkersRef = useRef<PlaceMarkerData[]>(placeMarkers);
   const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    placeMarkersRef.current = placeMarkers;
+
+    if (!mapRef.current) {
+      return;
+    }
+
+    markerCleanupRef.current?.();
+    markerCleanupRef.current = renderPlaceMarkerLayer(mapRef.current, placeMarkers);
+  }, [placeMarkers]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -76,6 +93,7 @@ export function MapLibreFoundation({
         );
 
         mapRef.current = map;
+        markerCleanupRef.current = renderPlaceMarkerLayer(map, placeMarkersRef.current);
       } catch {
         if (!cancelled) {
           setFallbackMessage(createPmtilesMissingFileMessage(basemapConfig.publicPath));
@@ -89,6 +107,8 @@ export function MapLibreFoundation({
       cancelled = true;
 
       if (mapRef.current) {
+        markerCleanupRef.current?.();
+        markerCleanupRef.current = null;
         mapRef.current.remove();
         mapRef.current = null;
       }

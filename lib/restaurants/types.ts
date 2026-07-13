@@ -46,3 +46,12 @@ export type RestaurantEditItem = {
   note: string | null;
   created_at: string;
 };
+
+export type RestaurantMapItem = {
+  id: number;
+  name: string;
+  city: string;
+  category: RestaurantCategory;
+  latitude: number | null;
+  longitude: number | null;
+};

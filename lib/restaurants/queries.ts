@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type {
   RestaurantEditItem,
   RestaurantListItem,
+  RestaurantMapItem,
 } from "@/lib/restaurants/types";
 
 export async function getCurrentUserRestaurants() {
@@ -31,6 +32,19 @@ export async function getCurrentUserRestaurantById(id: number) {
 
   return {
     restaurant: (data ?? null) as RestaurantEditItem | null,
+    error,
+  };
+}
+
+export async function getCurrentUserRestaurantsForMap() {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("restaurants")
+    .select("id, name, city, category, latitude, longitude")
+    .order("created_at", { ascending: false });
+
+  return {
+    restaurants: (data ?? []) as RestaurantMapItem[],
     error,
   };
 }
