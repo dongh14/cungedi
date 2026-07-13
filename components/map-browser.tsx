@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapCityFilter } from "@/components/map-city-filter";
 import { MapLibreFoundation } from "@/components/maplibre-foundation";
 import {
@@ -12,6 +12,10 @@ import {
   getMapCityOptions,
 } from "@/lib/map/place-filter";
 import { getMapPlaceUiState } from "@/lib/map/map-page-state";
+import {
+  createMapSearchSelectablePlaces,
+  syncActiveMapPlaceId,
+} from "@/lib/map/place-selection";
 import type { RestaurantMapItem } from "@/lib/restaurants/types";
 
 type MapBrowserProps = {
@@ -65,6 +69,7 @@ function MapStateCard({
 export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
   const [selectedCity, setSelectedCity] = useState(allCitiesFilterValue);
   const [searchQuery, setSearchQuery] = useState(emptyPlaceSearchQuery);
+  const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
   const cities = getMapCityOptions(places);
   const filteredPlaces = filterPlacesForMap({
     places,
@@ -77,6 +82,7 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
     selectedCity,
   });
   const selectedPlaceCount = filteredPlaces.length;
+  const searchResults = createMapSearchSelectablePlaces(display.markers);
   const uiState = getMapPlaceUiState({
     isLoading: false,
     hasError: Boolean(placeLoadError),
@@ -84,6 +90,12 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
     selectedPlaces: selectedPlaceCount,
   });
   const hasActiveSearch = searchQuery.trim().length > 0;
+
+  useEffect(() => {
+    setActivePlaceId((currentActivePlaceId) =>
+      syncActiveMapPlaceId(display.markers, currentActivePlaceId),
+    );
+  }, [display.markers]);
 
   if (uiState === "error") {
     return (
@@ -131,16 +143,34 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
               <input
                 type="search"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setActivePlaceId(null);
+                }}
                 placeholder="按名称、城市或分类搜索"
                 className="min-w-0 flex-1 rounded-xl bg-transparent px-1 py-2 text-sm font-semibold text-[var(--ink-strong)] outline-none placeholder:text-[var(--ink-soft)]"
                 aria-label="按名称、城市或分类搜索地图地点"
               />
+              {hasActiveSearch ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery(emptyPlaceSearchQuery);
+                    setActivePlaceId(null);
+                  }}
+                  className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                >
+                  清除搜索
+                </button>
+              ) : null}
             </label>
             <MapCityFilter
               cities={cities}
               selectedCity={selectedCity}
-              onCityChange={setSelectedCity}
+              onCityChange={(city) => {
+                setSelectedCity(city);
+                setActivePlaceId(null);
+              }}
             />
           </div>
           <p className="px-1 text-xs leading-5 text-[var(--ink-soft)]">
@@ -152,6 +182,52 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
           </p>
         </div>
       </div>
+
+      {hasActiveSearch && searchResults.length > 0 ? (
+        <div className="rounded-[24px] border border-[var(--border-soft)] bg-white/82 p-3 shadow-[0_8px_20px_rgba(67,31,15,0.05)]">
+          <div className="flex items-center justify-between gap-3 px-1">
+            <p className="text-xs font-semibold tracking-[0.16em] text-[var(--accent-deep)] uppercase">
+              搜索结果
+            </p>
+            <p className="text-xs leading-5 text-[var(--ink-soft)]">
+              选择后会定位到地图并打开信息卡片
+            </p>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {searchResults.map((place) => {
+              const isActive = place.id === activePlaceId;
+
+              return (
+                <button
+                  key={place.id}
+                  type="button"
+                  onClick={() => setActivePlaceId(place.id)}
+                  className={`rounded-[18px] border px-4 py-3 text-left transition ${
+                    isActive
+                      ? "border-[var(--accent)] bg-[var(--surface-muted)] shadow-[0_12px_28px_rgba(255,91,0,0.12)]"
+                      : "border-[var(--border-soft)] bg-white hover:border-[var(--accent)]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--ink-strong)]">{place.name}</p>
+                      <p className="mt-1 text-xs leading-5 text-[var(--ink-soft)]">
+                        {place.city}
+                        {place.category ? ` · ${place.category}` : ""}
+                      </p>
+                    </div>
+                    {place.approximate ? (
+                      <span className="rounded-full bg-[#fff3e8] px-2 py-1 text-[11px] font-semibold text-[var(--accent-deep)]">
+                        近似位置
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {uiState === "city_empty" ? (
         <MapStateCard
@@ -167,6 +243,7 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
               onClick={() => {
                 setSelectedCity(allCitiesFilterValue);
                 setSearchQuery(emptyPlaceSearchQuery);
+                setActivePlaceId(null);
               }}
               className="rounded-full border border-[var(--border-soft)] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
             >
@@ -180,6 +257,7 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
             <MapLibreFoundation
               className="relative aspect-[4/5] overflow-hidden rounded-[24px] border border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,243,234,0.9))] sm:aspect-[16/10]"
               placeMarkers={display.markers}
+              activeMarkerId={activePlaceId}
             />
           </div>
 

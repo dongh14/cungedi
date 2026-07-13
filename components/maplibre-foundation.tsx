@@ -15,29 +15,60 @@ import { registerPmtilesArchive } from "@/lib/map/pmtiles-protocol";
 type MapLibreFoundationProps = {
   className?: string;
   placeMarkers?: PlaceMarkerData[];
+  activeMarkerId?: number | null;
 };
 
 export function MapLibreFoundation({
   className,
   placeMarkers = [],
+  activeMarkerId = null,
 }: MapLibreFoundationProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerCleanupRef = useRef<(() => void) | null>(null);
   const placeMarkersRef = useRef<PlaceMarkerData[]>(placeMarkers);
+  const activeMarkerIdRef = useRef<number | null>(activeMarkerId);
   const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
   const [isMapLoading, setIsMapLoading] = useState(true);
 
+  function focusActiveMarker() {
+    if (!mapRef.current || activeMarkerIdRef.current === null) {
+      return;
+    }
+
+    const activeMarker = placeMarkersRef.current.find(
+      (marker) => marker.id === activeMarkerIdRef.current,
+    );
+
+    if (!activeMarker) {
+      return;
+    }
+
+    mapRef.current.flyTo({
+      center: [activeMarker.longitude, activeMarker.latitude],
+      zoom: Math.max(mapRef.current.getZoom(), 11),
+      essential: true,
+      duration: 900,
+    });
+  }
+
   useEffect(() => {
     placeMarkersRef.current = placeMarkers;
+    activeMarkerIdRef.current = activeMarkerId;
 
     if (!mapRef.current) {
       return;
     }
 
     markerCleanupRef.current?.();
-    markerCleanupRef.current = renderPlaceMarkerLayer(mapRef.current, placeMarkers);
-  }, [placeMarkers]);
+    const renderedLayer = renderPlaceMarkerLayer(mapRef.current, placeMarkers, activeMarkerId);
+    markerCleanupRef.current = renderedLayer.cleanup;
+
+    if (activeMarkerId !== null) {
+      focusActiveMarker();
+      renderedLayer.markerById.get(activeMarkerId)?.togglePopup();
+    }
+  }, [placeMarkers, activeMarkerId]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -103,7 +134,17 @@ export function MapLibreFoundation({
         );
 
         mapRef.current = map;
-        markerCleanupRef.current = renderPlaceMarkerLayer(map, placeMarkersRef.current);
+        const renderedLayer = renderPlaceMarkerLayer(
+          map,
+          placeMarkersRef.current,
+          activeMarkerIdRef.current,
+        );
+        markerCleanupRef.current = renderedLayer.cleanup;
+
+        if (activeMarkerIdRef.current !== null) {
+          focusActiveMarker();
+          renderedLayer.markerById.get(activeMarkerIdRef.current)?.togglePopup();
+        }
       } catch {
         if (!cancelled) {
           setFallbackMessage(createPmtilesMissingFileMessage(basemapConfig.publicPath));

@@ -26,6 +26,14 @@
   background: #d97706;
 }
 
+.map-place-marker-active {
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.82),
+    0 0 0 8px rgba(255, 91, 0, 0.2),
+    0 16px 32px rgba(255, 91, 0, 0.38);
+  transform: rotate(-45deg) scale(1.08);
+}
+
 .maplibregl-popup-content {
   padding: 0;
   overflow: hidden;
