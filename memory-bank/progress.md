@@ -49,7 +49,40 @@ All six V1 categories now have conservative extraction support:
 
 The MapLibre foundation step is now complete and has been validated.
 
-The PMTiles basemap step is now complete and has been validated without starting markers, Supabase place queries, city filtering, city-level coordinate fallback, geocoding, or Step 13.
+The PMTiles basemap step is now complete and has been validated without starting markers, Supabase place queries, city filtering, geocoding, or Step 13.
+
+The city-level coordinate fallback step is now complete and has been validated without starting marker rendering, city filtering, geocoding, or Step 13.
+
+## Validated City-Level Coordinate Fallback
+
+### Map Scope
+- `lib/map/city-centers.ts` has been added as a small local city-center dataset for conservative approximate placement.
+- `lib/map/place-location.ts` has been added as a pure place-location resolver.
+- The new fallback layer is local-only and does not call external map or location APIs.
+- The new fallback layer does not write any fallback coordinates into `public.restaurants`.
+
+### Resolution Behavior
+- Exact stored latitude and longitude take priority when both values are present and valid.
+- Exact stored coordinates are returned as exact rather than approximate.
+- Known city names can now fall back to approximate city-center coordinates only when exact coordinates are missing.
+- Approximate city-center results are clearly marked as approximate city-level fallback rather than precise place coordinates.
+- Conservative normalization now supports only explicit known variants such as `上海市 -> 上海`, `北京市 -> 北京`, `广州市 -> 广州`, `Hong Kong -> 香港`, and `New York City -> New York`.
+- Unknown or ambiguous city names remain unresolved.
+- Partial coordinate pairs are not treated as exact stored coordinates.
+- Invalid latitude or longitude values are rejected rather than used.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused node tests passed.
+
+### Product State
+- Marker rendering has not started.
+- Supabase place queries on `/map` have not started.
+- City filtering has not started.
+- Geocoding has not started.
+- Step 13 has not started.
 
 ## Validated PMTiles Basemap
 
@@ -86,7 +119,7 @@ The PMTiles basemap step is now complete and has been validated without starting
 - Saved-place markers have not started.
 - Supabase place queries on `/map` have not started.
 - City filtering has not started.
-- City-level coordinate fallback has not started.
+- City-level coordinate fallback is now separately validated above.
 - Geocoding has not started.
 - Step 13 has not started.
 - Labels and local glyph hosting have not started.
@@ -99,8 +132,8 @@ The PMTiles basemap step is now complete and has been validated without starting
 - The current style is fully local and contains no external tile, sprite, glyph, or hosted map requests.
 - The current map style makes no external network tile requests.
 - The foundation currently renders only a background layer and basic zoom controls.
-- No PMTiles basemap has been integrated yet.
-- No saved-place queries, markers, popups, clustering, search, geolocation, city filtering, or coordinate fallback have been added.
+- No saved-place queries, markers, popups, clustering, search, geolocation, or city filtering have been added.
+- PMTiles integration and city-level coordinate fallback are now separately validated above.
 
 ### Component Behavior
 - The MapLibre component initializes inside `useEffect`.
@@ -116,7 +149,7 @@ The PMTiles basemap step is now complete and has been validated without starting
 
 ### Product State
 - PMTiles integration was the next map step after this foundation checkpoint and is now separately validated above.
-- City-level coordinate fallback has not started.
+- City-level coordinate fallback is now separately validated above.
 - Marker rendering has not started.
 - City filtering has not started.
 - Step 13 has not started.

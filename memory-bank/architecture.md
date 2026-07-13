@@ -1,7 +1,7 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, and the validated PMTiles basemap step.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, and the validated city-level coordinate fallback step.
 
 It does not include Step 13 or later architecture yet.
 
@@ -79,6 +79,9 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/map/map-style.test.js`: focused regression test confirming the local PMTiles style structure, same-origin config handling, no external tile/sprite/glyph hosts, and fresh objects per instance
 - `lib/map/pmtiles-config.ts`: local PMTiles public-path resolution and fallback message helpers
 - `lib/map/pmtiles-protocol.ts`: reusable global PMTiles protocol registration layer for MapLibre
+- `lib/map/city-centers.ts`: small local approximate city-center dataset with conservative city-name normalization helpers
+- `lib/map/place-location.ts`: pure resolver that prioritizes valid stored coordinates and otherwise returns a known approximate city center without writing data
+- `lib/map/place-location.test.js`: focused regression test for exact-coordinate priority, conservative normalization, approximate city fallback, unresolved cases, and invalid-coordinate rejection
 
 ### Restaurant Utilities
 - `lib/restaurants/constants.ts`: shared category, subtype-suggestion, cuisine, and privacy definitions for the current restaurant-first place form
@@ -258,7 +261,7 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Renders the reusable client-side MapLibre plus local PMTiles basemap in the existing mobile-first shell.
 - Uses concise Chinese copy to explain that the current basemap is expected from a local `public/maps/base.pmtiles` file or another same-origin `/maps/...` path.
 - Does not query Supabase for saved places.
-- Does not start marker rendering, popups, clustering, search, geolocation, city filtering, city-level coordinate fallback, geocoding, labels, local glyph hosting, or Step 13 work.
+- Does not render the newly validated city-level coordinate fallback yet, and does not start marker rendering, popups, clustering, search, geolocation, city filtering, geocoding, labels, local glyph hosting, or Step 13 work.
 
 ### `app/auth/actions.ts`
 - Contains the Step 3 server actions for sign up, login, and logout.
@@ -306,6 +309,21 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Registers the PMTiles protocol with MapLibre through one reusable global singleton.
 - Reuses the same PMTiles protocol instance across development rerenders.
 - Avoids removing the protocol on component unmount so other MapLibre instances are not broken.
+
+### `lib/map/city-centers.ts`
+- Stores a small local city-center dataset for approximate city-level placement, starting with major mainland-China cities and a limited explicit overseas set used by tests.
+- Normalizes only explicit, known city-name variants, including common Chinese municipal suffixes and defined English aliases; it does not use fuzzy matching.
+- City-center results are explicitly marked with `precision = city`, `approximate = true`, and `source = local_city_center`.
+
+### `lib/map/place-location.ts`
+- Is a pure helper with no React or Supabase coupling.
+- Uses valid stored latitude and longitude as exact coordinates when both are present.
+- Falls back to a known local city center only when exact coordinates are absent, preserving the distinction between approximate city centers and precise place coordinates.
+- Rejects invalid coordinate pairs, does not treat partial pairs as exact, and returns unresolved for unknown or ambiguous city names.
+- Does not write fallback coordinates into stored `latitude` or `longitude` fields.
+
+### `lib/map/place-location.test.js`
+- Verifies exact stored-coordinate priority, city-suffix and explicit English-alias normalization, known city fallback, unknown-city unresolved behavior, partial-coordinate handling, invalid-coordinate rejection, and approximate-result marking.
 
 ### `components/app-shell.tsx`
 - Provides the shared protected-page shell for signed-in routes.
