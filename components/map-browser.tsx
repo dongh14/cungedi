@@ -6,7 +6,9 @@ import { MapCityFilter } from "@/components/map-city-filter";
 import { MapLibreFoundation } from "@/components/maplibre-foundation";
 import {
   allCitiesFilterValue,
+  emptyPlaceSearchQuery,
   createFilteredMapDisplay,
+  filterPlacesForMap,
   getMapCityOptions,
 } from "@/lib/map/place-filter";
 import { getMapPlaceUiState } from "@/lib/map/map-page-state";
@@ -62,17 +64,26 @@ function MapStateCard({
 
 export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
   const [selectedCity, setSelectedCity] = useState(allCitiesFilterValue);
+  const [searchQuery, setSearchQuery] = useState(emptyPlaceSearchQuery);
   const cities = getMapCityOptions(places);
-  const display = createFilteredMapDisplay(places, selectedCity);
-  const selectedPlaceCount = selectedCity
-    ? places.filter((place) => place.city === selectedCity).length
-    : places.length;
+  const filteredPlaces = filterPlacesForMap({
+    places,
+    searchQuery,
+    selectedCity,
+  });
+  const display = createFilteredMapDisplay({
+    places,
+    searchQuery,
+    selectedCity,
+  });
+  const selectedPlaceCount = filteredPlaces.length;
   const uiState = getMapPlaceUiState({
     isLoading: false,
     hasError: Boolean(placeLoadError),
     totalPlaces: places.length,
     selectedPlaces: selectedPlaceCount,
   });
+  const hasActiveSearch = searchQuery.trim().length > 0;
 
   if (uiState === "error") {
     return (
@@ -110,28 +121,56 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <MapCityFilter
-          cities={cities}
-          selectedCity={selectedCity}
-          onCityChange={setSelectedCity}
-        />
-        <p className="px-1 text-xs leading-5 text-[var(--ink-soft)]">
-          {selectedCity ? `正在查看 ${selectedCity}` : `共 ${places.length} 条已收藏地点`}
-        </p>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+            <label className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-[var(--border-soft)] bg-white/82 p-2 shadow-[0_8px_20px_rgba(67,31,15,0.05)]">
+              <span className="rounded-xl bg-[var(--surface-muted)] px-2.5 py-2 text-xs font-semibold text-[var(--ink-strong)]">
+                本地搜索
+              </span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="按名称、城市或分类搜索"
+                className="min-w-0 flex-1 rounded-xl bg-transparent px-1 py-2 text-sm font-semibold text-[var(--ink-strong)] outline-none placeholder:text-[var(--ink-soft)]"
+                aria-label="按名称、城市或分类搜索地图地点"
+              />
+            </label>
+            <MapCityFilter
+              cities={cities}
+              selectedCity={selectedCity}
+              onCityChange={setSelectedCity}
+            />
+          </div>
+          <p className="px-1 text-xs leading-5 text-[var(--ink-soft)]">
+            {selectedCity
+              ? `正在查看 ${selectedCity}`
+              : hasActiveSearch
+                ? `共匹配 ${selectedPlaceCount} 条已收藏地点`
+                : `共 ${places.length} 条已收藏地点`}
+          </p>
+        </div>
       </div>
 
       {uiState === "city_empty" ? (
         <MapStateCard
-          title={`${selectedCity} 暂时没有地点`}
-          description="换一个城市，或切回全部城市继续查看你的已收藏地点。"
+          title={selectedCity ? `${selectedCity} 暂时没有匹配地点` : "暂时没有匹配地点"}
+          description={
+            hasActiveSearch
+              ? "试试更短的关键词，或切换城市后继续查看你的已收藏地点。"
+              : "换一个城市，或切回全部城市继续查看你的已收藏地点。"
+          }
           action={
             <button
               type="button"
-              onClick={() => setSelectedCity(allCitiesFilterValue)}
+              onClick={() => {
+                setSelectedCity(allCitiesFilterValue);
+                setSearchQuery(emptyPlaceSearchQuery);
+              }}
               className="rounded-full border border-[var(--border-soft)] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
             >
-              查看全部城市
+              {hasActiveSearch ? "清除筛选条件" : "查看全部城市"}
             </button>
           }
         />
