@@ -3,8 +3,9 @@ import {
   isRestaurantCategory,
   type RestaurantCategory,
   type RestaurantPrivacy,
-} from "./constants";
-import type { RestaurantInsertInput } from "./types";
+} from "./constants.ts";
+import type { RestaurantInsertInput } from "./types.ts";
+import type { NormalizedExtractionResult } from "./extraction-architecture.ts";
 
 export type RestaurantDraftFormValues = {
   name: string;
@@ -28,9 +29,10 @@ export type ReviewSearchParams = Partial<
 export function getInitialDraftFormValues(
   searchParams: ReviewSearchParams,
   sourceUrl: string,
+  extractionResult?: Pick<NormalizedExtractionResult, "name">,
 ): RestaurantDraftFormValues {
   return {
-    name: searchParams.name ?? "",
+    name: searchParams.name ?? extractionResult?.name ?? "",
     city: searchParams.city ?? "",
     source_input: searchParams.source_input ?? sourceUrl,
     privacy: searchParams.privacy === "public" ? "public" : "private",

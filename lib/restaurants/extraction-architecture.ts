@@ -10,9 +10,21 @@ export const sourceTypes = [
 
 export type SourceType = (typeof sourceTypes)[number];
 
-export type ExtractionConfidence = "none" | "low" | "medium" | "high";
+export type ExtractionConfidence = "high" | "medium" | "low";
 
-export type ExtractionStatus = "not_implemented" | "unavailable" | "success";
+export type ExtractionStatus = "success" | "partial" | "unavailable";
+
+export const extractionFields = [
+  "name",
+  "category",
+  "city",
+  "address",
+  "latitude",
+  "longitude",
+  "notes",
+] as const;
+
+export type ExtractedField = (typeof extractionFields)[number];
 
 export type NormalizedExtractionResult = {
   name: string | null;
@@ -25,6 +37,7 @@ export type NormalizedExtractionResult = {
   notes: string | null;
   confidence: ExtractionConfidence;
   extractionStatus: ExtractionStatus;
+  extractedFields: ExtractedField[];
   sourceType: SourceType;
   message: string;
 };
@@ -79,6 +92,7 @@ export function detectSource(sourceUrl: string): SourceDetection {
 
   if (
     domain === "maps.google.com" ||
+    domain === "maps.app.goo.gl" ||
     (isDomainOrSubdomain(domain, "google.com") && pathname.startsWith("/maps"))
   ) {
     sourceType = "google_maps";
@@ -105,9 +119,10 @@ export function detectSource(sourceUrl: string): SourceDetection {
   };
 }
 
-function buildNotImplementedResult(
+function buildEmptyResult(
   sourceType: Exclude<SourceType, "unknown">,
   sourceUrl: string,
+  input: Pick<NormalizedExtractionResult, "extractionStatus" | "message" | "confidence">,
 ): NormalizedExtractionResult {
   return {
     name: null,
@@ -118,10 +133,145 @@ function buildNotImplementedResult(
     longitude: null,
     sourceUrl,
     notes: null,
-    confidence: "none",
-    extractionStatus: "not_implemented",
+    confidence: input.confidence,
+    extractionStatus: input.extractionStatus,
+    extractedFields: [],
     sourceType,
+    message: input.message,
+  };
+}
+
+function buildNotImplementedResult(
+  sourceType: Exclude<SourceType, "unknown">,
+  sourceUrl: string,
+): NormalizedExtractionResult {
+  return buildEmptyResult(sourceType, sourceUrl, {
+    confidence: "low",
+    extractionStatus: "unavailable",
     message: "Extractor not implemented yet; review fields remain manual.",
+  });
+}
+
+function decodeGoogleMapsPathValue(value: string) {
+  try {
+    return decodeURIComponent(value.replace(/\+/g, " ")).replace(/\s+/g, " ").trim();
+  } catch {
+    return value.replace(/\+/g, " ").replace(/\s+/g, " ").trim();
+  }
+}
+
+function isCoordinateOnlyValue(value: string) {
+  return /^[-+]?\d+(?:\.\d+)?\s*,\s*[-+]?\d+(?:\.\d+)?$/.test(value);
+}
+
+function parseCoordinate(value: string, minimum: number, maximum: number) {
+  const parsedValue = Number(value);
+
+  return Number.isFinite(parsedValue) && parsedValue >= minimum && parsedValue <= maximum
+    ? parsedValue
+    : null;
+}
+
+function extractGoogleMapsCoordinates(sourceUrl: string) {
+  const coordinateMatch = sourceUrl.match(
+    /@([-+]?\d+(?:\.\d+)?),([-+]?\d+(?:\.\d+)?)(?:[,/]|$)/,
+  );
+
+  if (!coordinateMatch) {
+    return {
+      latitude: null,
+      longitude: null,
+    };
+  }
+
+  const latitude = parseCoordinate(coordinateMatch[1], -90, 90);
+  const longitude = parseCoordinate(coordinateMatch[2], -180, 180);
+
+  return {
+    latitude,
+    longitude,
+  };
+}
+
+function extractGoogleMapsPlaceName(sourceUrl: string) {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(sourceUrl);
+  } catch {
+    return null;
+  }
+
+  const queryValue = parsedUrl.searchParams.get("q") ?? parsedUrl.searchParams.get("query");
+  const queryName = queryValue?.trim() ?? "";
+
+  if (queryName && !isCoordinateOnlyValue(queryName)) {
+    return queryName;
+  }
+
+  const pathname = parsedUrl.pathname;
+  const pathPrefixes = ["/maps/search/", "/maps/place/"];
+
+  for (const pathPrefix of pathPrefixes) {
+    const pathIndex = pathname.toLowerCase().indexOf(pathPrefix);
+
+    if (pathIndex === -1) {
+      continue;
+    }
+
+    const pathValue = pathname
+      .slice(pathIndex + pathPrefix.length)
+      .split("/")[0]
+      .replace(/\/+$/, "");
+    const pathName = decodeGoogleMapsPathValue(pathValue);
+
+    if (pathName && !isCoordinateOnlyValue(pathName)) {
+      return pathName;
+    }
+  }
+
+  return null;
+}
+
+function extractGoogleMapsUrl(sourceUrl: string): NormalizedExtractionResult {
+  const name = extractGoogleMapsPlaceName(sourceUrl);
+  let parsedUrl: URL | null = null;
+
+  try {
+    parsedUrl = new URL(sourceUrl);
+  } catch {
+    parsedUrl = null;
+  }
+
+  const address = parsedUrl?.searchParams.get("address")?.trim() || null;
+  const { latitude, longitude } = extractGoogleMapsCoordinates(sourceUrl);
+  const hasCoordinates = latitude !== null && longitude !== null;
+  const extractedFields = [
+    ...(name ? (["name"] as const) : []),
+    ...(address ? (["address"] as const) : []),
+    ...(hasCoordinates ? (["latitude", "longitude"] as const) : []),
+  ];
+
+  if (extractedFields.length === 0) {
+    return buildEmptyResult("google_maps", sourceUrl, {
+      confidence: "low",
+      extractionStatus: "unavailable",
+      message: "No safely extractable information was found in this Google Maps URL.",
+    });
+  }
+
+  return {
+    ...buildEmptyResult("google_maps", sourceUrl, {
+      confidence: hasCoordinates && name ? "high" : "medium",
+      extractionStatus: "partial",
+      message:
+        "Only explicit information from the Google Maps URL was extracted; review the remaining fields.",
+    }),
+    name: name ?? null,
+    address,
+    latitude,
+    longitude,
+    extractedFields: [...extractedFields],
   };
 }
 
@@ -135,10 +285,15 @@ function createPlaceholderExtractor(
   };
 }
 
-export const googleMapsExtractor = createPlaceholderExtractor("google_maps");
 export const websiteExtractor = createPlaceholderExtractor("website");
 export const xiaohongshuExtractor = createPlaceholderExtractor("xiaohongshu");
 export const douyinExtractor = createPlaceholderExtractor("douyin");
+
+export const googleMapsExtractor: Extractor = {
+  sourceType: "google_maps",
+  canHandle: (candidateSourceType) => candidateSourceType === "google_maps",
+  extract: extractGoogleMapsUrl,
+};
 
 const extractors: Extractor[] = [
   googleMapsExtractor,
@@ -160,10 +315,12 @@ export function runExtractionPipeline(sourceUrl: string) {
       detection,
       extractor: null,
       result: {
-        ...buildNotImplementedResult("website", sourceUrl),
+        ...buildEmptyResult("website", sourceUrl, {
+          confidence: "low",
+          extractionStatus: "unavailable",
+          message: "No extractor is available for this source yet.",
+        }),
         sourceType: detection.sourceType,
-        extractionStatus: "unavailable" as const,
-        message: "No extractor is available for this source yet.",
       },
     };
   }

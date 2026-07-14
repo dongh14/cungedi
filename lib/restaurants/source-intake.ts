@@ -5,6 +5,7 @@ import type {
 import {
   runExtractionPipeline,
   type ExtractionStatus,
+  type NormalizedExtractionResult,
   type SourceType,
 } from "./extraction-architecture.ts";
 import { extractFirstHttpUrl } from "./source-url.ts";
@@ -18,6 +19,7 @@ export type SourceIntake = {
   extractionState: "not-started";
   extractionStatus: ExtractionStatus;
   extractionMessage: string;
+  extractionResult: NormalizedExtractionResult;
 };
 
 function getLegacySourceKind(sourceType: SourceType): RestaurantSourceKind {
@@ -59,6 +61,7 @@ export function detectSourceDetails(sourceUrl: string) {
     supportLevel: getLegacySupportLevel(pipeline.detection.sourceType),
     extractionStatus: pipeline.result.extractionStatus,
     extractionMessage: pipeline.result.message,
+    extractionResult: pipeline.result,
   };
 }
 
@@ -74,6 +77,7 @@ export function buildSourceIntake(sourceUrl: string): SourceIntake {
     extractionState: "not-started",
     extractionStatus: details.extractionStatus,
     extractionMessage: details.extractionMessage,
+    extractionResult: details.extractionResult,
   };
 }
 

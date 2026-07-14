@@ -1,6 +1,7 @@
 import { createRestaurantAction } from "@/app/restaurants/actions";
 import { RestaurantFormFields } from "@/components/restaurant-form-fields";
 import { SurfaceCard } from "@/components/surface-card";
+import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import {
   getInitialDraftFormValues,
   getMissingDraftFields,
@@ -16,7 +17,8 @@ export function ExtractionConfirmationCard({
   sourceUrl,
   searchParams,
 }: ExtractionConfirmationCardProps) {
-  const values = getInitialDraftFormValues(searchParams, sourceUrl);
+  const extractionResult = buildSourceIntake(sourceUrl).extractionResult;
+  const values = getInitialDraftFormValues(searchParams, sourceUrl, extractionResult);
   const missingFields = getMissingDraftFields(values);
 
   return (

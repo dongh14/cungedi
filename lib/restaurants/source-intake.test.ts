@@ -12,7 +12,9 @@ test("source intake accepts a valid URL and detects its domain", () => {
     assert.equal(result.intake.domain, "google.com");
     assert.equal(result.intake.sourceType, "google_maps");
     assert.equal(result.intake.kind, "google-maps");
-    assert.equal(result.intake.extractionStatus, "not_implemented");
+    assert.equal(result.intake.extractionStatus, "partial");
+    assert.equal(result.intake.extractionResult.name, "example");
+    assert.deepEqual(result.intake.extractionResult.extractedFields, ["name"]);
   }
 });
 
@@ -29,14 +31,13 @@ test("source intake handles invalid input", () => {
 test("source intake preserves manual-review compatible public web sources", () => {
   const intake = buildSourceIntake("https://example.com/restaurants/blue-bottle");
 
-  assert.deepEqual(intake, {
-    sourceUrl: "https://example.com/restaurants/blue-bottle",
-    domain: "example.com",
-    sourceType: "website",
-    kind: "public-web",
-    supportLevel: "official",
-    extractionState: "not-started",
-    extractionStatus: "not_implemented",
-    extractionMessage: "Extractor not implemented yet; review fields remain manual.",
-  });
+  assert.equal(intake.sourceUrl, "https://example.com/restaurants/blue-bottle");
+  assert.equal(intake.domain, "example.com");
+  assert.equal(intake.sourceType, "website");
+  assert.equal(intake.kind, "public-web");
+  assert.equal(intake.supportLevel, "official");
+  assert.equal(intake.extractionState, "not-started");
+  assert.equal(intake.extractionStatus, "unavailable");
+  assert.equal(intake.extractionResult.sourceType, "website");
+  assert.equal(intake.extractionResult.name, null);
 });

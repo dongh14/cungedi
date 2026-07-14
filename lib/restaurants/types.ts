@@ -1,4 +1,4 @@
-import type { RestaurantCategory, RestaurantPrivacy } from "./constants";
+import type { RestaurantCategory, RestaurantPrivacy } from "./constants.ts";
 
 export type RestaurantInsertInput = {
   name: string;

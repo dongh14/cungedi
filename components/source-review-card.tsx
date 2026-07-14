@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import { SurfaceCard } from "@/components/surface-card";
+import type { ExtractedField } from "@/lib/restaurants/extraction-architecture";
 
 type SourceReviewCardProps = {
   sourceUrl: string;
@@ -25,14 +26,45 @@ function getSourceTypeLabel(sourceType: ReturnType<typeof buildSourceIntake>["so
   }
 }
 
+const reviewFieldLabels: Record<ExtractedField, string> = {
+  name: "地点名称",
+  category: "分类",
+  city: "城市",
+  address: "地址",
+  latitude: "纬度",
+  longitude: "经度",
+  notes: "备注",
+};
+
+function getConfidenceLabel(confidence: ReturnType<typeof buildSourceIntake>["extractionResult"]["confidence"]) {
+  switch (confidence) {
+    case "high":
+      return "高置信度";
+    case "medium":
+      return "中置信度";
+    default:
+      return "低置信度";
+  }
+}
+
 export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
   const intake = buildSourceIntake(sourceUrl);
   const extractionLabel =
     intake.extractionStatus === "success"
       ? "提取可用"
-      : intake.extractionStatus === "not_implemented"
-        ? "提取不可用（接口已准备，暂未实现）"
+      : intake.extractionStatus === "partial"
+        ? "部分提取"
         : "提取不可用";
+  const extractedFields = intake.extractionResult.extractedFields;
+  const reviewFields: ExtractedField[] = ["name", "address", "category", "city"];
+  const hasCoordinates =
+    extractedFields.includes("latitude") && extractedFields.includes("longitude");
+  const foundFields = extractedFields.filter(
+    (field) => field !== "latitude" && field !== "longitude",
+  );
+  const fieldsNeedingReview = reviewFields.filter(
+    (field) => !extractedFields.includes(field),
+  );
 
   return (
     <SurfaceCard className="p-5 sm:p-6">
@@ -48,6 +80,42 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
               这一步先只做本地来源识别和保存前确认：系统会记录标准化后的原始链接、识别来源域名，并把地点字段交给你手动检查和补全。自动抓取和 AI 解析还没有在这个入口启用。
             </p>
+          </div>
+        </div>
+
+        <div className="rounded-[24px] border border-[var(--border-soft)] bg-white/70 p-4">
+          <p className="text-xs font-semibold tracking-[0.16em] text-[var(--accent-deep)] uppercase">
+            提取质量
+          </p>
+          <p className="mt-3 text-sm leading-7 text-[var(--ink-soft)]">
+            {intake.extractionResult.message} · {getConfidenceLabel(intake.extractionResult.confidence)}
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[20px] bg-emerald-50 p-3">
+              <p className="text-xs font-semibold text-emerald-700">已找到的信息</p>
+              {foundFields.length > 0 || hasCoordinates ? (
+                <ul className="mt-2 space-y-1 text-sm text-emerald-800">
+                  {foundFields.map((field) => (
+                    <li key={field}>✓ {reviewFieldLabels[field]}</li>
+                  ))}
+                  {hasCoordinates ? <li>✓ 坐标</li> : null}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-emerald-800">暂无可安全使用的信息</p>
+              )}
+            </div>
+            <div className="rounded-[20px] bg-amber-50 p-3">
+              <p className="text-xs font-semibold text-amber-700">仍需手动确认</p>
+              {fieldsNeedingReview.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-sm text-amber-800">
+                  {fieldsNeedingReview.map((field) => (
+                    <li key={field}>○ {reviewFieldLabels[field]}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-amber-800">核心字段已找到</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -85,7 +153,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               当前这个入口不会做什么
             </p>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              当前提取器只返回“暂未实现”状态，不会抓取网页、调用外部 API 或自动解析图片和文案。
+              当前提取器只读取 URL 中明确存在的信息，不会抓取网页、调用外部 API 或自动解析图片和文案。
             </p>
           </div>
         </div>

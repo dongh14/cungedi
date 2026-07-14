@@ -4,7 +4,7 @@ import {
   buildRestaurantDraftInput,
   getInitialDraftFormValues,
   getMissingDraftFields,
-} from "./review-form";
+} from "./review-form.ts";
 
 test("builds a review draft from a source-only intake", () => {
   const values = getInitialDraftFormValues(
@@ -46,6 +46,29 @@ test("prefers manual review overrides", () => {
   assert.equal(values.note, "晚餐候选");
   assert.equal(values.privacy, "public");
   assert.equal(values.category, "景点");
+});
+
+test("uses an extracted name as the review default while keeping manual compatibility", () => {
+  const extractedValues = getInitialDraftFormValues(
+    {
+      source_url: "https://maps.google.com/?q=Restaurant",
+    },
+    "https://maps.google.com/?q=Restaurant",
+    { name: "Restaurant" },
+  );
+
+  assert.equal(extractedValues.name, "Restaurant");
+
+  const manualValues = getInitialDraftFormValues(
+    {
+      source_url: "https://maps.google.com/?q=Restaurant",
+      name: "My Manual Name",
+    },
+    "https://maps.google.com/?q=Restaurant",
+    { name: "Restaurant" },
+  );
+
+  assert.equal(manualValues.name, "My Manual Name");
 });
 
 test("reports missing required and optional review fields", () => {
