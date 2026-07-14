@@ -1,6 +1,7 @@
 import { createRestaurantAction } from "@/app/restaurants/actions";
 import { RestaurantFormFields } from "@/components/restaurant-form-fields";
 import { SurfaceCard } from "@/components/surface-card";
+import type { NormalizedExtractionResult } from "@/lib/restaurants/extraction-architecture";
 import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import {
   getInitialDraftFormValues,
@@ -11,13 +12,16 @@ import {
 type ExtractionConfirmationCardProps = {
   sourceUrl: string;
   searchParams: ReviewSearchParams;
+  extractionResult?: NormalizedExtractionResult;
 };
 
 export function ExtractionConfirmationCard({
   sourceUrl,
   searchParams,
+  extractionResult: providedExtractionResult,
 }: ExtractionConfirmationCardProps) {
-  const extractionResult = buildSourceIntake(sourceUrl).extractionResult;
+  const extractionResult =
+    providedExtractionResult ?? buildSourceIntake(sourceUrl).extractionResult;
   const values = getInitialDraftFormValues(searchParams, sourceUrl, extractionResult);
   const missingFields = getMissingDraftFields(values);
 
@@ -55,7 +59,7 @@ export function ExtractionConfirmationCard({
             当前保存边界
           </p>
           <ul className="mt-3 space-y-2 text-sm leading-7 text-[var(--ink-soft)]">
-            <li>- 不会自动抓取页面，也不会自动保存任何草稿。</li>
+            <li>- 网站来源只获取当前页面，解析结果不会自动保存任何草稿。</li>
             <li>- `source_url` 会和这条地点记录一起保存。</li>
             <li>- 你当前确认的值，就是最终写入的地点内容。</li>
           </ul>

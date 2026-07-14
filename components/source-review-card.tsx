@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import { SurfaceCard } from "@/components/surface-card";
-import type { ExtractedField } from "@/lib/restaurants/extraction-architecture";
+import type {
+  ExtractedField,
+  NormalizedExtractionResult,
+} from "@/lib/restaurants/extraction-architecture";
 
 type SourceReviewCardProps = {
   sourceUrl: string;
+  extractionResult?: NormalizedExtractionResult;
 };
 
 function getSourceTypeLabel(sourceType: ReturnType<typeof buildSourceIntake>["sourceType"]) {
@@ -28,11 +32,14 @@ function getSourceTypeLabel(sourceType: ReturnType<typeof buildSourceIntake>["so
 
 const reviewFieldLabels: Record<ExtractedField, string> = {
   name: "地点名称",
+  description: "描述",
   category: "分类",
   city: "城市",
   address: "地址",
+  phone: "电话",
   latitude: "纬度",
   longitude: "经度",
+  websiteUrl: "官网链接",
   notes: "备注",
 };
 
@@ -47,15 +54,16 @@ function getConfidenceLabel(confidence: ReturnType<typeof buildSourceIntake>["ex
   }
 }
 
-export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
+export function SourceReviewCard({ sourceUrl, extractionResult }: SourceReviewCardProps) {
   const intake = buildSourceIntake(sourceUrl);
+  const result = extractionResult ?? intake.extractionResult;
   const extractionLabel =
-    intake.extractionStatus === "success"
+    result.extractionStatus === "success"
       ? "提取可用"
-      : intake.extractionStatus === "partial"
+      : result.extractionStatus === "partial"
         ? "部分提取"
         : "提取不可用";
-  const extractedFields = intake.extractionResult.extractedFields;
+  const extractedFields = result.extractedFields;
   const reviewFields: ExtractedField[] = ["name", "address", "category", "city"];
   const hasCoordinates =
     extractedFields.includes("latitude") && extractedFields.includes("longitude");
@@ -78,7 +86,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               来源链接已经进入保存前确认
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步先只做本地来源识别和保存前确认：系统会记录标准化后的原始链接、识别来源域名，并把地点字段交给你手动检查和补全。自动抓取和 AI 解析还没有在这个入口启用。
+              这一步会识别来源域名，并对网站来源获取当前页面的 HTML。解析结果只会作为可编辑草稿，仍需你确认和补全。
             </p>
           </div>
         </div>
@@ -88,7 +96,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
             提取质量
           </p>
           <p className="mt-3 text-sm leading-7 text-[var(--ink-soft)]">
-            {intake.extractionResult.message} · {getConfidenceLabel(intake.extractionResult.confidence)}
+            {result.message} · {getConfidenceLabel(result.confidence)}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-[20px] bg-emerald-50 p-3">
@@ -145,7 +153,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               当前这个入口会做什么
             </p>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              识别来源域名，选择对应的提取器，并把字段带入下一步确认表单。
+              识别来源域名，选择对应的提取器，并把字段带入下一步确认表单。网站来源只处理当前页面一次。
             </p>
           </div>
           <div className="rounded-[24px] bg-[var(--surface-muted)] p-4">
@@ -153,7 +161,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               当前这个入口不会做什么
             </p>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              当前提取器只读取 URL 中明确存在的信息，不会抓取网页、调用外部 API 或自动解析图片和文案。
+              不会爬取其他链接、调用外部 API、执行脚本或使用 AI 解析。
             </p>
           </div>
         </div>

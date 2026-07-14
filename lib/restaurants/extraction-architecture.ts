@@ -16,11 +16,14 @@ export type ExtractionStatus = "success" | "partial" | "unavailable";
 
 export const extractionFields = [
   "name",
+  "description",
   "category",
   "city",
   "address",
+  "phone",
   "latitude",
   "longitude",
+  "websiteUrl",
   "notes",
 ] as const;
 
@@ -28,11 +31,14 @@ export type ExtractedField = (typeof extractionFields)[number];
 
 export type NormalizedExtractionResult = {
   name: string | null;
+  description: string | null;
   category: string | null;
   city: string | null;
   address: string | null;
+  phone: string | null;
   latitude: number | null;
   longitude: number | null;
+  websiteUrl: string | null;
   sourceUrl: string;
   notes: string | null;
   confidence: ExtractionConfidence;
@@ -51,7 +57,7 @@ export type SourceDetection = {
 export type Extractor = {
   sourceType: Exclude<SourceType, "unknown">;
   canHandle: (sourceType: SourceType) => boolean;
-  extract: (sourceUrl: string) => NormalizedExtractionResult;
+  extract: (sourceUrl: string, input?: WebsiteExtractionInput) => NormalizedExtractionResult;
 };
 
 function getHostname(sourceUrl: string) {
@@ -126,11 +132,14 @@ function buildEmptyResult(
 ): NormalizedExtractionResult {
   return {
     name: null,
+    description: null,
     category: null,
     city: null,
     address: null,
+    phone: null,
     latitude: null,
     longitude: null,
+    websiteUrl: null,
     sourceUrl,
     notes: null,
     confidence: input.confidence,
@@ -275,6 +284,65 @@ function extractGoogleMapsUrl(sourceUrl: string): NormalizedExtractionResult {
   };
 }
 
+function extractWebsiteUrl(
+  sourceUrl: string,
+  input?: WebsiteExtractionInput,
+): NormalizedExtractionResult {
+  if (!input) {
+    return buildEmptyResult("website", sourceUrl, {
+      confidence: "low",
+      extractionStatus: "unavailable",
+      message: "No website document or metadata was provided for extraction.",
+    });
+  }
+
+  const parsedWebsite = parseWebsiteMetadata(input);
+  const structured = parsedWebsite.structuredData[0];
+  const name = structured?.name ?? parsedWebsite.metadata.ogTitle ?? parsedWebsite.metadata.title;
+  const description =
+    structured?.description ??
+    parsedWebsite.metadata.ogDescription ??
+    parsedWebsite.metadata.description;
+  const category = structured?.category ?? null;
+  const address = structured?.address ?? null;
+  const phone = structured?.phone ?? null;
+  const websiteUrl = structured?.websiteUrl ?? null;
+  const extractedFields = [
+    ...(name ? (["name"] as const) : []),
+    ...(description ? (["description"] as const) : []),
+    ...(category ? (["category"] as const) : []),
+    ...(address ? (["address"] as const) : []),
+    ...(phone ? (["phone"] as const) : []),
+    ...(websiteUrl ? (["websiteUrl"] as const) : []),
+  ];
+
+  if (extractedFields.length === 0) {
+    return buildEmptyResult("website", sourceUrl, {
+      confidence: "low",
+      extractionStatus: "unavailable",
+      message: "No supported website metadata or structured data was found.",
+    });
+  }
+
+  const hasStructuredName = Boolean(structured?.name);
+  const hasStructuredDetails = Boolean(category || address || phone || websiteUrl);
+
+  return {
+    ...buildEmptyResult("website", sourceUrl, {
+      confidence: hasStructuredName && hasStructuredDetails ? "high" : "medium",
+      extractionStatus: "partial",
+      message: "Only explicit website metadata and supported JSON-LD fields were extracted.",
+    }),
+    name,
+    description,
+    category,
+    address,
+    phone,
+    websiteUrl,
+    extractedFields,
+  };
+}
+
 function createPlaceholderExtractor(
   sourceType: Exclude<SourceType, "unknown">,
 ): Extractor {
@@ -285,7 +353,11 @@ function createPlaceholderExtractor(
   };
 }
 
-export const websiteExtractor = createPlaceholderExtractor("website");
+export const websiteExtractor: Extractor = {
+  sourceType: "website",
+  canHandle: (candidateSourceType) => candidateSourceType === "website",
+  extract: extractWebsiteUrl,
+};
 export const xiaohongshuExtractor = createPlaceholderExtractor("xiaohongshu");
 export const douyinExtractor = createPlaceholderExtractor("douyin");
 
@@ -329,5 +401,48 @@ export function runExtractionPipeline(sourceUrl: string) {
     detection,
     extractor,
     result: extractor.extract(sourceUrl),
+  };
+}
+import {
+  parseWebsiteMetadata,
+  type WebsiteExtractionInput,
+} from "./website-metadata.ts";
+import {
+  fetchWebsiteHtml,
+  type WebsiteFetchOptions,
+  type WebsiteFetchResult,
+} from "./website-fetcher.ts";
+
+export async function runExtractionPipelineWithWebsiteFetch(
+  sourceUrl: string,
+  options?: WebsiteFetchOptions,
+) {
+  const pipeline = runExtractionPipeline(sourceUrl);
+
+  if (pipeline.detection.sourceType !== "website" || !pipeline.extractor) {
+    return {
+      ...pipeline,
+      fetchResult: null as WebsiteFetchResult | null,
+    };
+  }
+
+  const fetchResult = await fetchWebsiteHtml(sourceUrl, options);
+
+  if (!fetchResult.ok) {
+    return {
+      ...pipeline,
+      fetchResult,
+      result: buildEmptyResult("website", sourceUrl, {
+        confidence: "low",
+        extractionStatus: "unavailable",
+        message: fetchResult.message,
+      }),
+    };
+  }
+
+  return {
+    ...pipeline,
+    fetchResult,
+    result: pipeline.extractor.extract(sourceUrl, { html: fetchResult.html }),
   };
 }
