@@ -2,6 +2,10 @@
 
 import { redirect } from "next/navigation";
 import {
+  diffRestaurantCollectionMemberships,
+  normalizeSelectedCollectionIds,
+} from "@/lib/restaurants/collection-memberships";
+import {
   isRestaurantCategory,
   type RestaurantCategory,
   type RestaurantPrivacy,
@@ -142,6 +146,29 @@ function buildEditRestaurantRedirect(
     cuisine: values.cuisine,
     privacy: values.privacy,
     note: values.note,
+  });
+}
+
+function buildCollectionsRedirect(state: {
+  error?: string;
+  message?: string;
+}) {
+  return buildRedirect("/collections", {
+    ...(state.error ? { error: state.error } : {}),
+    ...(state.message ? { message: state.message } : {}),
+  });
+}
+
+function buildEditRestaurantCollectionsRedirect(
+  restaurantId: number,
+  state: {
+    collectionError?: string;
+    collectionMessage?: string;
+  },
+) {
+  return buildRedirect(`/restaurants/${restaurantId}/edit`, {
+    ...(state.collectionError ? { collection_error: state.collectionError } : {}),
+    ...(state.collectionMessage ? { collection_message: state.collectionMessage } : {}),
   });
 }
 
@@ -391,6 +418,124 @@ export async function updateRestaurantAction(formData: FormData) {
   redirect(
     buildRedirect("/restaurants", {
       message: "地点信息已更新",
+    }),
+  );
+}
+
+export async function createCollectionAction(formData: FormData) {
+  const name = getFormValue(formData, "name");
+
+  if (!name) {
+    redirect(
+      buildCollectionsRedirect({
+        error: "请先填写合集名称。",
+      }),
+    );
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect(buildRedirect("/login", { error: "请先登录后再创建合集。" }));
+  }
+
+  const { error } = await supabase.from("collections").insert({
+    user_id: user.id,
+    name,
+  });
+
+  if (error) {
+    redirect(
+      buildCollectionsRedirect({
+        error: error.message ?? "创建合集失败，请稍后重试。",
+      }),
+    );
+  }
+
+  redirect(
+    buildCollectionsRedirect({
+      message: "合集已创建",
+    }),
+  );
+}
+
+export async function updateRestaurantCollectionsAction(formData: FormData) {
+  const restaurantId = Number(getFormValue(formData, "restaurant_id"));
+
+  if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
+    redirect("/restaurants");
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect(buildRedirect("/login", { error: "请先登录后再管理合集。" }));
+  }
+
+  const selectedCollectionIds = normalizeSelectedCollectionIds(
+    formData.getAll("collection_ids").map((value) => value.toString()),
+  );
+
+  const { data: currentMemberships, error: currentMembershipsError } = await supabase
+    .from("restaurant_collections")
+    .select("collection_id")
+    .eq("restaurant_id", restaurantId);
+
+  if (currentMembershipsError) {
+    redirect(
+      buildEditRestaurantCollectionsRedirect(restaurantId, {
+        collectionError: currentMembershipsError.message ?? "读取合集归属失败，请稍后重试。",
+      }),
+    );
+  }
+
+  const { toAdd, toRemove } = diffRestaurantCollectionMemberships({
+    currentCollectionIds: (currentMemberships ?? []).map((membership) => membership.collection_id),
+    nextCollectionIds: selectedCollectionIds,
+  });
+
+  if (toAdd.length > 0) {
+    const { error } = await supabase.from("restaurant_collections").insert(
+      toAdd.map((collectionId) => ({
+        restaurant_id: restaurantId,
+        collection_id: collectionId,
+      })),
+    );
+
+    if (error) {
+      redirect(
+        buildEditRestaurantCollectionsRedirect(restaurantId, {
+          collectionError: error.message ?? "更新合集归属失败，请稍后重试。",
+        }),
+      );
+    }
+  }
+
+  if (toRemove.length > 0) {
+    const { error } = await supabase
+      .from("restaurant_collections")
+      .delete()
+      .eq("restaurant_id", restaurantId)
+      .in("collection_id", toRemove);
+
+    if (error) {
+      redirect(
+        buildEditRestaurantCollectionsRedirect(restaurantId, {
+          collectionError: error.message ?? "更新合集归属失败，请稍后重试。",
+        }),
+      );
+    }
+  }
+
+  redirect(
+    buildEditRestaurantCollectionsRedirect(restaurantId, {
+      collectionMessage: "合集归属已更新",
     }),
   );
 }

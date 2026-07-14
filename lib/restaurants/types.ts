@@ -34,6 +34,19 @@ export type RestaurantListItem = {
   created_at: string;
 };
 
+export type CollectionListItem = {
+  id: number;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  place_count: number;
+};
+
+export type CollectionOptionItem = {
+  id: number;
+  name: string;
+};
+
 export type RestaurantEditItem = {
   id: number;
   name: string;

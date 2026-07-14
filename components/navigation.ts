@@ -25,6 +25,12 @@ export const appNavigation: AppNavigationItem[] = [
     description: "查看当前账号已保存的地点列表，并保留刚保存成功的确认状态。",
   },
   {
+    href: "/collections",
+    label: "合集",
+    shortLabel: "合集",
+    description: "创建和查看个人合集，并把已保存地点按主题组织起来。",
+  },
+  {
     href: "/map",
     label: "地图视图",
     shortLabel: "地图",

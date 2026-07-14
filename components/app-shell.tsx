@@ -178,7 +178,7 @@ export function AppShell({
       </div>
 
       <nav className="fixed inset-x-4 bottom-4 z-30 rounded-[28px] border border-white/70 bg-white/92 p-2 shadow-[0_18px_45px_rgba(145,72,30,0.16)] backdrop-blur lg:hidden">
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           {appNavigation.map((item) => {
             const active = isActiveNavItem(currentPath, item.href);
 
