@@ -1,7 +1,7 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, the validated V1 map polish step, the validated Step 13 local place search checkpoint, the validated city normalization checkpoint, the validated map search interaction polish checkpoint, and the validated map clustering checkpoint.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, the validated V1 map polish step, the validated Step 13 local place search checkpoint, the validated city normalization checkpoint, the validated map search interaction polish checkpoint, the validated map clustering checkpoint, and the validated map place-detail interaction checkpoint.
 
 It does not include Step 13 multi-candidate extraction or later architecture yet.
 
@@ -37,6 +37,13 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - Clicking or tapping a cluster zooms into that area to reveal more markers.
 - Exact and approximate marker behavior remains unchanged after cluster expansion.
 - Normal marker popup behavior remains unchanged, and search selection still focuses and opens the correct marker popup.
+
+## Validated Map Place-Detail Interaction Checkpoint
+- Marker popups now render as clearer place preview cards rather than simple location indicators.
+- The popup now shows the saved place name, city, optional category, optional address, and exact or approximate location state.
+- A touch-friendly `查看详情` action now routes to the existing place detail or edit path.
+- Search selection still focuses the intended marker and opens the correct popup.
+- Marker clustering behavior, city filtering, search behavior, location normalization, coordinate resolution, Supabase schema, and saved data remain unchanged.
 
 ## Current Structure
 
@@ -93,7 +100,7 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `components/source-intake-card.tsx`: Step 10 reusable source intake card for `/restaurants/new`
 - `components/source-review-card.tsx`: Step 11 reusable source review card for `/restaurants/review`
 - `components/maplibre-foundation.tsx`: reusable client-side MapLibre component that initializes the local PMTiles-backed basemap, manages the current clustered marker layer, supports search-selection map focus and popup opening, preserves basic zoom controls, and shows Chinese loading and asset-fallback states
-- `components/map-marker-layer.ts`: reusable client-side MapLibre marker and compact popup-card layer for serializable resolved place-marker data, including active-marker state and cluster click-to-zoom behavior
+- `components/map-marker-layer.ts`: reusable client-side MapLibre marker and popup-card layer for serializable resolved place-marker data, including active-marker state, richer place preview content, detail navigation, and cluster click-to-zoom behavior
 - `components/map-browser.tsx`: client-side composition layer that applies local place search plus the selected city filter before deriving map markers, exposes search-result selection and clear-search UI, and presents place-load, empty, city-empty, and no-coordinate states
 - `components/map-city-filter.tsx`: refined compact mobile-friendly city selector UI for the map browser
 - `components/site-brand.tsx`: reusable product brand block
@@ -123,6 +130,8 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/map/place-filter.test.js`: focused regression test for local search matching, normalized search-plus-city filtering, unresolved-place summary, and exact versus approximate markers after filtering
 - `lib/map/marker-clusters.ts`: pure helper for grouping nearby markers at lower zoom levels and expanding them back into individual markers at higher zoom levels
 - `lib/map/marker-clusters.test.js`: focused regression test for clustering, cluster expansion, and preservation of exact versus approximate marker metadata through clustering
+- `lib/map/place-popup.ts`: pure helper for marker-popup preview content, exact-versus-approximate location labels, and the existing detail-route target
+- `lib/map/place-popup.test.js`: focused regression test for popup preview fields, exact-versus-approximate labels, and detail-route generation
 - `lib/map/place-selection.ts`: pure helper for search-selectable marker data and active-marker synchronization against the current rendered marker set
 - `lib/map/place-selection.test.js`: focused regression test for preserved saved-city display text in results, active-marker lookup, and active-selection reset when the rendered marker set changes
 - `lib/map/map-page-state.ts`: pure helper for map place-loading, error, empty, city-empty, and ready presentation states

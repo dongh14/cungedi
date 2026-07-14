@@ -67,6 +67,30 @@ The map search interaction polish checkpoint is now complete and has been valida
 
 The map clustering checkpoint is now complete and has been validated with map-only cluster rendering on top of the existing marker data flow.
 
+The map place-detail interaction checkpoint is now complete and has been validated with richer popup preview cards and existing-route detail navigation, without changing map data behavior.
+
+## Validated Map Place-Detail Interaction Checkpoint
+
+### Popup And Navigation Scope
+- The marker popup was upgraded into a clearer place preview card.
+- The popup now displays the place name, city, category when available, address when available, and exact or approximate location state.
+- A touch-friendly `查看详情` action now navigates to the existing place detail or edit route.
+- Search selection still focuses and opens the correct marker popup.
+
+### Preserved Map Behavior
+- Marker clustering behavior remains unchanged.
+- City filtering remains unchanged.
+- Search behavior remains unchanged.
+- Location normalization remains unchanged.
+- The coordinate resolver remains unchanged.
+- Supabase schema and saved data remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `node --test lib/map/*.test.js` passed (`47` tests).
+
 ## Validated Map Clustering Checkpoint
 
 ### Clustering Scope
