@@ -26,8 +26,8 @@ export default async function NewRestaurantPage({
     <AppShell
       currentPath="/restaurants/new"
       eyebrow="添加地点"
-      title="先粘贴来源，再决定是等待提取还是直接手动补全"
-      description="现在这个页面同时承担两个入口：你可以先粘贴来源链接进入提取确认起点，也可以继续手动补全并保存美食、购物、玩乐、景点、住宿或其他地点。"
+      title="先粘贴来源，或直接手动录入地点"
+      description="这个入口现在优先接受来源链接，再进入保存前确认；如果你已经知道地点信息，也可以直接手动填写后进入同一个确认页。"
       userEmail={user.email}
       userId={user.userId}
       actions={
@@ -52,9 +52,9 @@ export default async function NewRestaurantPage({
           <SourceIntakeCard searchParams={params} />
           <PlaceholderCard
             title="手动创建仍然保留"
-            description="即使来源提取还没接通完整能力，你也可以继续直接手动补全并保存地点，不会影响已经验证通过的 Step 7 到 Step 9 行为。"
+            description="即使来源入口还没有接上自动提取，你也可以继续直接手动填写地点，并在保存前做最后确认。"
             items={[
-              "手动创建适合所有分类的兜底流程，也适合非美食地点。",
+              "手动创建适合所有分类的兜底流程，也适合非餐饮地点。",
               "来源入口当前只做链接识别与流程跳转，不会抓取页面。",
               "当前不会显示纬度、经度，也不会做地理编码。",
             ]}

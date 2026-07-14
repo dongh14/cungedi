@@ -14,6 +14,7 @@ import {
   buildRestaurantInsertPayload,
   buildRestaurantUpdatePayload,
 } from "@/lib/restaurants/record-payloads";
+import { parseSourceIntakeInput } from "@/lib/restaurants/source-intake";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type {
@@ -302,27 +303,54 @@ function parseSourceIntakeForm(formData: FormData) {
     sourceInput,
   };
 
-  if (!sourceInput) {
+  const result = parseSourceIntakeInput(sourceInput);
+
+  if (!result.ok) {
     redirect(
       buildSourceIntakeRedirect(values, {
-        sourceError: "请先粘贴有效的链接，或包含有效链接的分享文案",
-      }),
-    );
-  }
-
-  const sourceUrl = extractFirstHttpUrl(sourceInput);
-
-  if (!sourceUrl) {
-    redirect(
-      buildSourceIntakeRedirect(values, {
-        sourceError: "请先粘贴有效的链接，或包含有效链接的分享文案",
+        sourceError: result.error,
       }),
     );
   }
 
   return {
     sourceInput,
-    sourceUrl,
+    sourceUrl: result.intake.sourceUrl,
+  };
+}
+
+function parseReviewDraftForm(formData: FormData) {
+  const sourceInput = getFormValue(formData, "source_url");
+  const name = getFormValue(formData, "name");
+  const city = getFormValue(formData, "city");
+  const privacy = getFormValue(formData, "privacy");
+  const category = getFormValue(formData, "category");
+  const address = getFormValue(formData, "address");
+  const cuisine = getFormValue(formData, "cuisine");
+  const note = getFormValue(formData, "note");
+  const intakeResult = parseSourceIntakeInput(sourceInput);
+
+  const redirectValues = {
+    name,
+    city,
+    sourceInput,
+    privacy,
+    category,
+    address,
+    cuisine,
+    note,
+  };
+
+  if (!intakeResult.ok) {
+    redirect(buildNewRestaurantRedirect(redirectValues, intakeResult.error));
+  }
+
+  return {
+    sourceUrl: intakeResult.intake.sourceUrl,
+    values: {
+      ...redirectValues,
+      sourceInput: intakeResult.intake.sourceUrl,
+    },
   };
 }
 
@@ -547,5 +575,19 @@ export async function startSourceIntakeAction(formData: FormData) {
     buildRedirect("/restaurants/review", {
       source_url: sourceUrl,
     }),
+  );
+}
+
+export async function startRestaurantReviewAction(formData: FormData) {
+  const { sourceUrl, values } = parseReviewDraftForm(formData);
+
+  redirect(
+    buildReviewRestaurantRedirect(
+      {
+        sourceUrl,
+        ...values,
+      },
+      {},
+    ),
   );
 }

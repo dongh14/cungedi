@@ -15,14 +15,14 @@ export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
       <div className="space-y-5">
         <div className="space-y-3">
           <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-            Step 10 来源入口
+            来源入口
           </span>
           <div>
             <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              先粘贴来源链接或分享文案
+              先粘贴来源链接
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步先把来源入口接好。当前会先识别并标准化其中的链接，再进入提取确认起点；你也可以随时回到右侧手动保存美食、购物、玩乐、景点、住宿或其他地点。
+              这一步会先识别并标准化其中的链接，再进入保存前确认。你也可以随时使用右侧的手动录入作为兜底，不会影响现有保存行为。
             </p>
           </div>
         </div>
@@ -58,7 +58,7 @@ export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
               placeholder="可以直接粘贴 Google Maps 或公开网页链接，也可以粘贴一整段小红书 / 抖音分享文案"
             />
             <p className="text-xs leading-6 text-[var(--ink-muted)]">
-              当前 V1 官方支持普通公开网页和 Google Maps。小红书、抖音会按 best-effort 方式接入。系统只会先提取其中第一个有效的 http 或 https 链接。
+              当前只会提取并记录其中第一个有效的 http 或 https 链接，然后进入人工确认；还不会抓取页面内容或自动解析来源。
             </p>
           </div>
 
@@ -66,7 +66,7 @@ export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
             type="submit"
             className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
-            开始来源确认
+            进入保存前确认
           </button>
         </form>
       </div>

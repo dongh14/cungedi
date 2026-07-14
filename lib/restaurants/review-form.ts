@@ -1,13 +1,10 @@
-import type {
-  RestaurantExtractionCandidate,
-  RestaurantExtractionResult,
-} from "./extraction-types";
 import {
   defaultRestaurantCategory,
   isRestaurantCategory,
   type RestaurantCategory,
   type RestaurantPrivacy,
 } from "./constants";
+import type { RestaurantInsertInput } from "./types";
 
 export type RestaurantDraftFormValues = {
   name: string;
@@ -22,92 +19,102 @@ export type RestaurantDraftFormValues = {
 
 export type ReviewSearchParams = Partial<
   RestaurantDraftFormValues & {
+    source_url: string;
     error: string;
     message: string;
   }
 >;
 
-export type AcceptedCandidateFieldKey = keyof RestaurantExtractionCandidate["fields"];
-
-const REQUIRED_FIELDS: AcceptedCandidateFieldKey[] = ["name", "city"];
-const OPTIONAL_FIELDS: AcceptedCandidateFieldKey[] = ["address", "cuisine"];
-
-function getAcceptedFieldValue(
-  candidate: RestaurantExtractionCandidate,
-  field: AcceptedCandidateFieldKey,
-) {
-  const extractedField = candidate.fields[field];
-
-  return extractedField.accepted && extractedField.value ? extractedField.value : "";
-}
-
 export function getInitialDraftFormValues(
-  result: RestaurantExtractionResult,
-  overrides: ReviewSearchParams,
+  searchParams: ReviewSearchParams,
+  sourceUrl: string,
 ): RestaurantDraftFormValues {
-  const extractedValues =
-    result.status === "success"
-      ? {
-          name: getAcceptedFieldValue(result.candidate, "name"),
-          city: getAcceptedFieldValue(result.candidate, "city"),
-          address: getAcceptedFieldValue(result.candidate, "address"),
-          cuisine: getAcceptedFieldValue(result.candidate, "cuisine"),
-        }
-      : {
-          name: "",
-          city: "",
-          address: "",
-          cuisine: "",
-        };
-
   return {
-    name: overrides.name ?? extractedValues.name,
-    city: overrides.city ?? extractedValues.city,
-    source_input: overrides.source_input ?? result.sourceUrl,
-    privacy: overrides.privacy === "public" ? "public" : "private",
+    name: searchParams.name ?? "",
+    city: searchParams.city ?? "",
+    source_input: searchParams.source_input ?? sourceUrl,
+    privacy: searchParams.privacy === "public" ? "public" : "private",
     category:
-      overrides.category !== undefined && isRestaurantCategory(overrides.category)
-        ? overrides.category
-        : result.status === "success" && isRestaurantCategory(result.candidate.category)
-          ? result.candidate.category
-          : defaultRestaurantCategory,
-    address: overrides.address ?? extractedValues.address,
-    cuisine: overrides.cuisine ?? extractedValues.cuisine,
-    note: overrides.note ?? "",
+      searchParams.category !== undefined &&
+      isRestaurantCategory(searchParams.category)
+        ? searchParams.category
+        : defaultRestaurantCategory,
+    address: searchParams.address ?? "",
+    cuisine: searchParams.cuisine ?? "",
+    note: searchParams.note ?? "",
   };
 }
 
-export function getMissingCandidateFields(
-  result: RestaurantExtractionResult,
+export function getMissingDraftFields(
+  values: RestaurantDraftFormValues,
 ): Array<{
-  key: AcceptedCandidateFieldKey;
+  key: keyof Pick<RestaurantDraftFormValues, "name" | "city" | "address" | "cuisine">;
   label: string;
   required: boolean;
 }> {
-  if (result.status !== "success") {
-    return [
-      { key: "name", label: "地点名称", required: true },
-      { key: "city", label: "城市", required: true },
-      { key: "address", label: "地址", required: false },
-      { key: "cuisine", label: "类型细分", required: false },
-    ];
+  const missingFields: Array<{
+    key: keyof Pick<RestaurantDraftFormValues, "name" | "city" | "address" | "cuisine">;
+    label: string;
+    required: boolean;
+  }> = [];
+
+  if (!values.name.trim()) {
+    missingFields.push({
+      key: "name",
+      label: "地点名称",
+      required: true,
+    });
   }
 
-  const requiredMissing = REQUIRED_FIELDS.filter(
-    (field) => !result.candidate.fields[field].accepted,
-  ).map((field) => ({
-    key: field,
-    label: field === "name" ? "地点名称" : "城市",
-    required: true,
-  }));
+  if (!values.city.trim()) {
+    missingFields.push({
+      key: "city",
+      label: "城市",
+      required: true,
+    });
+  }
 
-  const optionalMissing = OPTIONAL_FIELDS.filter(
-    (field) => !result.candidate.fields[field].accepted,
-  ).map((field) => ({
-    key: field,
-    label: field === "address" ? "地址" : "类型细分",
-    required: false,
-  }));
+  if (!values.address.trim()) {
+    missingFields.push({
+      key: "address",
+      label: "地址",
+      required: false,
+    });
+  }
 
-  return [...requiredMissing, ...optionalMissing];
+  if (!values.cuisine.trim()) {
+    missingFields.push({
+      key: "cuisine",
+      label: "类型细分",
+      required: false,
+    });
+  }
+
+  return missingFields;
+}
+
+function normalizeOptionalField(value: string) {
+  const normalizedValue = value.trim();
+
+  return normalizedValue ? normalizedValue : null;
+}
+
+export function buildRestaurantDraftInput(
+  overrides: ReviewSearchParams,
+  sourceUrl: string,
+): RestaurantInsertInput {
+  const values = getInitialDraftFormValues(overrides, sourceUrl);
+
+  return {
+    name: values.name.trim(),
+    city: values.city.trim(),
+    sourceUrl: values.source_input.trim(),
+    privacy: values.privacy as RestaurantPrivacy,
+    category: values.category as RestaurantCategory,
+    address: normalizeOptionalField(values.address),
+    cuisine: normalizeOptionalField(values.cuisine),
+    note: normalizeOptionalField(values.note),
+    returnTo: "review",
+    reviewSourceUrl: sourceUrl,
+  };
 }

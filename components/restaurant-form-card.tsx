@@ -1,4 +1,4 @@
-import { createRestaurantAction } from "@/app/restaurants/actions";
+import { startRestaurantReviewAction } from "@/app/restaurants/actions";
 import {
   RestaurantFormFields,
   type RestaurantFormFieldValues,
@@ -28,14 +28,14 @@ export function RestaurantFormCard({ searchParams }: RestaurantFormCardProps) {
       <div className="space-y-5">
         <div className="space-y-3">
           <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-            Step 7 手动创建
+            手动录入
           </span>
           <div>
             <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              手动添加地点
+              手动填写后再确认保存
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              先把最关键的地点信息存下来。这里可以直接保存美食、购物、玩乐、景点、住宿和其他地点。当前不会做坐标、地理编码或来源内容提取，只提供最直接的手动保存入口。
+              这里保留纯手动录入兜底。你可以先填好地点信息，再进入下一步检查字段，确认后再真正保存。
             </p>
           </div>
         </div>
@@ -52,14 +52,14 @@ export function RestaurantFormCard({ searchParams }: RestaurantFormCardProps) {
           </div>
         ) : null}
 
-        <form action={createRestaurantAction} className="space-y-5">
+        <form action={startRestaurantReviewAction} className="space-y-5">
           <RestaurantFormFields values={values} />
 
           <button
             type="submit"
             className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
-            保存地点
+            进入保存前确认
           </button>
         </form>
       </div>

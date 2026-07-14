@@ -1,20 +1,34 @@
 import Link from "next/link";
+import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import { SurfaceCard } from "@/components/surface-card";
 
 type SourceReviewCardProps = {
   sourceUrl: string;
 };
 
-function getSourceHostLabel(value: string) {
-  try {
-    return new URL(value).hostname.replace(/^www\./, "");
-  } catch {
-    return "原始来源";
+function getSourceKindLabel(kind: ReturnType<typeof buildSourceIntake>["kind"]) {
+  switch (kind) {
+    case "google-maps":
+      return "Google Maps";
+    case "xiaohongshu":
+      return "小红书";
+    case "douyin":
+      return "抖音";
+    case "unsupported-social":
+      return "暂未支持的社交来源";
+    default:
+      return "普通网页";
   }
 }
 
 export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
-  const sourceHost = getSourceHostLabel(sourceUrl);
+  const intake = buildSourceIntake(sourceUrl);
+  const supportLabel =
+    intake.supportLevel === "official"
+      ? "已识别来源"
+      : intake.supportLevel === "best-effort"
+        ? "已识别来源（后续提取预留）"
+        : "已识别来源（当前不做自动提取）";
 
   return (
     <SurfaceCard className="p-5 sm:p-6">
@@ -25,10 +39,10 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
           </span>
           <div>
             <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              来源链接已经进入提取流程
+              来源链接已经进入保存前确认
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步会先用受限的服务端抓取尝试读取公开页面元数据和正文文本，再生成一个 best-effort 草稿。当前自动提取仍以美食来源最稳妥，并新增了强结构化住宿页、景点页、购物页、玩乐页，以及极少量强通用结构化其他地点页的保守支持；其他情况仍然需要你手动补全后再保存。
+              这一步先只做本地来源识别和保存前确认：系统会记录标准化后的原始链接、识别来源域名，并把地点字段交给你手动检查和补全。自动抓取和 AI 解析还没有在这个入口启用。
             </p>
           </div>
         </div>
@@ -42,10 +56,13 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-              来源域名：{sourceHost}
+              来源域名：{intake.domain}
             </span>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-              已标准化来源链接
+              来源类型：{getSourceKindLabel(intake.kind)}
+            </span>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
+              {supportLabel}
             </span>
           </div>
         </div>
@@ -53,18 +70,18 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-[24px] bg-[var(--surface-muted)] p-4">
             <p className="text-sm font-semibold text-[var(--ink-strong)]">
-              当前 V1 官方支持
+              当前这个入口会做什么
             </p>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              普通公开网页与 Google Maps 链接。
+              识别来源域名，保存标准化 URL，并把字段带入下一步确认表单。
             </p>
           </div>
           <div className="rounded-[24px] bg-[var(--surface-muted)] p-4">
             <p className="text-sm font-semibold text-[var(--ink-strong)]">
-              当前 V1 best-effort
+              当前这个入口不会做什么
             </p>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              小红书与抖音。TikTok 和 Instagram 不属于当前主要承诺范围。
+              不会抓取不受支持的来源，不会调用外部 API，也不会自动解析图片或文案。
             </p>
           </div>
         </div>
@@ -74,7 +91,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
             href={`/restaurants/new?source_input=${encodeURIComponent(sourceUrl)}&message=${encodeURIComponent("已带入来源链接，你可以先继续手动补全并保存。")}`}
             className="inline-flex justify-center rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
-            改为普通手动补全
+            返回编辑来源
           </Link>
           <a
             href={sourceUrl}
