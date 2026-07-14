@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildSourceIntake, parseSourceIntakeInput } from "./source-intake";
+import { buildSourceIntake, parseSourceIntakeInput } from "./source-intake.ts";
 
 test("source intake accepts a valid URL and detects its domain", () => {
   const result = parseSourceIntakeInput("https://www.google.com/maps/place/example");
@@ -10,7 +10,9 @@ test("source intake accepts a valid URL and detects its domain", () => {
   if (result.ok) {
     assert.equal(result.intake.sourceUrl, "https://www.google.com/maps/place/example");
     assert.equal(result.intake.domain, "google.com");
+    assert.equal(result.intake.sourceType, "google_maps");
     assert.equal(result.intake.kind, "google-maps");
+    assert.equal(result.intake.extractionStatus, "not_implemented");
   }
 });
 
@@ -30,8 +32,11 @@ test("source intake preserves manual-review compatible public web sources", () =
   assert.deepEqual(intake, {
     sourceUrl: "https://example.com/restaurants/blue-bottle",
     domain: "example.com",
+    sourceType: "website",
     kind: "public-web",
     supportLevel: "official",
     extractionState: "not-started",
+    extractionStatus: "not_implemented",
+    extractionMessage: "Extractor not implemented yet; review fields remain manual.",
   });
 });

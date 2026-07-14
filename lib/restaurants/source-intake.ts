@@ -1,72 +1,64 @@
 import type {
   RestaurantSourceKind,
   RestaurantSourceSupportLevel,
-} from "./extraction-types";
-import { extractFirstHttpUrl } from "./source-url";
+} from "./extraction-types.ts";
+import {
+  runExtractionPipeline,
+  type ExtractionStatus,
+  type SourceType,
+} from "./extraction-architecture.ts";
+import { extractFirstHttpUrl } from "./source-url.ts";
 
 export type SourceIntake = {
   sourceUrl: string;
   domain: string;
+  sourceType: SourceType;
   kind: RestaurantSourceKind;
   supportLevel: RestaurantSourceSupportLevel;
   extractionState: "not-started";
+  extractionStatus: ExtractionStatus;
+  extractionMessage: string;
 };
 
-const sourceMatchers: Array<{
-  matches: (hostname: string) => boolean;
-  kind: RestaurantSourceKind;
-  supportLevel: RestaurantSourceSupportLevel;
-}> = [
-  {
-    matches: (hostname) =>
-      hostname === "maps.google.com" ||
-      hostname === "google.com" ||
-      hostname.endsWith(".google.com"),
-    kind: "google-maps",
-    supportLevel: "official",
-  },
-  {
-    matches: (hostname) =>
-      hostname === "xiaohongshu.com" ||
-      hostname.endsWith(".xiaohongshu.com") ||
-      hostname === "xhslink.com" ||
-      hostname.endsWith(".xhslink.com"),
-    kind: "xiaohongshu",
-    supportLevel: "best-effort",
-  },
-  {
-    matches: (hostname) =>
-      hostname === "douyin.com" ||
-      hostname.endsWith(".douyin.com") ||
-      hostname === "iesdouyin.com" ||
-      hostname.endsWith(".iesdouyin.com") ||
-      hostname === "v.douyin.com",
-    kind: "douyin",
-    supportLevel: "best-effort",
-  },
-  {
-    matches: (hostname) =>
-      hostname === "tiktok.com" ||
-      hostname.endsWith(".tiktok.com") ||
-      hostname === "instagram.com" ||
-      hostname.endsWith(".instagram.com"),
-    kind: "unsupported-social",
-    supportLevel: "unsupported",
-  },
-];
+function getLegacySourceKind(sourceType: SourceType): RestaurantSourceKind {
+  switch (sourceType) {
+    case "google_maps":
+      return "google-maps";
+    case "xiaohongshu":
+      return "xiaohongshu";
+    case "douyin":
+      return "douyin";
+    case "instagram":
+    case "tiktok":
+      return "unsupported-social";
+    case "unknown":
+    case "website":
+      return "public-web";
+  }
+}
 
-function getHostname(sourceUrl: string) {
-  return new URL(sourceUrl).hostname.replace(/^www\./, "").toLowerCase();
+function getLegacySupportLevel(sourceType: SourceType): RestaurantSourceSupportLevel {
+  if (sourceType === "xiaohongshu" || sourceType === "douyin") {
+    return "best-effort";
+  }
+
+  if (sourceType === "instagram" || sourceType === "tiktok" || sourceType === "unknown") {
+    return "unsupported";
+  }
+
+  return "official";
 }
 
 export function detectSourceDetails(sourceUrl: string) {
-  const hostname = getHostname(sourceUrl);
-  const matchedSource = sourceMatchers.find(({ matches }) => matches(hostname));
+  const pipeline = runExtractionPipeline(sourceUrl);
 
   return {
-    domain: hostname,
-    kind: matchedSource?.kind ?? "public-web",
-    supportLevel: matchedSource?.supportLevel ?? "official",
+    domain: pipeline.detection.domain ?? "",
+    sourceType: pipeline.detection.sourceType,
+    kind: getLegacySourceKind(pipeline.detection.sourceType),
+    supportLevel: getLegacySupportLevel(pipeline.detection.sourceType),
+    extractionStatus: pipeline.result.extractionStatus,
+    extractionMessage: pipeline.result.message,
   };
 }
 
@@ -76,9 +68,12 @@ export function buildSourceIntake(sourceUrl: string): SourceIntake {
   return {
     sourceUrl,
     domain: details.domain,
+    sourceType: details.sourceType,
     kind: details.kind,
     supportLevel: details.supportLevel,
     extractionState: "not-started",
+    extractionStatus: details.extractionStatus,
+    extractionMessage: details.extractionMessage,
   };
 }
 

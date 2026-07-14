@@ -6,29 +6,33 @@ type SourceReviewCardProps = {
   sourceUrl: string;
 };
 
-function getSourceKindLabel(kind: ReturnType<typeof buildSourceIntake>["kind"]) {
-  switch (kind) {
-    case "google-maps":
+function getSourceTypeLabel(sourceType: ReturnType<typeof buildSourceIntake>["sourceType"]) {
+  switch (sourceType) {
+    case "google_maps":
       return "Google Maps";
     case "xiaohongshu":
       return "小红书";
     case "douyin":
       return "抖音";
-    case "unsupported-social":
-      return "暂未支持的社交来源";
+    case "instagram":
+      return "Instagram";
+    case "tiktok":
+      return "TikTok";
+    case "unknown":
+      return "未知来源";
     default:
-      return "普通网页";
+      return "普通网站";
   }
 }
 
 export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
   const intake = buildSourceIntake(sourceUrl);
-  const supportLabel =
-    intake.supportLevel === "official"
-      ? "已识别来源"
-      : intake.supportLevel === "best-effort"
-        ? "已识别来源（后续提取预留）"
-        : "已识别来源（当前不做自动提取）";
+  const extractionLabel =
+    intake.extractionStatus === "success"
+      ? "提取可用"
+      : intake.extractionStatus === "not_implemented"
+        ? "提取不可用（接口已准备，暂未实现）"
+        : "提取不可用";
 
   return (
     <SurfaceCard className="p-5 sm:p-6">
@@ -59,10 +63,10 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               来源域名：{intake.domain}
             </span>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-              来源类型：{getSourceKindLabel(intake.kind)}
+              来源类型：{getSourceTypeLabel(intake.sourceType)}
             </span>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-              {supportLabel}
+              {extractionLabel}
             </span>
           </div>
         </div>
@@ -73,7 +77,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               当前这个入口会做什么
             </p>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              识别来源域名，保存标准化 URL，并把字段带入下一步确认表单。
+              识别来源域名，选择对应的提取器，并把字段带入下一步确认表单。
             </p>
           </div>
           <div className="rounded-[24px] bg-[var(--surface-muted)] p-4">
@@ -81,7 +85,7 @@ export function SourceReviewCard({ sourceUrl }: SourceReviewCardProps) {
               当前这个入口不会做什么
             </p>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              不会抓取不受支持的来源，不会调用外部 API，也不会自动解析图片或文案。
+              当前提取器只返回“暂未实现”状态，不会抓取网页、调用外部 API 或自动解析图片和文案。
             </p>
           </div>
         </div>
