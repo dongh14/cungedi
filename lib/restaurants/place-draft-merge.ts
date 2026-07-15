@@ -18,7 +18,10 @@ export const placeDraftFields = [
 ] as const;
 
 export type PlaceDraftField = (typeof placeDraftFields)[number];
-export type PlaceDraftSource = Exclude<SourceType, "unknown"> | "manual";
+export type PlaceDraftSource =
+  | Exclude<SourceType, "unknown">
+  | "manual"
+  | "ai_suggestion";
 
 export type ManualPlaceDraft = Partial<
   Record<PlaceDraftField, string | number | null>

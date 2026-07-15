@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
+import { AIEnrichmentCard } from "@/components/ai-enrichment-card";
 import { AppShell } from "@/components/app-shell";
 import { ExtractionConfirmationCard } from "@/components/extraction-confirmation-card";
 import { PlaceholderCard } from "@/components/placeholder-card";
 import { SourceReviewCard } from "@/components/source-review-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
+import {
+  getMissingAIReviewFields,
+  runAIEnrichment,
+} from "@/lib/restaurants/ai-enrichment";
 import { runExtractionPipelineWithWebsiteFetch } from "@/lib/restaurants/extraction-architecture";
 import { mergePlaceDraftSources } from "@/lib/restaurants/place-draft-merge";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
@@ -71,6 +76,12 @@ export default async function RestaurantReviewPage({
     ...(params.address !== undefined ? { address: params.address } : {}),
     ...(params.note !== undefined ? { notes: params.note } : {}),
   });
+  const aiEnrichment = await runAIEnrichment({
+    mergedPlaceDraft: mergedDraft,
+    extractedSourceData: extractionResults,
+    sourceUrls,
+    missingFields: getMissingAIReviewFields(mergedDraft),
+  });
 
   return (
     <AppShell
@@ -114,6 +125,7 @@ export default async function RestaurantReviewPage({
         </div>
 
         <div className="space-y-4">
+          <AIEnrichmentCard result={aiEnrichment} />
           <PlaceholderCard
             title="这一步现在重点做什么"
             description="这个入口现在把来源入口、单页获取、字段解析、来源合并、手动复核和最终保存拆成清晰的边界。"
