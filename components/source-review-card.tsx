@@ -48,6 +48,7 @@ const reviewFieldLabels: Record<PlaceDraftField, string> = {
   latitude: "纬度",
   longitude: "经度",
   websiteUrl: "官网链接",
+  imageUrl: "图片",
   notes: "备注",
 };
 

@@ -90,6 +90,7 @@ function buildReviewRestaurantRedirect(
     address: string;
     cuisine: string;
     note: string;
+    collectionIds: number[];
   },
   state: {
     error?: string;
@@ -108,6 +109,9 @@ function buildReviewRestaurantRedirect(
     address: values.address,
     cuisine: values.cuisine,
     note: values.note,
+    ...(values.collectionIds.length > 0
+      ? { collection_ids: values.collectionIds.join(",") }
+      : {}),
   });
 }
 
@@ -160,6 +164,17 @@ function buildCollectionsRedirect(state: {
   });
 }
 
+function buildReviewCollectionRedirect(
+  sourceUrl: string,
+  state: { error?: string; message?: string },
+) {
+  return buildRedirect("/restaurants/review", {
+    source_url: sourceUrl,
+    ...(state.error ? { collection_error: state.error } : {}),
+    ...(state.message ? { collection_message: state.message } : {}),
+  });
+}
+
 function buildEditRestaurantCollectionsRedirect(
   restaurantId: number,
   state: {
@@ -182,6 +197,9 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const address = getFormValue(formData, "address");
   const cuisine = getFormValue(formData, "cuisine");
   const note = getFormValue(formData, "note");
+  const collectionIds = normalizeSelectedCollectionIds(
+    formData.getAll("collection_ids").map((value) => value.toString()),
+  );
   const returnTo = getFormValue(formData, "return_to");
   const reviewSourceInput = getFormValue(formData, "review_source_url");
   const reviewSourceUrl =
@@ -195,6 +213,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     address,
     cuisine,
     note,
+    collectionIds,
   };
   const redirectToDraft = (error: string): never => {
     if (returnTo === "review" && reviewSourceUrl) {
@@ -247,6 +266,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     address: normalizeOptionalField(address),
     cuisine: normalizeOptionalField(cuisine),
     note: normalizeOptionalField(note),
+    collectionIds,
     returnTo: returnTo === "review" ? "review" : "new",
     reviewSourceUrl: reviewSourceUrl || finalSourceUrl,
   };
@@ -328,6 +348,9 @@ function parseReviewDraftForm(formData: FormData) {
   const address = getFormValue(formData, "address");
   const cuisine = getFormValue(formData, "cuisine");
   const note = getFormValue(formData, "note");
+  const collectionIds = normalizeSelectedCollectionIds(
+    formData.getAll("collection_ids").map((value) => value.toString()),
+  );
   const intakeResult = parseSourceIntakeInput(sourceInput);
 
   const redirectValues = {
@@ -339,6 +362,7 @@ function parseReviewDraftForm(formData: FormData) {
     address,
     cuisine,
     note,
+    collectionIds,
   };
 
   if (!intakeResult.ok) {
@@ -381,6 +405,7 @@ export async function createRestaurantAction(formData: FormData) {
       address: restaurant.address ?? "",
       cuisine: restaurant.cuisine ?? "",
       note: restaurant.note ?? "",
+      collectionIds: restaurant.collectionIds ?? [],
     };
 
     if (restaurant.returnTo === "review" && restaurant.reviewSourceUrl) {
@@ -398,6 +423,26 @@ export async function createRestaurantAction(formData: FormData) {
     }
 
     redirect(buildNewRestaurantRedirect(redirectValues, error?.message ?? "保存失败，请稍后重试。"));
+  }
+
+  if (restaurant.collectionIds && restaurant.collectionIds.length > 0) {
+    const { error: collectionError } = await supabase
+      .from("restaurant_collections")
+      .insert(
+        restaurant.collectionIds.map((collectionId) => ({
+          restaurant_id: data.id,
+          collection_id: collectionId,
+        })),
+      );
+
+    if (collectionError) {
+      redirect(
+        buildRedirect("/restaurants", {
+          message: `地点已保存，但合集归类失败：${collectionError.message}`,
+          created: String(data.id),
+        }),
+      );
+    }
   }
 
   redirect(
@@ -452,13 +497,18 @@ export async function updateRestaurantAction(formData: FormData) {
 
 export async function createCollectionAction(formData: FormData) {
   const name = getFormValue(formData, "name");
+  const returnTo = getFormValue(formData, "return_to");
+  const reviewSourceUrl = extractFirstHttpUrl(getFormValue(formData, "source_url"));
+  const redirectCollectionResult = (state: { error?: string; message?: string }): never => {
+    if (returnTo === "review" && reviewSourceUrl) {
+      redirect(buildReviewCollectionRedirect(reviewSourceUrl, state));
+    }
+
+    redirect(buildCollectionsRedirect(state));
+  };
 
   if (!name) {
-    redirect(
-      buildCollectionsRedirect({
-        error: "请先填写合集名称。",
-      }),
-    );
+    redirectCollectionResult({ error: "请先填写合集名称。" });
   }
 
   const supabase = await createServerSupabaseClient();
@@ -476,18 +526,10 @@ export async function createCollectionAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(
-      buildCollectionsRedirect({
-        error: error.message ?? "创建合集失败，请稍后重试。",
-      }),
-    );
+    redirectCollectionResult({ error: error.message ?? "创建合集失败，请稍后重试。" });
   }
 
-  redirect(
-    buildCollectionsRedirect({
-      message: "合集已创建",
-    }),
-  );
+  redirectCollectionResult({ message: "合集已创建，请选择后再保存地点。" });
 }
 
 export async function updateRestaurantCollectionsAction(formData: FormData) {

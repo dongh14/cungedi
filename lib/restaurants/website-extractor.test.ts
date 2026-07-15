@@ -20,8 +20,9 @@ test("parses HTML title, meta description, and Open Graph metadata", () => {
 
   assert.equal(result.name, "Blue Bottle");
   assert.equal(result.description, "Official place page.");
+  assert.equal(result.imageUrl, "https://example.com/blue-bottle.jpg");
   assert.equal(result.extractionStatus, "partial");
-  assert.deepEqual(result.extractedFields, ["name", "description"]);
+  assert.deepEqual(result.extractedFields, ["name", "description", "imageUrl"]);
 
   const metadata = parseWebsiteMetadata({
     metadata: { ogImage: "https://example.com/blue-bottle.jpg" },
@@ -79,6 +80,37 @@ test("parses LocalBusiness JSON-LD from HTML", () => {
   assert.equal(result.address, "88 Harbor Road");
   assert.equal(result.phone, "021-5555-6666");
   assert.equal(result.extractionStatus, "partial");
+});
+
+test("extracts an explicit JSON-LD image URL before Open Graph image metadata", () => {
+  const result = websiteExtractor.extract("https://example.com/restaurant", {
+    html: `
+      <meta property="og:image" content="https://example.com/og.jpg" />
+      <script type="application/ld+json">
+        {
+          "@type": "Restaurant",
+          "name": "Alimentari",
+          "image": { "url": "https://example.com/structured.jpg" }
+        }
+      </script>
+    `,
+  });
+
+  assert.equal(result.imageUrl, "https://example.com/structured.jpg");
+  assert.equal(result.fieldOrigins?.imageUrl, "structured");
+  assert.equal(result.extractedFields.includes("imageUrl"), true);
+});
+
+test("extracts Open Graph image metadata when JSON-LD has no image", () => {
+  const result = websiteExtractor.extract("https://example.com/restaurant", {
+    html: `
+      <meta property="og:title" content="Alimentari" />
+      <meta property="og:image" content="https://example.com/og.jpg" />
+    `,
+  });
+
+  assert.equal(result.imageUrl, "https://example.com/og.jpg");
+  assert.equal(result.fieldOrigins?.imageUrl, "metadata");
 });
 
 test("prefers a JSON-LD business name over generic page titles", () => {
@@ -151,4 +183,5 @@ test("website extractor does not fetch when no document is provided", () => {
   assert.equal(result.extractionStatus, "unavailable");
   assert.equal(result.confidence, "low");
   assert.deepEqual(result.extractedFields, []);
+  assert.equal(result.imageUrl, null);
 });

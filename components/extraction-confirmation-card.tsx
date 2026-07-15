@@ -91,7 +91,7 @@ export function ExtractionConfirmationCard({
           )}
         </div>
 
-        <form action={createRestaurantAction} className="space-y-5">
+        <form id="review-save-form" action={createRestaurantAction} className="space-y-5">
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="review_source_url" value={sourceUrl} />
           {sourceUrls?.slice(1).map((additionalSourceUrl) => (

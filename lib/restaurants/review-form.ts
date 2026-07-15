@@ -6,6 +6,7 @@ import {
 } from "./constants.ts";
 import type { RestaurantInsertInput } from "./types.ts";
 import type { NormalizedExtractionResult } from "./extraction-architecture.ts";
+import { normalizeSelectedCollectionIds } from "./collection-memberships.ts";
 
 export type RestaurantDraftFormValues = {
   name: string;
@@ -21,10 +22,17 @@ export type RestaurantDraftFormValues = {
 export type ReviewSearchParams = Partial<
   RestaurantDraftFormValues & {
     source_url: string;
+    collection_ids: string | string[];
     error: string;
     message: string;
   }
 >;
+
+export function getReviewCollectionIds(value: string | string[] | undefined) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+
+  return normalizeSelectedCollectionIds(values.flatMap((entry) => entry.split(",")));
+}
 
 export function getInitialDraftFormValues(
   searchParams: ReviewSearchParams,

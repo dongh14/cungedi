@@ -24,6 +24,7 @@ export const extractionFields = [
   "latitude",
   "longitude",
   "websiteUrl",
+  "imageUrl",
   "notes",
 ] as const;
 
@@ -41,6 +42,7 @@ export type NormalizedExtractionResult = {
   latitude: number | null;
   longitude: number | null;
   websiteUrl: string | null;
+  imageUrl: string | null;
   sourceUrl: string;
   notes: string | null;
   confidence: ExtractionConfidence;
@@ -143,6 +145,7 @@ function buildEmptyResult(
     latitude: null,
     longitude: null,
     websiteUrl: null,
+    imageUrl: null,
     sourceUrl,
     notes: null,
     confidence: input.confidence,
@@ -416,6 +419,7 @@ function extractWebsiteUrl(
   const address = structured?.address ?? null;
   const phone = structured?.phone ?? null;
   const websiteUrl = structured?.websiteUrl ?? null;
+  const imageUrl = structured?.imageUrl ?? parsedWebsite.metadata.ogImage ?? null;
   const extractedFields = [
     ...(name ? (["name"] as const) : []),
     ...(description ? (["description"] as const) : []),
@@ -423,13 +427,14 @@ function extractWebsiteUrl(
     ...(address ? (["address"] as const) : []),
     ...(phone ? (["phone"] as const) : []),
     ...(websiteUrl ? (["websiteUrl"] as const) : []),
+    ...(imageUrl ? (["imageUrl"] as const) : []),
   ];
 
   if (extractedFields.length === 0) {
     return buildEmptyResult("website", sourceUrl, {
       confidence: "low",
       extractionStatus: "unavailable",
-      message: "No supported website metadata or structured data was found.",
+      message: "Website returned no extractable metadata.",
     });
   }
 
@@ -447,7 +452,7 @@ function extractWebsiteUrl(
     ...buildEmptyResult("website", sourceUrl, {
       confidence,
       extractionStatus: "partial",
-      message: "Only explicit website metadata and supported JSON-LD fields were extracted.",
+      message: "Extraction completed successfully.",
     }),
     name,
     description,
@@ -455,6 +460,7 @@ function extractWebsiteUrl(
     address,
     phone,
     websiteUrl,
+    imageUrl,
     extractedFields,
     fieldOrigins: Object.fromEntries(
       extractedFields.map((field) => [
@@ -467,6 +473,8 @@ function extractWebsiteUrl(
               : "metadata"
           : ["category", "address", "phone", "websiteUrl"].includes(field)
             ? "structured"
+            : field === "imageUrl" && structured?.imageUrl
+              ? "structured"
             : "metadata",
       ]),
     ) as NormalizedExtractionResult["fieldOrigins"],
@@ -542,17 +550,54 @@ import {
   type WebsiteFetchOptions,
   type WebsiteFetchResult,
 } from "./website-fetcher.ts";
+import {
+  resolveGoogleMapsUrl,
+  type GoogleMapsUrlResolution,
+  type GoogleMapsUrlResolverOptions,
+} from "./google-maps-url-resolver.ts";
 
 export async function runExtractionPipelineWithWebsiteFetch(
   sourceUrl: string,
-  options?: WebsiteFetchOptions,
+  options?: WebsiteFetchOptions & GoogleMapsUrlResolverOptions,
 ) {
   const pipeline = runExtractionPipeline(sourceUrl);
+
+  if (pipeline.detection.sourceType === "google_maps" && pipeline.extractor) {
+    const googleMapsResolution = await resolveGoogleMapsUrl(sourceUrl, options);
+
+    if (googleMapsResolution.status !== "resolved" || !googleMapsResolution.resolvedUrl) {
+      return {
+        ...pipeline,
+        fetchResult: null as WebsiteFetchResult | null,
+        googleMapsResolution,
+        result: {
+          ...pipeline.result,
+          sourceUrl,
+          extractionStatus: "unavailable" as const,
+          confidence: "low" as const,
+          extractedFields: [],
+          fieldOrigins: {},
+          message: "Unable to resolve Google Maps link. Please review manually.",
+        },
+      };
+    }
+
+    return {
+      ...pipeline,
+      fetchResult: null as WebsiteFetchResult | null,
+      googleMapsResolution,
+      result: {
+        ...pipeline.extractor.extract(googleMapsResolution.resolvedUrl),
+        sourceUrl,
+      },
+    };
+  }
 
   if (pipeline.detection.sourceType !== "website" || !pipeline.extractor) {
     return {
       ...pipeline,
       fetchResult: null as WebsiteFetchResult | null,
+      googleMapsResolution: null as GoogleMapsUrlResolution | null,
     };
   }
 
@@ -562,6 +607,7 @@ export async function runExtractionPipelineWithWebsiteFetch(
     return {
       ...pipeline,
       fetchResult,
+      googleMapsResolution: null as GoogleMapsUrlResolution | null,
       result: buildEmptyResult("website", sourceUrl, {
         confidence: "low",
         extractionStatus: "unavailable",
@@ -573,6 +619,7 @@ export async function runExtractionPipelineWithWebsiteFetch(
   return {
     ...pipeline,
     fetchResult,
+    googleMapsResolution: null as GoogleMapsUrlResolution | null,
     result: pipeline.extractor.extract(sourceUrl, { html: fetchResult.html }),
   };
 }

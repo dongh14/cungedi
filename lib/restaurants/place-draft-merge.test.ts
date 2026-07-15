@@ -17,6 +17,7 @@ function makeResult(
     latitude: null,
     longitude: null,
     websiteUrl: null,
+    imageUrl: null,
     sourceUrl: `https://${sourceType}.example/place`,
     notes: null,
     confidence: "medium",
@@ -122,4 +123,32 @@ test("keeps missing fields empty and does not invent values", () => {
   assert.equal(merged.latitude, null);
   assert.equal(merged.longitude, null);
   assert.equal(merged.fieldSources.city, undefined);
+});
+
+test("merges structured, Open Graph, and manual image values conservatively", () => {
+  const structuredImage = makeResult("website", {
+    imageUrl: "https://example.com/structured.jpg",
+    fieldOrigins: { imageUrl: "structured" },
+  });
+  const openGraphImage = makeResult("website", {
+    imageUrl: "https://example.com/og.jpg",
+    fieldOrigins: { imageUrl: "metadata" },
+  });
+
+  const structuredMerged = mergePlaceDraftSources([openGraphImage, structuredImage]);
+  assert.equal(structuredMerged.imageUrl, "https://example.com/structured.jpg");
+  assert.equal(structuredMerged.fieldSources.imageUrl, "website");
+
+  const manualMerged = mergePlaceDraftSources([structuredImage], {
+    imageUrl: "https://example.com/manual.jpg",
+  });
+  assert.equal(manualMerged.imageUrl, "https://example.com/manual.jpg");
+  assert.equal(manualMerged.fieldSources.imageUrl, "manual");
+});
+
+test("keeps a missing image empty", () => {
+  const merged = mergePlaceDraftSources([makeResult("website", {})]);
+
+  assert.equal(merged.imageUrl, null);
+  assert.equal(merged.fieldSources.imageUrl, undefined);
 });

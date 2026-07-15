@@ -15,6 +15,7 @@ export const placeDraftFields = [
   "notes",
   "phone",
   "websiteUrl",
+  "imageUrl",
 ] as const;
 
 export type PlaceDraftField = (typeof placeDraftFields)[number];
@@ -38,6 +39,7 @@ export type MergedPlaceDraft = {
   notes: string | null;
   phone: string | null;
   websiteUrl: string | null;
+  imageUrl: string | null;
   sourceUrl: string | null;
   sourceUrls: string[];
   fieldSources: Partial<Record<PlaceDraftField, PlaceDraftSource>>;
@@ -103,6 +105,8 @@ function getAutomaticRank(
     case "phone":
     case "websiteUrl":
       return source === "website" ? (structured ? 200 : 100) : 0;
+    case "imageUrl":
+      return source === "website" ? (structured ? 300 : 200) : 0;
     case "latitude":
     case "longitude":
       return source === "google_maps" ? 200 : 0;

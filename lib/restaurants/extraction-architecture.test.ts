@@ -58,6 +58,7 @@ test("Google Maps extractor parses a search query and preserves the normalized r
       address: result.address,
       latitude: result.latitude,
       longitude: result.longitude,
+      imageUrl: result.imageUrl,
       notes: result.notes,
     },
     {
@@ -72,6 +73,7 @@ test("Google Maps extractor parses a search query and preserves the normalized r
       address: null,
       latitude: null,
       longitude: null,
+      imageUrl: null,
       notes: null,
     },
   );

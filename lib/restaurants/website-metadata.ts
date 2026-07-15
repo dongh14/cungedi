@@ -25,6 +25,7 @@ export type WebsiteStructuredData = {
   address: string | null;
   phone: string | null;
   websiteUrl: string | null;
+  imageUrl: string | null;
 };
 
 export type ParsedWebsiteMetadata = {
@@ -177,6 +178,34 @@ function getAddress(value: unknown) {
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
+function getImageUrl(value: unknown): string | null {
+  const directValue = normalizeString(value);
+
+  if (directValue) {
+    return directValue;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const imageUrl = getImageUrl(entry);
+
+      if (imageUrl) {
+        return imageUrl;
+      }
+    }
+
+    return null;
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return getImageUrl(record.url) ?? getImageUrl(record.contentUrl);
+}
+
 function getStructuredDataFromHtml(html: string) {
   const scripts = html.match(
     /<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi,
@@ -217,6 +246,7 @@ function toSupportedStructuredData(value: unknown): WebsiteStructuredData[] {
         address: getAddress(record.address),
         phone: normalizeString(record.telephone),
         websiteUrl: normalizeString(record.url),
+        imageUrl: getImageUrl(record.image),
       },
     ];
   });

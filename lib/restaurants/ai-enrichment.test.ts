@@ -20,6 +20,7 @@ function createDraft(): MergedPlaceDraft {
     notes: null,
     phone: null,
     websiteUrl: null,
+    imageUrl: null,
     sourceUrl: "https://maps.google.com/?q=Google+Place",
     sourceUrls: ["https://maps.google.com/?q=Google+Place"],
     fieldSources: {

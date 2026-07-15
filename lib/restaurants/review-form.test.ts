@@ -4,6 +4,7 @@ import {
   buildRestaurantDraftInput,
   getInitialDraftFormValues,
   getMissingDraftFields,
+  getReviewCollectionIds,
 } from "./review-form.ts";
 
 test("builds a review draft from a source-only intake", () => {
@@ -145,4 +146,31 @@ test("manual review data converts into a saved-place input", () => {
     returnTo: "review",
     reviewSourceUrl: "https://example.com/blue-bottle",
   });
+});
+
+test("preserves selected review collection ids through query-shaped values", () => {
+  assert.deepEqual(getReviewCollectionIds(["3,1", "3", "bad"]), [1, 3]);
+  assert.deepEqual(getReviewCollectionIds(undefined), []);
+});
+
+test("review draft can save with missing optional fields", () => {
+  const draftInput = buildRestaurantDraftInput(
+    {
+      name: "Known Place",
+      city: "上海",
+      source_input: "https://example.com/place",
+      privacy: "private",
+      category: "美食",
+      address: "",
+      cuisine: "",
+      note: "",
+    },
+    "https://example.com/place",
+  );
+
+  assert.equal(draftInput.name, "Known Place");
+  assert.equal(draftInput.city, "上海");
+  assert.equal(draftInput.address, null);
+  assert.equal(draftInput.cuisine, null);
+  assert.equal(draftInput.note, null);
 });

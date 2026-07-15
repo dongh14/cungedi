@@ -2,10 +2,27 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type {
   CollectionListItem,
   CollectionOptionItem,
+  DiscoveryPlaceItem,
+  RestaurantCollectionBadge,
   RestaurantEditItem,
   RestaurantListItem,
   RestaurantMapItem,
 } from "@/lib/restaurants/types";
+
+function buildCollectionPlaceCounts(
+  memberships: Array<{ restaurant_id: number; collection_id: number }>,
+) {
+  const counts = new Map<number, number>();
+
+  for (const membership of memberships) {
+    counts.set(
+      membership.collection_id,
+      (counts.get(membership.collection_id) ?? 0) + 1,
+    );
+  }
+
+  return counts;
+}
 
 export async function getCurrentUserRestaurants() {
   const supabase = await createServerSupabaseClient();
@@ -19,6 +36,70 @@ export async function getCurrentUserRestaurants() {
   return {
     restaurants: (data ?? []) as RestaurantListItem[],
     error,
+  };
+}
+
+export async function getCurrentUserDiscoveryData() {
+  const supabase = await createServerSupabaseClient();
+  const { data: restaurantData, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select(
+      "id, name, city, source_url, privacy, category, address, cuisine, note, created_at",
+    )
+    .order("created_at", { ascending: false });
+
+  if (restaurantError) {
+    return {
+      places: [] as DiscoveryPlaceItem[],
+      collections: [] as CollectionListItem[],
+      error: restaurantError,
+    };
+  }
+
+  const { data: collectionData, error: collectionError } = await supabase
+    .from("collections")
+    .select("id, name, created_at, updated_at")
+    .order("created_at", { ascending: false });
+  const { data: membershipData, error: membershipError } = await supabase
+    .from("restaurant_collections")
+    .select("restaurant_id, collection_id");
+  const memberships = (membershipData ?? []) as Array<{
+    restaurant_id: number;
+    collection_id: number;
+  }>;
+  const collectionById = new Map(
+    (collectionData ?? []).map((collection) => [collection.id, collection]),
+  );
+  const badgesByRestaurantId = new Map<number, RestaurantCollectionBadge[]>();
+
+  for (const membership of memberships) {
+    const collection = collectionById.get(membership.collection_id);
+
+    if (!collection) {
+      continue;
+    }
+
+    const badges = badgesByRestaurantId.get(membership.restaurant_id) ?? [];
+    badges.push({ id: collection.id, name: collection.name });
+    badgesByRestaurantId.set(membership.restaurant_id, badges);
+  }
+
+  const placeCounts = buildCollectionPlaceCounts(memberships);
+  const collections = ((collectionData ?? []) as Omit<CollectionListItem, "place_count">[]).map(
+    (collection) => ({
+      ...collection,
+      place_count: placeCounts.get(collection.id) ?? 0,
+    }),
+  );
+
+  return {
+    places: ((restaurantData ?? []) as RestaurantListItem[]).map((place) => ({
+      ...place,
+      imageUrl: null,
+      collections: badgesByRestaurantId.get(place.id) ?? [],
+    })),
+    collections,
+    error: collectionError ?? membershipError,
   };
 }
 

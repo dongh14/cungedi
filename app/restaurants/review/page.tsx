@@ -5,6 +5,8 @@ import { AIEnrichmentCard } from "@/components/ai-enrichment-card";
 import { AppShell } from "@/components/app-shell";
 import { ExtractionConfirmationCard } from "@/components/extraction-confirmation-card";
 import { PlaceholderCard } from "@/components/placeholder-card";
+import { ReviewFinalPreviewCard } from "@/components/review-final-preview-card";
+import { ReviewCollectionSelector } from "@/components/review-collection-selector";
 import { SourceReviewCard } from "@/components/source-review-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
 import {
@@ -13,14 +15,17 @@ import {
 } from "@/lib/restaurants/ai-enrichment";
 import { runExtractionPipelineWithWebsiteFetch } from "@/lib/restaurants/extraction-architecture";
 import { mergePlaceDraftSources } from "@/lib/restaurants/place-draft-merge";
+import { getCurrentUserCollectionOptions } from "@/lib/restaurants/queries";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
-import type { ReviewSearchParams } from "@/lib/restaurants/review-form";
+import { getReviewCollectionIds, type ReviewSearchParams } from "@/lib/restaurants/review-form";
 
 type RestaurantReviewPageProps = {
   searchParams?: Promise<ReviewSearchParams & {
     source_url?: string;
     source_urls?: string | string[];
     additional_source_url?: string;
+    collection_message?: string;
+    collection_error?: string;
   }>;
 };
 
@@ -54,6 +59,8 @@ export default async function RestaurantReviewPage({
   noStore();
   const user = await requireAuthenticatedUser();
   const params = (await searchParams) ?? {};
+  const { collections: collectionOptions } = await getCurrentUserCollectionOptions();
+  const selectedCollectionIds = getReviewCollectionIds(params.collection_ids);
   const sourceUrls = getReviewSourceUrls(params);
   const normalizedSourceUrl = sourceUrls[0] ?? null;
 
@@ -115,6 +122,18 @@ export default async function RestaurantReviewPage({
             extractionResults={extractionResults}
             mergedDraft={mergedDraft}
             sourceUrls={sourceUrls}
+          />
+          <ReviewFinalPreviewCard
+            draft={mergedDraft}
+            extractionResults={extractionResults}
+            collectionOptions={collectionOptions}
+            selectedCollectionIds={selectedCollectionIds}
+          />
+          <ReviewCollectionSelector
+            collectionOptions={collectionOptions}
+            selectedCollectionIds={selectedCollectionIds}
+            sourceUrl={normalizedSourceUrl}
+            message={params.collection_message ?? params.collection_error}
           />
           <ExtractionConfirmationCard
             sourceUrl={normalizedSourceUrl}

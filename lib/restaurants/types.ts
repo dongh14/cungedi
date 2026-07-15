@@ -9,6 +9,7 @@ export type RestaurantInsertInput = {
   address: string | null;
   cuisine: string | null;
   note: string | null;
+  collectionIds?: number[];
   returnTo?: "new" | "review";
   reviewSourceUrl?: string;
 };
@@ -32,6 +33,16 @@ export type RestaurantListItem = {
   cuisine: string | null;
   note: string | null;
   created_at: string;
+};
+
+export type RestaurantCollectionBadge = {
+  id: number;
+  name: string;
+};
+
+export type DiscoveryPlaceItem = RestaurantListItem & {
+  imageUrl?: string | null;
+  collections: RestaurantCollectionBadge[];
 };
 
 export type CollectionListItem = {

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { PlaceCard } from "@/components/place-card";
 import { PlaceholderCard } from "@/components/placeholder-card";
 import { SurfaceCard } from "@/components/surface-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
+import { getCurrentUserDiscoveryData } from "@/lib/restaurants/queries";
 
 type DashboardPageProps = {
   searchParams?: Promise<{
@@ -15,13 +17,14 @@ export default async function DashboardPage({
 }: DashboardPageProps) {
   const params = (await searchParams) ?? {};
   const user = await requireAuthenticatedUser();
+  const { places, collections, error } = await getCurrentUserDiscoveryData();
 
   return (
     <AppShell
       currentPath="/dashboard"
       eyebrow="已登录主页面"
-      title="欢迎回来，主导航已经准备好"
-      description="你现在已经可以从来源入口开始，也可以直接手动保存地点，并通过主导航在总览、添加页、已收藏和地图页之间切换。这里会继续作为已登录用户的主入口。"
+      title="欢迎回来，先从最近保存的地点开始"
+      description="这里是你的轻量地点发现页：最近保存的地点、已有合集亮点，以及继续添加和回看地图的入口都集中在一起。"
       userEmail={user.email}
       userId={user.userId}
       message={params.message}
@@ -50,52 +53,90 @@ export default async function DashboardPage({
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <div className="space-y-4">
-          <PlaceholderCard
-            title="当前总览页会帮助你做什么"
-            description="它是已登录用户进入产品后的第一个页面，用来汇总现在能访问的页面，并明确提示哪些能力已经就位、哪些还在下一步。"
-            items={[
-              "移动端底部导航已经接好，方便在手机上单手切换页面。",
-              "桌面端改成更宽松的双栏结构，避免信息挤在一起。",
-              "所有主页面都沿用简体中文可见文案和统一视觉样式。",
-            ]}
-          />
-
           <SurfaceCard className="p-5 sm:p-6">
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-                  当前账号
+                  Recently saved
                 </p>
                 <h2 className="mt-2 [font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-                  受保护页面上下文
+                  最近保存的地点
                 </h2>
+                <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
+                  这里只按保存时间展示已有记录，不加入推荐算法或额外排序。
+                </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4">
-                  <p className="text-sm text-[var(--ink-muted)]">当前邮箱</p>
-                  <p className="mt-2 break-all text-sm font-medium text-[var(--ink-strong)]">
-                    {user.email ?? "未读取到邮箱"}
-                  </p>
+              {error ? (
+                <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-800">
+                  合集信息暂时无法读取，地点仍然可以继续浏览：{error.message}
                 </div>
-                <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4">
-                  <p className="text-sm text-[var(--ink-muted)]">用户 ID</p>
-                  <p className="mt-2 break-all text-sm font-medium text-[var(--ink-strong)]">
-                    {user.userId}
-                  </p>
+              ) : null}
+              {places.length > 0 ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {places.slice(0, 6).map((place) => (
+                    <PlaceCard key={place.id} place={place} />
+                  ))}
                 </div>
-              </div>
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-[var(--border-soft)] bg-[var(--surface-muted)] p-5 text-sm leading-7 text-[var(--ink-soft)]">
+                  你还没有保存地点。先添加一个地点，这里就会出现第一张地点卡片。
+                </div>
+              )}
+              {places.length > 6 ? (
+                <Link href="/restaurants" className="inline-flex text-sm font-semibold text-[var(--accent-deep)] underline underline-offset-4">
+                  查看全部已收藏地点 →
+                </Link>
+              ) : null}
             </div>
           </SurfaceCard>
         </div>
 
         <div className="space-y-4">
+          <SurfaceCard className="p-5 sm:p-6">
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
+                  Collection highlights
+                </p>
+                <h2 className="mt-2 [font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
+                  合集亮点
+                </h2>
+              </div>
+              {collections.length > 0 ? (
+                <div className="space-y-3">
+                  {collections.slice(0, 4).map((collection) => (
+                    <Link
+                      key={collection.id}
+                      href="/collections"
+                      className="block rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4 transition hover:border-[var(--accent)]/45"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-semibold text-[var(--ink-strong)]">{collection.name}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs text-[var(--ink-soft)]">
+                          {collection.place_count} 个地点
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-[22px] border border-dashed border-[var(--border-soft)] bg-[var(--surface-muted)] p-4 text-sm leading-7 text-[var(--ink-soft)]">
+                  还没有合集。创建一个 Coffee、Tokyo Trip 或 Favorites 合集后，它会出现在这里。
+                </p>
+              )}
+              <Link href="/collections" className="inline-flex text-sm font-semibold text-[var(--accent-deep)] underline underline-offset-4">
+                管理合集 →
+              </Link>
+            </div>
+          </SurfaceCard>
+
           <PlaceholderCard
-            title="接下来可进入的三个页面"
-            description="现在可以先进入来源入口开始 Step 10 流程，也可以继续手动补全保存；已收藏页面也已经支持进入编辑页，方便你修正已保存记录。"
+            title="继续探索"
+            description="没有单独的 Favorites 字段，因此这里不会虚构重要地点排序；你可以用合集表达自己的重点。"
             items={[
-              "添加地点：已经接入 Step 10 的来源入口，同时保留手动录入表单。",
-              "已收藏：展示当前账号已保存的地点记录，并提供编辑入口。",
-              "地图视图：用于承接后续的地图与位置展示。",
+              "添加地点：继续从来源链接或手动输入开始。",
+              "已收藏：查看完整列表和编辑入口。",
+              "地图视图：回到已有地点的地图展示。",
             ]}
           />
           <PlaceholderCard
