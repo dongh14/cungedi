@@ -71,6 +71,27 @@ test("uses an extracted name as the review default while keeping manual compatib
   assert.equal(manualValues.name, "My Manual Name");
 });
 
+test("uses merged source fields as editable review defaults", () => {
+  const values = getInitialDraftFormValues(
+    { source_url: "https://maps.google.com/?q=Restaurant" },
+    "https://maps.google.com/?q=Restaurant",
+    {
+      name: "Restaurant",
+      city: "上海",
+      address: "上海市黄浦区示例路 8 号",
+      category: "美食",
+      notes: "官网介绍：适合午餐",
+      description: null,
+    },
+  );
+
+  assert.equal(values.name, "Restaurant");
+  assert.equal(values.city, "上海");
+  assert.equal(values.address, "上海市黄浦区示例路 8 号");
+  assert.equal(values.category, "美食");
+  assert.equal(values.note, "官网介绍：适合午餐");
+});
+
 test("reports missing required and optional review fields", () => {
   const missingFields = getMissingDraftFields({
     name: "",

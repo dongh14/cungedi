@@ -29,6 +29,8 @@ export const extractionFields = [
 
 export type ExtractedField = (typeof extractionFields)[number];
 
+export type ExtractionFieldOrigin = "structured" | "metadata" | "url";
+
 export type NormalizedExtractionResult = {
   name: string | null;
   description: string | null;
@@ -44,6 +46,7 @@ export type NormalizedExtractionResult = {
   confidence: ExtractionConfidence;
   extractionStatus: ExtractionStatus;
   extractedFields: ExtractedField[];
+  fieldOrigins?: Partial<Record<ExtractedField, ExtractionFieldOrigin>>;
   sourceType: SourceType;
   message: string;
 };
@@ -145,6 +148,7 @@ function buildEmptyResult(
     confidence: input.confidence,
     extractionStatus: input.extractionStatus,
     extractedFields: [],
+    fieldOrigins: {},
     sourceType,
     message: input.message,
   };
@@ -281,7 +285,104 @@ function extractGoogleMapsUrl(sourceUrl: string): NormalizedExtractionResult {
     latitude,
     longitude,
     extractedFields: [...extractedFields],
+    fieldOrigins: Object.fromEntries(
+      extractedFields.map((field) => [field, "url"]),
+    ) as NormalizedExtractionResult["fieldOrigins"],
   };
+}
+
+const genericWebsiteTitlePatterns = [
+  /^welcome(?:\s+to)?(?:\s+.+)?$/i,
+  /^home(?:page)?$/i,
+  /^official\s+(?:website|site)$/i,
+  /^(?:website|site)$/i,
+];
+
+function isGenericWebsiteTitle(value: string) {
+  return genericWebsiteTitlePatterns.some((pattern) => pattern.test(value.trim()));
+}
+
+function formatUrlName(value: string) {
+  const normalizedValue = decodeURIComponent(value)
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (
+    !normalizedValue ||
+    /^(?:home|homepage|index|page|place|restaurant|restaurants|menu|about|contact|english|en|zh|ja)$/i.test(
+      normalizedValue,
+    )
+  ) {
+    return null;
+  }
+
+  return normalizedValue.charAt(0).toUpperCase() + normalizedValue.slice(1);
+}
+
+function extractWebsiteUrlName(sourceUrl: string) {
+  try {
+    const parsedUrl = new URL(sourceUrl);
+    const pathCandidates = parsedUrl.pathname
+      .split("/")
+      .map((segment) => {
+        try {
+          return formatUrlName(decodeURIComponent(segment));
+        } catch {
+          return null;
+        }
+      })
+      .filter((candidate): candidate is string => Boolean(candidate))
+      .reverse();
+
+    const pathName = pathCandidates.find((candidate) => !isGenericWebsiteTitle(candidate));
+
+    if (pathName) {
+      return pathName;
+    }
+
+    const hostnamePart = parsedUrl.hostname
+      .replace(/^www\./i, "")
+      .split(".")
+      .find(
+        (part) =>
+          part.length > 1 &&
+          !/^(?:com|org|net|co|jp|cn|uk|site|website|example|localhost)$/i.test(part),
+      );
+
+    return hostnamePart ? formatUrlName(hostnamePart) : null;
+  } catch {
+    return null;
+  }
+}
+
+function chooseWebsiteName(
+  sourceUrl: string,
+  structuredName: string | null,
+  ogTitle: string | null,
+  title: string | null,
+) {
+  if (structuredName) {
+    return { name: structuredName, source: "structured" as const };
+  }
+
+  if (ogTitle && !isGenericWebsiteTitle(ogTitle)) {
+    return { name: ogTitle, source: "open-graph" as const };
+  }
+
+  if (title && !isGenericWebsiteTitle(title)) {
+    return { name: title, source: "title" as const };
+  }
+
+  const urlName = extractWebsiteUrlName(sourceUrl);
+
+  if (urlName) {
+    return { name: urlName, source: "url" as const };
+  }
+
+  const weakName = ogTitle ?? title;
+
+  return weakName ? { name: weakName, source: "generic" as const } : { name: null, source: null };
 }
 
 function extractWebsiteUrl(
@@ -297,8 +398,16 @@ function extractWebsiteUrl(
   }
 
   const parsedWebsite = parseWebsiteMetadata(input);
-  const structured = parsedWebsite.structuredData[0];
-  const name = structured?.name ?? parsedWebsite.metadata.ogTitle ?? parsedWebsite.metadata.title;
+  const structured =
+    parsedWebsite.structuredData.find((entry) => Boolean(entry.name)) ??
+    parsedWebsite.structuredData[0];
+  const selectedName = chooseWebsiteName(
+    sourceUrl,
+    structured?.name ?? null,
+    parsedWebsite.metadata.ogTitle,
+    parsedWebsite.metadata.title,
+  );
+  const name = selectedName.name;
   const description =
     structured?.description ??
     parsedWebsite.metadata.ogDescription ??
@@ -326,10 +435,17 @@ function extractWebsiteUrl(
 
   const hasStructuredName = Boolean(structured?.name);
   const hasStructuredDetails = Boolean(category || address || phone || websiteUrl);
+  const confidence = hasStructuredName
+    ? hasStructuredDetails
+      ? "high"
+      : "medium"
+    : selectedName.source === "open-graph" || selectedName.source === "title"
+      ? "medium"
+      : "low";
 
   return {
     ...buildEmptyResult("website", sourceUrl, {
-      confidence: hasStructuredName && hasStructuredDetails ? "high" : "medium",
+      confidence,
       extractionStatus: "partial",
       message: "Only explicit website metadata and supported JSON-LD fields were extracted.",
     }),
@@ -340,6 +456,20 @@ function extractWebsiteUrl(
     phone,
     websiteUrl,
     extractedFields,
+    fieldOrigins: Object.fromEntries(
+      extractedFields.map((field) => [
+        field,
+        field === "name"
+          ? selectedName.source === "structured"
+            ? "structured"
+            : selectedName.source === "url"
+              ? "url"
+              : "metadata"
+          : ["category", "address", "phone", "websiteUrl"].includes(field)
+            ? "structured"
+            : "metadata",
+      ]),
+    ) as NormalizedExtractionResult["fieldOrigins"],
   };
 }
 

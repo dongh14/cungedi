@@ -2,13 +2,21 @@ import Link from "next/link";
 import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import { SurfaceCard } from "@/components/surface-card";
 import type {
-  ExtractedField,
   NormalizedExtractionResult,
 } from "@/lib/restaurants/extraction-architecture";
+import {
+  mergePlaceDraftSources,
+  type MergedPlaceDraft,
+  type PlaceDraftField,
+  type PlaceDraftSource,
+} from "@/lib/restaurants/place-draft-merge";
 
 type SourceReviewCardProps = {
   sourceUrl: string;
   extractionResult?: NormalizedExtractionResult;
+  extractionResults?: NormalizedExtractionResult[];
+  mergedDraft?: MergedPlaceDraft;
+  sourceUrls?: string[];
 };
 
 function getSourceTypeLabel(sourceType: ReturnType<typeof buildSourceIntake>["sourceType"]) {
@@ -30,7 +38,7 @@ function getSourceTypeLabel(sourceType: ReturnType<typeof buildSourceIntake>["so
   }
 }
 
-const reviewFieldLabels: Record<ExtractedField, string> = {
+const reviewFieldLabels: Record<PlaceDraftField, string> = {
   name: "地点名称",
   description: "描述",
   category: "分类",
@@ -54,25 +62,64 @@ function getConfidenceLabel(confidence: ReturnType<typeof buildSourceIntake>["ex
   }
 }
 
-export function SourceReviewCard({ sourceUrl, extractionResult }: SourceReviewCardProps) {
+export function SourceReviewCard({
+  sourceUrl,
+  extractionResult,
+  extractionResults,
+  mergedDraft,
+  sourceUrls,
+}: SourceReviewCardProps) {
   const intake = buildSourceIntake(sourceUrl);
-  const result = extractionResult ?? intake.extractionResult;
+  const results = extractionResults ?? (extractionResult ? [extractionResult] : [intake.extractionResult]);
+  const merged = mergedDraft ?? mergePlaceDraftSources(results);
+  const sourceList = sourceUrls?.length ? sourceUrls : [sourceUrl];
   const extractionLabel =
-    result.extractionStatus === "success"
-      ? "提取可用"
-      : result.extractionStatus === "partial"
-        ? "部分提取"
-        : "提取不可用";
-  const extractedFields = result.extractedFields;
-  const reviewFields: ExtractedField[] = ["name", "address", "category", "city"];
-  const hasCoordinates =
-    extractedFields.includes("latitude") && extractedFields.includes("longitude");
-  const foundFields = extractedFields.filter(
-    (field) => field !== "latitude" && field !== "longitude",
+    results.length > 1
+      ? `${results.length} 个来源已合并`
+      : results[0].extractionStatus === "success"
+        ? "提取可用"
+        : results[0].extractionStatus === "partial"
+          ? "部分提取"
+          : "提取不可用";
+  const reviewDisplayFields: PlaceDraftField[] = [
+    "name",
+    "address",
+    "phone",
+    "description",
+    "city",
+    "category",
+    "notes",
+  ];
+  const reviewFields: PlaceDraftField[] = [
+    "name",
+    "address",
+    "phone",
+    "city",
+    "category",
+    "notes",
+  ];
+  const hasDraftValue = (field: PlaceDraftField) => {
+    const value = merged[field];
+
+    return typeof value === "number" ? Number.isFinite(value) : Boolean(value?.trim());
+  };
+  const hasCoordinates = hasDraftValue("latitude") && hasDraftValue("longitude");
+  const foundFields = reviewDisplayFields.filter(hasDraftValue);
+  const fieldsNeedingReview = reviewFields.filter((field) => !hasDraftValue(field));
+  const extractionMessages = Array.from(
+    new Set(results.map((result) => result.message).filter(Boolean)),
   );
-  const fieldsNeedingReview = reviewFields.filter(
-    (field) => !extractedFields.includes(field),
-  );
+  const getFieldSourceLabel = (source: PlaceDraftSource | undefined) => {
+    if (source === "manual") {
+      return "手动编辑";
+    }
+
+    if (source === "google_maps") {
+      return "Google Maps";
+    }
+
+    return source === "website" ? "Website" : source ?? "未知来源";
+  };
 
   return (
     <SurfaceCard className="p-5 sm:p-6">
@@ -96,7 +143,13 @@ export function SourceReviewCard({ sourceUrl, extractionResult }: SourceReviewCa
             提取质量
           </p>
           <p className="mt-3 text-sm leading-7 text-[var(--ink-soft)]">
-            {result.message} · {getConfidenceLabel(result.confidence)}
+            {extractionMessages.join(" · ")} · {getConfidenceLabel(
+              results.some((result) => result.confidence === "high")
+                ? "high"
+                : results.some((result) => result.confidence === "medium")
+                  ? "medium"
+                  : "low",
+            )}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-[20px] bg-emerald-50 p-3">
@@ -104,9 +157,18 @@ export function SourceReviewCard({ sourceUrl, extractionResult }: SourceReviewCa
               {foundFields.length > 0 || hasCoordinates ? (
                 <ul className="mt-2 space-y-1 text-sm text-emerald-800">
                   {foundFields.map((field) => (
-                    <li key={field}>✓ {reviewFieldLabels[field]}</li>
+                    <li key={field}>
+                      <span>✓ {reviewFieldLabels[field]}</span>
+                      <span className="ml-2 text-emerald-700/75">
+                        {String(merged[field])} · {getFieldSourceLabel(merged.fieldSources[field])}
+                      </span>
+                    </li>
                   ))}
-                  {hasCoordinates ? <li>✓ 坐标</li> : null}
+                  {hasCoordinates ? (
+                    <li>
+                      ✓ 坐标 · {getFieldSourceLabel(merged.fieldSources.latitude)}
+                    </li>
+                  ) : null}
                 </ul>
               ) : (
                 <p className="mt-2 text-sm text-emerald-800">暂无可安全使用的信息</p>
@@ -132,7 +194,7 @@ export function SourceReviewCard({ sourceUrl, extractionResult }: SourceReviewCa
             已识别来源
           </p>
           <p className="mt-3 break-all text-sm leading-7 text-[var(--ink-strong)]">
-            {sourceUrl}
+            {sourceList.join("\n")}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
@@ -146,6 +208,45 @@ export function SourceReviewCard({ sourceUrl, extractionResult }: SourceReviewCa
             </span>
           </div>
         </div>
+
+        <form
+          method="get"
+          action="/restaurants/review"
+          className="rounded-[24px] border border-dashed border-[var(--border-soft)] bg-white/70 p-4"
+        >
+          <input type="hidden" name="source_url" value={sourceUrl} />
+          {sourceList.slice(1).map((additionalSourceUrl) => (
+            <input
+              key={additionalSourceUrl}
+              type="hidden"
+              name="source_urls"
+              value={additionalSourceUrl}
+            />
+          ))}
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-[var(--ink-strong)]">合并另一个来源</p>
+              <p className="mt-1 text-xs leading-6 text-[var(--ink-muted)]">
+                可以再加入一个 Google Maps 或官网链接，系统会在保存前按字段优先级合并。
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                name="additional_source_url"
+                type="url"
+                required
+                className="min-w-0 flex-1 rounded-full border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
+                placeholder="https://..."
+              />
+              <button
+                type="submit"
+                className="rounded-full border border-[var(--border-soft)] bg-white px-5 py-3 text-sm font-semibold text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              >
+                合并来源
+              </button>
+            </div>
+          </div>
+        </form>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-[24px] bg-[var(--surface-muted)] p-4">

@@ -2,6 +2,7 @@ import { createRestaurantAction } from "@/app/restaurants/actions";
 import { RestaurantFormFields } from "@/components/restaurant-form-fields";
 import { SurfaceCard } from "@/components/surface-card";
 import type { NormalizedExtractionResult } from "@/lib/restaurants/extraction-architecture";
+import type { MergedPlaceDraft } from "@/lib/restaurants/place-draft-merge";
 import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import {
   getInitialDraftFormValues,
@@ -13,16 +14,20 @@ type ExtractionConfirmationCardProps = {
   sourceUrl: string;
   searchParams: ReviewSearchParams;
   extractionResult?: NormalizedExtractionResult;
+  mergedDraft?: MergedPlaceDraft;
+  sourceUrls?: string[];
 };
 
 export function ExtractionConfirmationCard({
   sourceUrl,
   searchParams,
   extractionResult: providedExtractionResult,
+  mergedDraft,
+  sourceUrls,
 }: ExtractionConfirmationCardProps) {
-  const extractionResult =
-    providedExtractionResult ?? buildSourceIntake(sourceUrl).extractionResult;
-  const values = getInitialDraftFormValues(searchParams, sourceUrl, extractionResult);
+  const reviewDraft =
+    mergedDraft ?? providedExtractionResult ?? buildSourceIntake(sourceUrl).extractionResult;
+  const values = getInitialDraftFormValues(searchParams, sourceUrl, reviewDraft);
   const missingFields = getMissingDraftFields(values);
 
   return (
@@ -89,6 +94,14 @@ export function ExtractionConfirmationCard({
         <form action={createRestaurantAction} className="space-y-5">
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="review_source_url" value={sourceUrl} />
+          {sourceUrls?.slice(1).map((additionalSourceUrl) => (
+            <input
+              key={additionalSourceUrl}
+              type="hidden"
+              name="source_urls"
+              value={additionalSourceUrl}
+            />
+          ))}
           <RestaurantFormFields
             values={values}
             sourceLabel="来源链接"

@@ -81,6 +81,53 @@ test("parses LocalBusiness JSON-LD from HTML", () => {
   assert.equal(result.extractionStatus, "partial");
 });
 
+test("prefers a JSON-LD business name over generic page titles", () => {
+  const result = websiteExtractor.extract("https://example.com/restaurant", {
+    html: `
+      <title>Welcome to the restaurant</title>
+      <script type="application/ld+json">
+        {"@type":"Restaurant","name":"Alimentari","address":"88 Yongjia Road","telephone":"021-5555-6666"}
+      </script>
+    `,
+  });
+
+  assert.equal(result.name, "Alimentari");
+  assert.equal(result.confidence, "high");
+  assert.equal(result.extractionStatus, "partial");
+});
+
+test("prefers an Open Graph title over a generic HTML title", () => {
+  const result = websiteExtractor.extract("https://example.com/restaurant", {
+    html: `
+      <title>Official Website</title>
+      <meta property="og:title" content="Alimentari Shanghai" />
+    `,
+  });
+
+  assert.equal(result.name, "Alimentari Shanghai");
+  assert.equal(result.confidence, "medium");
+});
+
+test("uses a conservative URL name when generic titles are the only page names", () => {
+  const result = websiteExtractor.extract("https://www.tsukiji.or.jp/english/", {
+    html: "<title>Welcome to Tsukiji</title>",
+  });
+
+  assert.equal(result.name, "Tsukiji");
+  assert.equal(result.confidence, "low");
+  assert.equal(result.extractionStatus, "partial");
+});
+
+test("keeps a weak generic title at low confidence when no useful URL name exists", () => {
+  const result = websiteExtractor.extract("https://example.com", {
+    title: "Welcome to Tsukiji",
+  });
+
+  assert.equal(result.name, "Welcome to Tsukiji");
+  assert.equal(result.confidence, "low");
+  assert.equal(result.extractionStatus, "partial");
+});
+
 test("ignores unsupported schema types and does not invent missing fields", () => {
   const result = websiteExtractor.extract("https://example.com/page", {
     structuredData: {

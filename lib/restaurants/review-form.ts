@@ -29,21 +29,26 @@ export type ReviewSearchParams = Partial<
 export function getInitialDraftFormValues(
   searchParams: ReviewSearchParams,
   sourceUrl: string,
-  extractionResult?: Pick<NormalizedExtractionResult, "name">,
+  extractionResult?: Partial<Pick<
+    NormalizedExtractionResult,
+    "name" | "city" | "address" | "category" | "notes" | "description"
+  >>,
 ): RestaurantDraftFormValues {
   return {
     name: searchParams.name ?? extractionResult?.name ?? "",
-    city: searchParams.city ?? "",
+    city: searchParams.city ?? extractionResult?.city ?? "",
     source_input: searchParams.source_input ?? sourceUrl,
     privacy: searchParams.privacy === "public" ? "public" : "private",
     category:
       searchParams.category !== undefined &&
       isRestaurantCategory(searchParams.category)
         ? searchParams.category
-        : defaultRestaurantCategory,
-    address: searchParams.address ?? "",
+        : extractionResult?.category && isRestaurantCategory(extractionResult.category)
+          ? extractionResult.category
+          : defaultRestaurantCategory,
+    address: searchParams.address ?? extractionResult?.address ?? "",
     cuisine: searchParams.cuisine ?? "",
-    note: searchParams.note ?? "",
+    note: searchParams.note ?? extractionResult?.notes ?? extractionResult?.description ?? "",
   };
 }
 
