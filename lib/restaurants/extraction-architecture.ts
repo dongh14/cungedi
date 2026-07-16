@@ -18,6 +18,7 @@ export const extractionFields = [
   "name",
   "description",
   "category",
+  "cuisine",
   "city",
   "address",
   "phone",
@@ -36,6 +37,7 @@ export type NormalizedExtractionResult = {
   name: string | null;
   description: string | null;
   category: string | null;
+  cuisine?: string | null;
   city: string | null;
   address: string | null;
   phone: string | null;
@@ -49,8 +51,14 @@ export type NormalizedExtractionResult = {
   extractionStatus: ExtractionStatus;
   extractedFields: ExtractedField[];
   fieldOrigins?: Partial<Record<ExtractedField, ExtractionFieldOrigin>>;
+  evidence?: ExtractionEvidence;
   sourceType: SourceType;
   message: string;
+};
+
+export type ExtractionEvidence = {
+  metadata?: Partial<WebsiteMetadataFields>;
+  structuredData?: WebsiteStructuredData[];
 };
 
 export type SourceDetection = {
@@ -462,6 +470,10 @@ function extractWebsiteUrl(
     websiteUrl,
     imageUrl,
     extractedFields,
+    evidence: {
+      metadata: parsedWebsite.metadata,
+      structuredData: parsedWebsite.structuredData,
+    },
     fieldOrigins: Object.fromEntries(
       extractedFields.map((field) => [
         field,
@@ -544,6 +556,8 @@ export function runExtractionPipeline(sourceUrl: string) {
 import {
   parseWebsiteMetadata,
   type WebsiteExtractionInput,
+  type WebsiteMetadataFields,
+  type WebsiteStructuredData,
 } from "./website-metadata.ts";
 import {
   fetchWebsiteHtml,

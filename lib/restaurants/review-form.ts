@@ -40,7 +40,7 @@ export function getInitialDraftFormValues(
   extractionResult?: Partial<Pick<
     NormalizedExtractionResult,
     "name" | "city" | "address" | "category" | "notes" | "description"
-  >>,
+  >> & { cuisine?: string | null },
 ): RestaurantDraftFormValues {
   return {
     name: searchParams.name ?? extractionResult?.name ?? "",
@@ -55,7 +55,7 @@ export function getInitialDraftFormValues(
           ? extractionResult.category
           : defaultRestaurantCategory,
     address: searchParams.address ?? extractionResult?.address ?? "",
-    cuisine: searchParams.cuisine ?? "",
+    cuisine: searchParams.cuisine ?? extractionResult?.cuisine ?? "",
     note: searchParams.note ?? extractionResult?.notes ?? extractionResult?.description ?? "",
   };
 }
@@ -100,7 +100,7 @@ export function getMissingDraftFields(
   if (!values.cuisine.trim()) {
     missingFields.push({
       key: "cuisine",
-      label: "类型细分",
+      label: "子分类",
       required: false,
     });
   }

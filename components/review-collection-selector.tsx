@@ -1,5 +1,6 @@
 import { createCollectionAction } from "@/app/restaurants/actions";
 import { SurfaceCard } from "@/components/surface-card";
+import type { AIReviewDraftState } from "@/lib/restaurants/ai-review-state";
 import type { CollectionOptionItem } from "@/lib/restaurants/types";
 
 export function ReviewCollectionSelector({
@@ -8,13 +9,55 @@ export function ReviewCollectionSelector({
   sourceUrl,
   message,
   formId = "review-save-form",
+  aiDraftState,
+  draftValues,
 }: {
   collectionOptions: CollectionOptionItem[];
   selectedCollectionIds: number[];
   sourceUrl: string;
   message?: string;
   formId?: string;
+  aiDraftState?: AIReviewDraftState | null;
+  draftValues?: Partial<{
+    name: string;
+    city: string;
+    address: string;
+    category: string;
+    cuisine: string;
+    note: string;
+    privacy: string;
+  }>;
 }) {
+  function renderAIDraftStateInputs() {
+    if (!aiDraftState) {
+      return null;
+    }
+
+    return (
+      <>
+        {aiDraftState.snapshot.map((field) => (
+          <input
+            key={`ai-snapshot-${field.field}`}
+            type="hidden"
+            name="ai_snapshot"
+            value={JSON.stringify(field)}
+          />
+        ))}
+        <input type="hidden" name="ai_snapshot_confidence" value={aiDraftState.confidence} />
+        <input type="hidden" name="ai_snapshot_reason" value={aiDraftState.reasoningSummary} />
+        {aiDraftState.acceptedFields.map((field) => (
+          <input key={`ai-accepted-${field}`} type="hidden" name="ai_accepted" value={field} />
+        ))}
+        {aiDraftState.rejectedGroups.includes("factual") ? (
+          <input type="hidden" name="ai_reject_factual" value="1" />
+        ) : null}
+        {aiDraftState.rejectedGroups.includes("understanding") ? (
+          <input type="hidden" name="ai_reject_understanding" value="1" />
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <SurfaceCard className="p-5 sm:p-6">
       <div className="space-y-4">
@@ -61,6 +104,10 @@ export function ReviewCollectionSelector({
         <form action={createCollectionAction} className="flex flex-col gap-3 sm:flex-row">
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="source_url" value={sourceUrl} />
+          {renderAIDraftStateInputs()}
+          {Object.entries(draftValues ?? {}).map(([field, value]) => (
+            <input key={`review-${field}`} type="hidden" name={`review_${field}`} value={value} />
+          ))}
           <input
             name="name"
             required

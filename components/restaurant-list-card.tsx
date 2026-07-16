@@ -87,7 +87,7 @@ export function RestaurantListCard({
 
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
         <DetailItem label="分类" value={restaurant.category} />
-        <DetailItem label="类型细分" value={restaurant.cuisine} />
+        <DetailItem label="子分类" value={restaurant.cuisine} />
         <DetailItem label="地址" value={restaurant.address} />
       </div>
 

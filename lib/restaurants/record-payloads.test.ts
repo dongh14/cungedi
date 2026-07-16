@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { categoryOptions } from "./constants";
+import { categoryOptions } from "./constants.ts";
 import {
   buildRestaurantInsertPayload,
   buildRestaurantUpdatePayload,
-} from "./record-payloads";
+} from "./record-payloads.ts";
 
 test("manual save payload supports every allowed category", () => {
   for (const option of categoryOptions) {

@@ -7,6 +7,7 @@ import type { MergedPlaceDraft, PlaceDraftField, PlaceDraftSource } from "@/lib/
 const fieldLabels: Record<PlaceDraftField, string> = {
   name: "地点名称",
   category: "分类",
+  cuisine: "子分类",
   city: "城市",
   address: "地址",
   phone: "电话",
@@ -48,7 +49,7 @@ export function ReviewFinalPreviewCard({
   collectionOptions: CollectionOptionItem[];
   selectedCollectionIds: number[];
 }) {
-  const confirmedFields: PlaceDraftField[] = ["name", "category", "city", "address", "phone", "notes"];
+  const confirmedFields: PlaceDraftField[] = ["name", "category", "cuisine", "city", "address", "phone", "notes"];
   const missingOptionalFields = ["address", "phone", "notes"].filter(
     (field) => !hasValue(draft[field as PlaceDraftField]),
   ) as PlaceDraftField[];

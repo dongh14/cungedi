@@ -1,11 +1,117 @@
 # Current Architecture
 
 ## Scope
-This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, the validated V1 map polish step, the validated Step 13 local place search checkpoint, the validated city normalization checkpoint, the validated map search interaction polish checkpoint, the validated map clustering checkpoint, and the validated map place-detail interaction checkpoint.
+This document describes the repository as it exists after validated Step 12, the first validated reversible `存个地` generalization migration step, the validated Step 3A accommodation-extraction expansion, the validated Step 3B attraction-extraction expansion, the validated Step 3C shopping-extraction expansion, the validated Step 3D entertainment-extraction expansion, the validated Step 3E generic-place extraction expansion, the validated MapLibre foundation step, the validated PMTiles basemap step, the validated city-level coordinate fallback step, the validated marker rendering step, the validated city filtering and no-coordinate polish step, the validated V1 map polish step, the validated Step 13 local place search checkpoint, the validated city normalization checkpoint, the validated map search interaction polish checkpoint, the validated map clustering checkpoint, the validated map place-detail interaction checkpoint, the validated user collections checkpoint, the validated V1 add-place flow checkpoint, the validated V1 extraction architecture checkpoint, and the validated Google Maps extractor V2 checkpoint.
 
 It does not include Step 13 multi-candidate extraction or later architecture yet.
 
 The product is currently paused before Step 13 so the restaurant-only app can be generalized into `存个地`, a Chinese-first personal place collection app.
+
+## Validated Google Maps Extractor V2 Checkpoint
+- Google Maps extraction now uses URL-only deterministic parsing; it does not scrape Google Maps pages or call Google APIs, external APIs, or AI services.
+- The parser supports `q`, `query`, `/maps/search/`, and `/maps/place/` name sources.
+- The parser extracts explicit `@latitude,longitude` coordinates only when present and validates latitude and longitude ranges before returning them.
+- The parser extracts an explicit `address` parameter when present and does not infer address from a place name.
+- Category, city, ratings, and reviews remain empty unless a future extractor explicitly supports them; Google Maps V2 does not guess these fields.
+- The source detector and extractor interface remain unchanged.
+- The normalized result now carries `extractionStatus`, `confidence`, and `extractedFields` so partial URL results can be distinguished from unavailable results.
+- The review flow displays the information found and the fields that still require manual input, while keeping the existing editable review form.
+- The Supabase schema, saved place flow, collections system, map rendering, marker clustering, map search, city filtering, city normalization, and coordinate resolver remain unchanged.
+- Validation recorded for this checkpoint:
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Extraction tests passed (`19` tests).
+
+## Validated V1 Server-Side Website Fetching Checkpoint
+- A dedicated website URL fetching layer now validates submitted URLs before allowing only `http` and `https` requests.
+- The server-side flow fetches bounded HTML for the single submitted URL and handles invalid URLs, timeouts, failed responses, oversized responses, and non-HTML responses without breaking the review flow.
+- The existing Website Extractor now receives fetched HTML through the existing extraction architecture and can parse page metadata and supported schema.org JSON-LD fields.
+- The extraction flow is now: URL → source detection → fetcher → extractor → review → save.
+- The review UI shows the detected source, extraction status, extracted fields, and fetch failure messages while keeping all fields manually editable.
+- The fetch layer does not crawl links, execute scripts, call external APIs, use AI extraction, or persist raw HTML.
+- The Supabase schema, saved place creation flow, Google Maps extractor behavior, map rendering, marker clustering, map search, city filtering, city normalization, coordinate resolver, and collections system remain unchanged.
+- Validation recorded for this checkpoint:
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Extraction tests passed (`29` tests).
+
+## Validated V1 Source-Merging Checkpoint
+- A pure `place-draft-merge` helper now combines multiple normalized extraction results into one review draft without writing data.
+- Multiple sources can enrich one draft, including Google Maps and Website results, before the existing save confirmation.
+- The merged draft carries field-level source attribution so the review UI can show whether a value came from Google Maps, Website, or manual editing.
+- Automatic field priority is preserved for structured website data, Google Maps values, website metadata, and fallback values; explicit manual edits remain supported as review overrides.
+- The review page now supports adding another source and merging its extraction result into the current draft.
+- The review form now uses merged name, city, address, category, and notes values while keeping the fields editable.
+- Missing fields remain empty, are shown for manual review, and no values are invented.
+- The Supabase schema, saved-place creation behavior, map system, collections system, and existing extractor interfaces remain unchanged.
+- Validation recorded for this checkpoint:
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused extraction tests passed (`37` tests).
+
+## Validated AI Enrichment Architecture Checkpoint
+- A provider-independent AI enrichment interface now accepts the merged place draft, extracted source data, source URLs, and missing fields.
+- The interface returns proposal-only enrichment fields such as normalized name, city, category, address, notes summary, confidence, reasoning summary, and proposed fields.
+- AI enrichment is suggestion-only; the deterministic extraction and source-merging result remains the primary draft.
+- A placeholder provider is registered for the current V1 boundary. It makes no network calls and returns `unavailable` with a clear not-configured message.
+- Explicit AI result states are supported: `unavailable`, `no_changes`, `suggestions_available`, and `failed`.
+- A pure acceptance helper applies only explicitly accepted suggestions. Manual values remain protected, deterministic values are unchanged until acceptance, and accepted fields receive `ai_suggestion` attribution.
+- The review page includes a non-functional AI enrichment section that can display unavailable status, proposal confidence, proposed fields, and future accept/reject controls.
+- AI output never writes directly to Supabase, and no external AI API integration or API keys were added.
+- The extraction architecture, Google Maps extractor, Website Extractor, source merging, saved place schema, map system, and collections system remain unchanged.
+- Validation recorded for this checkpoint:
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused enrichment/extraction tests passed (`42` tests).
+
+## Validated V1 Final Review And Save Experience Checkpoint
+- A final review preview card now presents the merged draft before save, including confirmed name, category, city, address, phone, and notes.
+- Source badges and field-level attribution show whether values came from Google Maps, Website, Manual input, or a future AI suggestion.
+- Conflicting source values are surfaced for user confirmation instead of being hidden.
+- Missing optional information is labeled clearly; optional fields do not block saving, and users can save anyway or continue editing.
+- The review page now supports selecting one or more existing collections before save.
+- Inline collection creation is available from the review page and reuses the existing collection creation action.
+- After the place is created, selected memberships are inserted through the existing `restaurant_collections` join-table architecture; the place schema and collection data model are unchanged.
+- Manual edits remain the highest-priority values in the final review.
+- The extraction architecture, source merging, AI enrichment architecture, Supabase place schema, map system, and collections data model remain unchanged.
+- Validation recorded for this checkpoint:
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused tests passed (`42` tests).
+
+## Validated V1 Place Discovery Checkpoint
+- A reusable `PlaceCard` component now presents saved places with optional images, a clean no-image placeholder, name, city, category, collection badges, source host, and a link to the existing place detail/edit route.
+- The authenticated `/dashboard` now serves as the simple home discovery view for recently saved places and existing collection highlights.
+- Recent places remain ordered by saved time; no recommendation algorithm or favorite ranking was added because no favorite field exists in the saved-place data.
+- RLS-scoped discovery queries now load the current user's saved places, collection memberships, and collection counts through the existing `restaurant_collections` join-table architecture.
+- Image handling remains optional and presentation-only for this checkpoint; the existing saved-place schema is unchanged.
+- The extraction architecture, Google Maps extractor, Website Extractor, source merging, AI enrichment architecture, Supabase schema, collections data model, and map system remain unchanged.
+- Validation recorded for this checkpoint:
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused tests passed (`14` tests).
+
+## Validated V1 Extraction Architecture Checkpoint
+- The local source detection layer identifies `unknown`, `website`, `google_maps`, `xiaohongshu`, `douyin`, `instagram`, and `tiktok` source types from a submitted URL.
+- The extractor interface defines `sourceType`, `canHandle()`, and `extract()` so future source implementations can be added without changing the save flow.
+- The extractor registry selects the registered extractor for the detected source type.
+- Placeholder extractors exist for Google Maps, Website, Xiaohongshu, and Douyin. Each returns an explicit not-implemented result and does not pretend to extract data.
+- The normalized extraction result type carries name, category, city, address, latitude, longitude, source URL, notes, confidence, and extraction status.
+- The existing review flow now displays the detected source and extraction availability status.
+- Manual entry remains supported through the existing review-before-save flow.
+- No external APIs, scraping, or AI extraction were added.
+- The Supabase schema, saved place creation behavior, map rendering, marker clustering, map search, city filtering, city normalization, location resolver, and collections system remain unchanged.
+- Validation recorded for this checkpoint:
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused extraction/source-intake tests passed.
 
 ## Validated V1 Map Polish
 - The existing local PMTiles and MapLibre architecture now exposes route-level, map-load, place-load, empty, city-empty, and asset-failure presentation states in Chinese.
@@ -45,6 +151,28 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - Search selection still focuses the intended marker and opens the correct popup.
 - Marker clustering behavior, city filtering, search behavior, location normalization, coordinate resolution, Supabase schema, and saved data remain unchanged.
 
+## Validated User Collections Checkpoint
+- A user-scoped collections feature now exists with a dedicated `collections` table and a `restaurant_collections` join table.
+- Owner-only RLS rules now protect both collections and collection memberships.
+- A saved place can belong to multiple collections, and removing a collection membership does not delete the saved place itself.
+- A `/collections` page now provides minimal collection viewing and creation.
+- The existing place edit page now supports adding and removing collection memberships.
+- Map rendering, marker clustering, map search, city filtering, city normalization, location resolution, coordinate handling, and the saved-place schema remain unchanged.
+
+## Validated V1 Add-Place Flow Checkpoint
+- `/restaurants/new` and `/restaurants/review` now provide an improved save flow that routes both source-led and manual add flows through a review step before persistence.
+- Source URL is now the primary entry point for the add flow.
+- Source intake, review draft shaping, and final saved-place creation are separated into distinct layers so later extraction work can slot in without rewriting the save path.
+- Source recognition is local-only and records normalized source identity without adding external APIs, AI extraction, or scraping.
+- Manual entry now also passes through the same review layer before save.
+- The Supabase saved-place schema remains unchanged.
+- Marker rendering, clustering, map search, city filtering, city normalization, location resolution, and coordinate handling remain unchanged.
+- Validation recorded for this checkpoint:
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run lint` passed.
+- Focused add-place tests passed.
+
 ## Current Structure
 
 ### Root
@@ -69,11 +197,12 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `app/login/page.tsx`: Step 6 login page using the shared auth presentation
 - `app/dashboard/page.tsx`: Step 6 protected overview page inside the signed-in app shell
 - `app/setup/page.tsx`: Step 6 Supabase setup page in the shared public shell
-- `app/restaurants/new/page.tsx`: Step 7 protected manual-create page
-- `app/restaurants/review/page.tsx`: Step 12 protected source review, extraction preview, and explicit confirmation page
+- `app/restaurants/new/page.tsx`: protected add-place entry page that now prioritizes source URL intake while still exposing manual entry
+- `app/restaurants/review/page.tsx`: protected review-before-save page for both source-led and manual add flows
 - `app/restaurants/page.tsx`: Step 8 protected full saved-list page
+- `app/collections/page.tsx`: protected collections page for viewing current-user collections and creating new ones
 - `app/restaurants/[id]/edit/page.tsx`: Step 9 protected restaurant edit page
-- `app/restaurants/actions.ts`: Step 7, Step 9, Step 10, and Step 12 server actions for create, update, source-intake flow control, and review-confirmation save handling
+- `app/restaurants/actions.ts`: server actions for create, update, source-intake flow control, manual review flow control, review-confirmation save handling, collection creation, and collection membership updates
 - `app/map/page.tsx`: protected map page that loads the current user's RLS-scoped saved places and delegates local place search, local city filtering, marker rendering, and no-coordinate summary presentation to the client map browser
 - `app/map/loading.tsx`: route-level mobile-friendly loading skeleton for the protected map page while place data is loading
 - `app/dev-fixtures/layout.tsx`: development-only route guard for deterministic extraction fixture pages
@@ -89,16 +218,18 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `components/placeholder-card.tsx`: reusable content card for Step 6 placeholder pages
 - `components/public-shell.tsx`: public-page shell for home, auth, and setup pages
 - `components/category-field.tsx`: reusable category selector that keeps the selected category first and now renders the active subtype field directly below it
-- `components/restaurant-form-card.tsx`: Step 7 reusable restaurant create form card
-- `components/restaurant-form-fields.tsx`: shared create/review form fields now used for manual create and Step 12 confirmation, including category-specific subtype behavior
+- `components/restaurant-form-card.tsx`: reusable manual-entry card that now routes through review before save
+- `components/restaurant-form-fields.tsx`: shared create and review form fields used by both the source-led and manual review-before-save flows, including category-specific subtype behavior
 - `components/cuisine-field.tsx`: reusable subtype picker used by create, review confirmation, and saved-record edit forms while the database still stores the value in `cuisine`
 - `components/restaurant-list.tsx`: Step 8 reusable saved-list summary and list wrapper
 - `components/restaurant-list-card.tsx`: Step 8 reusable saved-restaurant card
 - `components/restaurant-edit-form-card.tsx`: Step 9 reusable restaurant edit form card
-- `components/extraction-preview-card.tsx`: Step 11 reusable extraction-result card for accepted fields, fallback messaging, and manual-form handoff
-- `components/extraction-confirmation-card.tsx`: Step 12 reusable confirmation form that lets users edit, complete, and save extraction results
-- `components/source-intake-card.tsx`: Step 10 reusable source intake card for `/restaurants/new`
-- `components/source-review-card.tsx`: Step 11 reusable source review card for `/restaurants/review`
+- `components/collection-list.tsx`: reusable current-user collection list for the collections page
+- `components/collection-membership-card.tsx`: reusable collection membership management card on the existing place edit page
+- `components/extraction-preview-card.tsx`: existing extraction-result card retained for the broader extraction architecture outside the local-only V1 add-place flow checkpoint
+- `components/extraction-confirmation-card.tsx`: reusable review-before-save form that lets users edit, complete, and save draft place data
+- `components/source-intake-card.tsx`: source-first intake card for `/restaurants/new`
+- `components/source-review-card.tsx`: local source-recognition and extraction-availability summary card for `/restaurants/review`
 - `components/maplibre-foundation.tsx`: reusable client-side MapLibre component that initializes the local PMTiles-backed basemap, manages the current clustered marker layer, supports search-selection map focus and popup opening, preserves basic zoom controls, and shows Chinese loading and asset-fallback states
 - `components/map-marker-layer.ts`: reusable client-side MapLibre marker and popup-card layer for serializable resolved place-marker data, including active-marker state, richer place preview content, detail navigation, and cluster click-to-zoom behavior
 - `components/map-browser.tsx`: client-side composition layer that applies local place search plus the selected city filter before deriving map markers, exposes search-result selection and clear-search UI, and presents place-load, empty, city-empty, and no-coordinate states
@@ -139,10 +270,16 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 
 ### Restaurant Utilities
 - `lib/restaurants/constants.ts`: shared category, subtype-suggestion, cuisine, and privacy definitions for the current restaurant-first place form
-- `lib/restaurants/types.ts`: shared TypeScript types for restaurant inserts, list and edit items, and the minimal map-read item
-- `lib/restaurants/queries.ts`: owner-only RLS-scoped restaurant read helpers for the full saved list, edit route, and map marker data
+- `lib/restaurants/types.ts`: shared TypeScript types for restaurant inserts, list and edit items, collections, and the minimal map-read item
+- `lib/restaurants/queries.ts`: owner-only RLS-scoped restaurant and collection read helpers for the full saved list, collections page, edit route, collection membership state, and map marker data
+- `lib/restaurants/collection-memberships.ts`: pure helper for deduping selected collection ids and diffing join-table membership updates
+- `lib/restaurants/collection-memberships.test.ts`: focused regression test for collection selection normalization, add diffing, and membership removal without place deletion
 - `lib/restaurants/source-url.ts`: generic Step 7 source URL extraction utility for direct links and sharing text
 - `lib/restaurants/source-url.test.ts`: focused automated tests for URL extraction behavior
+- `lib/restaurants/source-intake.ts`: local source-intake helper for source URL normalization, domain recognition, support-level labeling, and intake state creation
+- `lib/restaurants/source-intake.test.ts`: focused tests for valid URL intake, invalid input handling, and local source recognition
+- `lib/restaurants/extraction-architecture.ts`: source detector, normalized extraction result type, extractor interface, extractor registry, placeholder extractors, and deterministic Google Maps V2 URL parser
+- `lib/restaurants/extraction-architecture.test.ts`: focused tests for source detection, extractor selection, Google Maps URL parsing, coordinate validation, extraction metadata, and placeholder results
 - `lib/restaurants/extraction-types.ts`: Step 11 shared extraction result, candidate, page-type, field-evidence, diagnostics, and fetch-result types
 - `lib/restaurants/source-classification.ts`: Step 11 source-kind classification and support-level rules
 - `lib/restaurants/source-fetch.ts`: Step 11 bounded source fetching with timeout, response-size, and content-type limits
@@ -157,8 +294,8 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `lib/restaurants/generic-place-inference.ts`: Step 3E minimal and conservative generic-place subtype inference for strong `其他` candidates
 - `lib/restaurants/source-extraction.ts`: Step 11, Step 3A, Step 3B, Step 3C, Step 3D, and Step 3E orchestration for shared fetching, parsing, validation, category-aware candidate acceptance, diagnostics, and fallback decisions
 - `lib/restaurants/source-extraction.test.ts`: focused Step 11, Step 3A, Step 3B, Step 3C, Step 3D, and Step 3E regression tests for restaurant, accommodation, attraction, shopping, entertainment, and generic-place extraction behavior
-- `lib/restaurants/review-form.ts`: helper for turning accepted extraction results plus URL overrides into editable confirmation values, including category defaults for successful `美食`, `住宿`, `景点`, `购物`, `玩乐`, and `其他` candidates
-- `lib/restaurants/review-form.test.ts`: focused tests for accepted-field prefills, category defaults, user overrides, missing fields, fallback-mode manual completion, and accommodation/attraction/shopping/entertainment/generic-place default-category behavior
+- `lib/restaurants/review-form.ts`: local add-flow helper for shaping review draft values, listing missing review fields, and converting review data into saved-place input
+- `lib/restaurants/review-form.test.ts`: focused tests for review draft shaping, manual overrides, missing-field reporting, and conversion from review data into saved-place input
 - `lib/restaurants/record-payloads.ts`: shared insert and update payload builders that keep `category` threaded through current save flows while `cuisine` remains the temporary subtype storage column
 - `lib/restaurants/constants.test.ts`: focused tests for allowed categories, subtype field labels, suggestion sets, and subtype-category compatibility
 - `lib/restaurants/record-payloads.test.ts`: focused tests for category persistence in save and edit payloads
@@ -168,6 +305,8 @@ The product is currently paused before Step 13 so the restaurant-only app can be
 - `supabase/migrations/20260709130000_enable_restaurants_rls.sql`: Step 5 migration that enables RLS and adds owner-only access policies for restaurant records
 - `supabase/migrations/20260711110000_add_restaurant_category.sql`: validated reversible migration that adds `category`, backfills existing rows to `美食`, enforces the six allowed values, and leaves current RLS behavior unchanged
 - `supabase/migrations/add_restaurant_category_migration.test.ts`: focused regression test for the category migration contract
+- `supabase/migrations/20260714090000_add_collections.sql`: validated migration that adds user-scoped collections, the restaurant-to-collection join table, update timestamps, and owner-only RLS policies
+- `supabase/migrations/add_collections_migration.test.ts`: focused regression test for collections schema and RLS expectations
 
 ### Request Protection
 - `proxy.ts`: request-time auth cookie refresh and protected-route handling
@@ -939,3 +1078,21 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - The current extraction path remains intentionally conservative: unsupported or weak pages fall back instead of forcing questionable field values.
 - `其他` extraction remains intentionally manual-first and is the strictest category path in the current extractor.
 - The product is intentionally paused before Step 13 while the restaurant-only model is generalized into `存个地`.
+
+## Validated AI Review-Form Integration Checkpoint
+- Accepted AI suggestions now flow into the normal editable review form; the AI card remains a review control rather than a second save model.
+- Persistable AI fields are mapped to existing form fields: `category`, `cuisine` as the temporary subcategory, and the accepted summary as `notes`.
+- The editable form values are the final source of truth for the existing save payload.
+- Manual edits remain highest priority after AI values are applied.
+- Applied values are represented in the existing URL-backed review state and survive page refresh.
+- Collection-creation redirects preserve the editable review draft values.
+- URL-backed AI state restores group-specific accepted selections.
+- Preview-only tags and place type are explicitly marked `暂不保存`, cannot be accepted, and remain outside persistence.
+- Repeated application of already-applied suggestions is disabled.
+- Manual browser validation with `https://www.teamlab.art/` passed: category became `景点`, subcategory became `Art Gallery`, manually changing the subcategory to `Digital Art Museum` survived refresh, and no place was saved during validation.
+- The Supabase schema, map system, collections architecture, extraction architecture, DeepSeek provider behavior, and preview-only tags/place-type persistence remain unchanged.
+- Validation recorded for this checkpoint:
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused tests passed (`36` tests).

@@ -10,9 +10,19 @@ import { ReviewCollectionSelector } from "@/components/review-collection-selecto
 import { SourceReviewCard } from "@/components/source-review-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
 import {
+  buildAIEnrichmentResultFromSnapshot,
   getMissingAIReviewFields,
+  normalizeAIEnrichmentResult,
   runAIEnrichment,
+  type AIProposedFieldName,
 } from "@/lib/restaurants/ai-enrichment";
+import { applyAcceptedAIEnrichment } from "@/lib/restaurants/ai-enrichment-merge";
+import {
+  appendAIReviewDraftState,
+  getAIReviewDraftState,
+  parseAIReviewDraftState,
+} from "@/lib/restaurants/ai-review-state";
+import { deepSeekAIEnrichmentProvider } from "@/lib/restaurants/deepseek-provider";
 import { runExtractionPipelineWithWebsiteFetch } from "@/lib/restaurants/extraction-architecture";
 import { mergePlaceDraftSources } from "@/lib/restaurants/place-draft-merge";
 import { getCurrentUserCollectionOptions } from "@/lib/restaurants/queries";
@@ -26,8 +36,36 @@ type RestaurantReviewPageProps = {
     additional_source_url?: string;
     collection_message?: string;
     collection_error?: string;
+    ai_accept?: string | string[];
+    ai_accept_factual?: string | string[];
+    ai_accept_understanding?: string | string[];
+    ai_accepted?: string | string[];
+    ai_snapshot?: string | string[];
+    ai_snapshot_confidence?: string;
+    ai_snapshot_reason?: string;
+    ai_reject?: string;
+    ai_reject_factual?: string;
+    ai_reject_understanding?: string;
   }>;
 };
+
+function getAcceptedAIFields(
+  ...valuesToAccept: Array<string | string[] | undefined>
+): AIProposedFieldName[] {
+  const values = valuesToAccept.flatMap((value) =>
+    Array.isArray(value) ? value : value ? [value] : [],
+  );
+  const allowed = new Set<AIProposedFieldName>([
+    "address",
+    "phone",
+    "city",
+    "category",
+    "cuisine",
+    "summary",
+  ]);
+
+  return values.filter((field): field is AIProposedFieldName => allowed.has(field as AIProposedFieldName));
+}
 
 function getReviewSourceUrls(params: {
   source_url?: string;
@@ -81,14 +119,63 @@ export default async function RestaurantReviewPage({
     ...(params.city !== undefined ? { city: params.city } : {}),
     ...(params.category !== undefined ? { category: params.category } : {}),
     ...(params.address !== undefined ? { address: params.address } : {}),
+    ...(params.cuisine !== undefined ? { cuisine: params.cuisine } : {}),
     ...(params.note !== undefined ? { notes: params.note } : {}),
   });
-  const aiEnrichment = await runAIEnrichment({
-    mergedPlaceDraft: mergedDraft,
-    extractedSourceData: extractionResults,
-    sourceUrls,
-    missingFields: getMissingAIReviewFields(mergedDraft),
-  });
+  const storedAIState = parseAIReviewDraftState(params);
+  const acceptedAIFields = storedAIState?.acceptedFields ?? getAcceptedAIFields(
+    params.ai_accept,
+    params.ai_accept_factual,
+    params.ai_accept_understanding,
+  );
+  const rejectedAIGroups = storedAIState?.rejectedGroups ?? [];
+  const rawAIEnrichment = params.ai_reject === "1"
+    ? {
+        status: "no_changes" as const,
+        message: "AI suggestions were rejected without changing the current draft.",
+        proposal: null,
+      }
+    : storedAIState
+      ? buildAIEnrichmentResultFromSnapshot(
+          storedAIState.snapshot,
+          storedAIState.confidence,
+          storedAIState.reasoningSummary,
+        )
+    : await runAIEnrichment(
+        {
+          mergedPlaceDraft: mergedDraft,
+          extractedSourceData: extractionResults,
+          sourceUrls,
+          missingFields: getMissingAIReviewFields(mergedDraft),
+        },
+        deepSeekAIEnrichmentProvider,
+      );
+  const aiEnrichment = normalizeAIEnrichmentResult(rawAIEnrichment);
+  const aiDraftState = getAIReviewDraftState(
+    aiEnrichment,
+    acceptedAIFields,
+    rejectedAIGroups,
+  );
+
+  if (!storedAIState && aiDraftState) {
+    const query = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(params)) {
+      if (Array.isArray(value)) {
+        value.forEach((entry) => query.append(key, entry));
+      } else if (typeof value === "string") {
+        query.set(key, value);
+      }
+    }
+
+    const stateQuery = appendAIReviewDraftState(query, aiDraftState);
+    redirect(`/restaurants/review?${stateQuery.toString()}`);
+  }
+  const reviewDraft = applyAcceptedAIEnrichment(
+    mergedDraft,
+    aiEnrichment,
+    acceptedAIFields,
+  );
 
   return (
     <AppShell
@@ -124,7 +211,7 @@ export default async function RestaurantReviewPage({
             sourceUrls={sourceUrls}
           />
           <ReviewFinalPreviewCard
-            draft={mergedDraft}
+            draft={reviewDraft}
             extractionResults={extractionResults}
             collectionOptions={collectionOptions}
             selectedCollectionIds={selectedCollectionIds}
@@ -134,17 +221,34 @@ export default async function RestaurantReviewPage({
             selectedCollectionIds={selectedCollectionIds}
             sourceUrl={normalizedSourceUrl}
             message={params.collection_message ?? params.collection_error}
+            aiDraftState={aiDraftState}
+            draftValues={{
+              ...(params.name !== undefined ? { name: params.name } : {}),
+              ...(params.city !== undefined ? { city: params.city } : {}),
+              ...(params.address !== undefined ? { address: params.address } : {}),
+              ...(params.category !== undefined ? { category: params.category } : {}),
+              ...(params.cuisine !== undefined ? { cuisine: params.cuisine } : {}),
+              ...(params.note !== undefined ? { note: params.note } : {}),
+              ...(params.privacy !== undefined ? { privacy: params.privacy } : {}),
+            }}
           />
           <ExtractionConfirmationCard
             sourceUrl={normalizedSourceUrl}
             searchParams={params}
-            mergedDraft={mergedDraft}
+            mergedDraft={reviewDraft}
             sourceUrls={sourceUrls}
+            acceptedAIFields={acceptedAIFields}
           />
         </div>
 
         <div className="space-y-4">
-          <AIEnrichmentCard result={aiEnrichment} />
+          <AIEnrichmentCard
+            result={aiEnrichment}
+            sourceUrl={normalizedSourceUrl}
+            sourceUrls={sourceUrls}
+            rejectedGroups={rejectedAIGroups}
+            acceptedFields={acceptedAIFields}
+          />
           <PlaceholderCard
             title="这一步现在重点做什么"
             description="这个入口现在把来源入口、单页获取、字段解析、来源合并、手动复核和最终保存拆成清晰的边界。"

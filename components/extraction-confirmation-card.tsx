@@ -2,6 +2,7 @@ import { createRestaurantAction } from "@/app/restaurants/actions";
 import { RestaurantFormFields } from "@/components/restaurant-form-fields";
 import { SurfaceCard } from "@/components/surface-card";
 import type { NormalizedExtractionResult } from "@/lib/restaurants/extraction-architecture";
+import type { AIProposedFieldName } from "@/lib/restaurants/ai-enrichment";
 import type { MergedPlaceDraft } from "@/lib/restaurants/place-draft-merge";
 import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import {
@@ -16,6 +17,7 @@ type ExtractionConfirmationCardProps = {
   extractionResult?: NormalizedExtractionResult;
   mergedDraft?: MergedPlaceDraft;
   sourceUrls?: string[];
+  acceptedAIFields?: AIProposedFieldName[];
 };
 
 export function ExtractionConfirmationCard({
@@ -24,6 +26,7 @@ export function ExtractionConfirmationCard({
   extractionResult: providedExtractionResult,
   mergedDraft,
   sourceUrls,
+  acceptedAIFields = [],
 }: ExtractionConfirmationCardProps) {
   const reviewDraft =
     mergedDraft ?? providedExtractionResult ?? buildSourceIntake(sourceUrl).extractionResult;
@@ -71,6 +74,11 @@ export function ExtractionConfirmationCard({
         </div>
 
         <div className="rounded-[24px] border border-dashed border-[var(--border-soft)] bg-white/70 p-4">
+          {acceptedAIFields.length > 0 ? (
+            <div className="mb-4 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-7 text-emerald-800">
+              AI 建议已填入下方表单。保存前可继续修改。
+            </div>
+          ) : null}
           <p className="text-sm font-semibold text-[var(--ink-strong)]">仍需你检查的字段</p>
           {missingFields.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -86,7 +94,7 @@ export function ExtractionConfirmationCard({
             </div>
           ) : (
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              当前必填字段都已经填写，你仍然可以继续修改名称、城市、地址、类型细分、备注和可见范围。
+              当前必填字段都已经填写，你仍然可以继续修改名称、城市、地址、子分类、备注和可见范围。
             </p>
           )}
         </div>
@@ -104,6 +112,7 @@ export function ExtractionConfirmationCard({
           ))}
           <RestaurantFormFields
             values={values}
+            persistToUrl
             sourceLabel="来源链接"
             sourceHint="保存时仍会只写入第一个有效的 http 或 https 链接。你可以修改这条来源，但在点击保存前不会自动创建任何记录。"
           />

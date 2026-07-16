@@ -152,3 +152,15 @@ test("keeps a missing image empty", () => {
   assert.equal(merged.imageUrl, null);
   assert.equal(merged.fieldSources.imageUrl, undefined);
 });
+
+test("explicit empty review fields remain manual instead of being repopulated", () => {
+  const merged = mergePlaceDraftSources(
+    [makeResult("website", { category: "景点", cuisine: "Art Gallery" })],
+    { category: "娱乐", cuisine: "" },
+  );
+
+  assert.equal(merged.category, "娱乐");
+  assert.equal(merged.cuisine, null);
+  assert.equal(merged.fieldSources.category, "manual");
+  assert.equal(merged.fieldSources.cuisine, "manual");
+});

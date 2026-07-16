@@ -43,13 +43,29 @@ export function RestaurantFormFields({
   values,
   sourceLabel = "来源链接或分享文案",
   sourceHint = "支持直接链接，也支持包含链接的整段分享文字。系统会自动提取并保存其中第一个有效的 http 或 https 链接。",
+  persistToUrl = false,
 }: {
   values: RestaurantFormFieldValues;
   sourceLabel?: string;
   sourceHint?: string;
+  persistToUrl?: boolean;
 }) {
   const [selectedCategory, setSelectedCategory] = useState(values.category);
   const [subtypeValue, setSubtypeValue] = useState(values.cuisine);
+
+  function persistDraftField(field: string, value: string) {
+    if (!persistToUrl || typeof window === "undefined") {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set(field, value);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }
 
   useEffect(() => {
     setSelectedCategory(values.category);
@@ -62,6 +78,7 @@ export function RestaurantFormFields({
       : null;
 
     setSelectedCategory(nextCategory);
+    persistDraftField("category", nextCategory);
 
     if (!previousCategory || previousCategory === nextCategory) {
       return;
@@ -69,11 +86,13 @@ export function RestaurantFormFields({
 
     if (!isRestaurantCategory(nextCategory)) {
       setSubtypeValue("");
+      persistDraftField("cuisine", "");
       return;
     }
 
     if (!isSubtypeSuggestionCompatible(nextCategory, subtypeValue)) {
       setSubtypeValue("");
+      persistDraftField("cuisine", "");
     }
   }
 
@@ -91,6 +110,7 @@ export function RestaurantFormFields({
             name="name"
             required
             defaultValue={values.name}
+            onChange={(event) => persistDraftField("name", event.target.value)}
             className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
             placeholder="例如：阿明海鲜酒家 / 某某书店 / 某某博物馆"
           />
@@ -103,6 +123,7 @@ export function RestaurantFormFields({
             name="city"
             required
             defaultValue={values.city}
+            onChange={(event) => persistDraftField("city", event.target.value)}
             className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
             placeholder="例如：上海"
           />
@@ -128,6 +149,7 @@ export function RestaurantFormFields({
           id="address"
           name="address"
           defaultValue={values.address}
+          onChange={(event) => persistDraftField("address", event.target.value)}
           className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
           placeholder="例如：上海市黄浦区示例路 88 号"
         />
@@ -145,7 +167,10 @@ export function RestaurantFormFields({
                 id="cuisine"
                 name="cuisine"
                 value={subtypeValue}
-                onChange={setSubtypeValue}
+                onChange={(value) => {
+                  setSubtypeValue(value);
+                  persistDraftField("cuisine", value);
+                }}
                 placeholder={subtypeConfig.placeholder}
                 options={subtypeConfig.suggestions}
                 openAriaLabel={subtypeConfig.pickerAriaLabel}
@@ -154,7 +179,7 @@ export function RestaurantFormFields({
                 {subtypeConfig.hint}
               </p>
               <p className="text-xs leading-6 text-[var(--ink-muted)]">
-                切换分类时，如果当前细分类型不兼容，会自动清空并请你重新确认。
+                切换分类时，如果当前子分类不兼容，会自动清空并请你重新确认。
               </p>
             </div>
           ) : null}
@@ -179,6 +204,7 @@ export function RestaurantFormFields({
                 name="privacy"
                 value={option.value}
                 defaultChecked={values.privacy === option.value}
+                onChange={(event) => persistDraftField("privacy", event.target.value)}
                 className="mt-1 h-4 w-4 accent-[var(--accent)]"
               />
               <span className="min-w-0">
@@ -201,6 +227,7 @@ export function RestaurantFormFields({
           name="note"
           rows={4}
           defaultValue={values.note}
+          onChange={(event) => persistDraftField("note", event.target.value)}
           className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
           placeholder="例如：想试招牌蟹粉拌面，或顺路逛一下这家书店。"
         />

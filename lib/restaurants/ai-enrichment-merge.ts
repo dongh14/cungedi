@@ -1,14 +1,19 @@
-import type { AIEnrichmentResult, AIProposedFieldName } from "./ai-enrichment.ts";
+import {
+  normalizeAIEnrichmentResult,
+  type AIEnrichmentResult,
+  type AIProposedFieldName,
+} from "./ai-enrichment.ts";
 import type { MergedPlaceDraft, PlaceDraftField } from "./place-draft-merge.ts";
 
 export type AcceptedAIFields = AIProposedFieldName[];
 
-const proposedFieldMap: Record<AIProposedFieldName, PlaceDraftField> = {
-  normalizedName: "name",
+const proposedFieldMap: Partial<Record<AIProposedFieldName, PlaceDraftField>> = {
   city: "city",
   category: "category",
   address: "address",
-  notesSummary: "notes",
+  phone: "phone",
+  cuisine: "cuisine",
+  summary: "notes",
 };
 
 function hasValue(value: string | number | null) {
@@ -24,7 +29,9 @@ export function applyAcceptedAIEnrichment(
   result: AIEnrichmentResult,
   acceptedFields: AcceptedAIFields,
 ): MergedPlaceDraft {
-  if (result.status !== "suggestions_available" || !result.proposal) {
+  const normalizedResult = normalizeAIEnrichmentResult(result);
+
+  if (normalizedResult.status !== "suggestions_available" || !normalizedResult.proposal) {
     return draft;
   }
 
@@ -36,12 +43,16 @@ export function applyAcceptedAIEnrichment(
   };
   const nextValues = nextDraft as unknown as Record<PlaceDraftField, string | number | null>;
 
-  for (const proposedField of result.proposal.proposedFields) {
+  for (const proposedField of normalizedResult.proposal.proposedFields) {
     if (!accepted.has(proposedField.field)) {
       continue;
     }
 
     const draftField = proposedFieldMap[proposedField.field];
+
+    if (!draftField) {
+      continue;
+    }
 
     if (draft.fieldSources[draftField] === "manual" || !hasValue(proposedField.value)) {
       continue;

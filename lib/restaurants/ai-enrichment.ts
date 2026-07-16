@@ -1,4 +1,6 @@
 import type { NormalizedExtractionResult } from "./extraction-architecture.ts";
+import { evaluateAIEnrichmentEligibility } from "./ai-eligibility.ts";
+import { normalizeAIPlaceUnderstanding } from "./constants.ts";
 import {
   placeDraftFields,
   type MergedPlaceDraft,
@@ -15,30 +17,45 @@ export const aiEnrichmentStatuses = [
 export type AIEnrichmentStatus = (typeof aiEnrichmentStatuses)[number];
 export type AIEnrichmentConfidence = "high" | "medium" | "low";
 
-export type AIProposedFieldName =
-  | "normalizedName"
-  | "city"
+export type AIFactualFieldName = "address" | "phone" | "city" | "country";
+export type AIUnderstandingFieldName =
   | "category"
-  | "address"
-  | "notesSummary";
+  | "cuisine"
+  | "tags"
+  | "summary"
+  | "placeType";
+export type AIProposedFieldName = AIFactualFieldName | AIUnderstandingFieldName;
+export type AIProposedFieldGroup = "factual" | "understanding";
 
 export type AIProposedField = {
   field: AIProposedFieldName;
+  group: AIProposedFieldGroup;
   value: string;
   confidence: AIEnrichmentConfidence;
   reasoningSummary?: string;
 };
 
 export type AIEnrichmentProposal = {
-  normalizedName: string | null;
-  city: string | null;
-  category: string | null;
-  address: string | null;
-  notesSummary: string | null;
+  factualSuggestions: {
+    address: string | null;
+    phone: string | null;
+    city: string | null;
+    country: string | null;
+  };
+  understandingSuggestions: {
+    category: string | null;
+    cuisine: string | null;
+    tags: string[];
+    summary: string | null;
+    placeType: string | null;
+  };
   confidence: AIEnrichmentConfidence;
   reasoningSummary: string;
   proposedFields: AIProposedField[];
 };
+
+type AIFactualSuggestions = AIEnrichmentProposal["factualSuggestions"];
+type AIUnderstandingSuggestions = AIEnrichmentProposal["understandingSuggestions"];
 
 export type AIEnrichmentRequest = {
   mergedPlaceDraft: MergedPlaceDraft;
@@ -53,10 +70,240 @@ export type AIEnrichmentResult = {
   proposal: AIEnrichmentProposal | null;
 };
 
+export type AIEnrichmentSnapshotField = {
+  field: AIProposedFieldName;
+  group: AIProposedFieldGroup;
+  value: string;
+};
+
+export function normalizeAIEnrichmentResult(
+  result: AIEnrichmentResult,
+): AIEnrichmentResult {
+  if (result.status !== "suggestions_available" || !result.proposal) {
+    return result;
+  }
+
+  const normalizedUnderstanding = normalizeAIPlaceUnderstanding(
+    result.proposal.understandingSuggestions.category,
+    result.proposal.understandingSuggestions.cuisine,
+    result.proposal.understandingSuggestions.placeType,
+  );
+  const categoryField = result.proposal.proposedFields.find((field) => field.field === "category");
+  const cuisineField = result.proposal.proposedFields.find((field) => field.field === "cuisine");
+  const placeTypeField = result.proposal.proposedFields.find((field) => field.field === "placeType");
+  const fallbackField = categoryField ?? cuisineField ?? placeTypeField;
+  const understandingFields = result.proposal.proposedFields.filter(
+    (field) => field.field !== "category" && field.field !== "cuisine",
+  );
+
+  if (normalizedUnderstanding.category) {
+    understandingFields.push({
+      field: "category",
+      group: "understanding",
+      value: normalizedUnderstanding.category,
+      confidence: categoryField?.confidence ?? fallbackField?.confidence ?? result.proposal.confidence,
+      ...(categoryField?.reasoningSummary || fallbackField?.reasoningSummary
+        ? { reasoningSummary: categoryField?.reasoningSummary ?? fallbackField?.reasoningSummary }
+        : {}),
+    });
+  }
+
+  if (normalizedUnderstanding.cuisine) {
+    understandingFields.push({
+      field: "cuisine",
+      group: "understanding",
+      value: normalizedUnderstanding.cuisine,
+      confidence: cuisineField?.confidence ?? fallbackField?.confidence ?? result.proposal.confidence,
+      ...(cuisineField?.reasoningSummary || fallbackField?.reasoningSummary
+        ? { reasoningSummary: cuisineField?.reasoningSummary ?? fallbackField?.reasoningSummary }
+        : {}),
+    });
+  }
+
+  const understandingFieldOrder: AIUnderstandingFieldName[] = [
+    "category",
+    "cuisine",
+    "tags",
+    "summary",
+    "placeType",
+  ];
+  understandingFields.sort(
+    (left, right) => understandingFieldOrder.indexOf(left.field as AIUnderstandingFieldName)
+      - understandingFieldOrder.indexOf(right.field as AIUnderstandingFieldName),
+  );
+
+  return {
+    ...result,
+    proposal: {
+      ...result.proposal,
+      understandingSuggestions: {
+        ...result.proposal.understandingSuggestions,
+        category: normalizedUnderstanding.category,
+        cuisine: normalizedUnderstanding.cuisine,
+      },
+      proposedFields: understandingFields,
+    },
+  };
+}
+
+export function buildAIEnrichmentResultFromSnapshot(
+  snapshot: AIEnrichmentSnapshotField[],
+  confidence: AIEnrichmentConfidence = "medium",
+  reasoningSummary = "Previously generated suggestions are ready for review.",
+): AIEnrichmentResult {
+  const factualSuggestions: AIFactualSuggestions = {
+    address: null,
+    phone: null,
+    city: null,
+    country: null,
+  };
+  const understandingSuggestions: AIUnderstandingSuggestions = {
+    category: null,
+    cuisine: null,
+    tags: [],
+    summary: null,
+    placeType: null,
+  };
+  const proposedFields: AIProposedField[] = [];
+
+  for (const item of snapshot) {
+    if (!item.value.trim()) {
+      continue;
+    }
+
+    if (item.group === "factual" && item.field in factualSuggestions) {
+      factualSuggestions[item.field as keyof AIFactualSuggestions] = item.value;
+      proposedFields.push({ ...item, confidence });
+      continue;
+    }
+
+    if (item.group === "understanding") {
+      if (item.field === "tags") {
+        understandingSuggestions.tags = item.value.split(",").map((tag) => tag.trim()).filter(Boolean);
+      } else if (item.field in understandingSuggestions) {
+        understandingSuggestions[item.field as Exclude<keyof AIUnderstandingSuggestions, "tags">] = item.value;
+      } else {
+        continue;
+      }
+
+      proposedFields.push({ ...item, confidence });
+    }
+  }
+
+  return proposedFields.length > 0
+    ? {
+        status: "suggestions_available",
+        message: "AI improvement available.",
+        proposal: {
+          factualSuggestions,
+          understandingSuggestions,
+          confidence,
+          reasoningSummary,
+          proposedFields,
+        },
+      }
+    : {
+        status: "no_changes",
+        message: "No AI suggestions remain for review.",
+        proposal: null,
+      };
+}
+
 export type AIEnrichmentProvider = {
   id: string;
   enrich: (request: AIEnrichmentRequest) => Promise<AIEnrichmentResult>;
 };
+
+const factualSuggestionFields = ["address", "phone", "city", "country"] as const;
+
+function normalizeEvidenceValue(value: string, field: (typeof factualSuggestionFields)[number]) {
+  const normalized = value.trim().toLocaleLowerCase();
+
+  return field === "phone"
+    ? normalized.replace(/\D/g, "")
+    : normalized.replace(/[\s,，、.;:：\-_/]+/g, "");
+}
+
+function getFactualEvidenceValues(result: NormalizedExtractionResult) {
+  return [
+    result.name,
+    result.description,
+    result.category,
+    result.city,
+    result.address,
+    result.phone,
+    ...(result.evidence?.metadata ? Object.values(result.evidence.metadata) : []),
+    ...(result.evidence?.structuredData ?? []).flatMap((entry) => [
+      entry.name,
+      entry.description,
+      entry.category,
+      entry.address,
+      entry.phone,
+      entry.websiteUrl,
+    ]),
+  ].filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
+}
+
+function isFactualSuggestionSupported(
+  field: (typeof factualSuggestionFields)[number],
+  value: string | null,
+  results: NormalizedExtractionResult[],
+) {
+  if (!value) {
+    return false;
+  }
+
+  const normalizedValue = normalizeEvidenceValue(value, field);
+
+  if (!normalizedValue) {
+    return false;
+  }
+
+  return results
+    .flatMap(getFactualEvidenceValues)
+    .some((evidence) => normalizeEvidenceValue(evidence, field).includes(normalizedValue));
+}
+
+export function sanitizeFactualAIEnrichment(
+  result: AIEnrichmentResult,
+  extractedSourceData: NormalizedExtractionResult[],
+): AIEnrichmentResult {
+  if (result.status !== "suggestions_available" || !result.proposal) {
+    return result;
+  }
+
+  const factualSuggestions = { ...result.proposal.factualSuggestions };
+  const supportedFields = new Set<string>();
+
+  for (const field of factualSuggestionFields) {
+    if (isFactualSuggestionSupported(field, factualSuggestions[field], extractedSourceData)) {
+      supportedFields.add(field);
+    } else {
+      factualSuggestions[field] = null;
+    }
+  }
+
+  const proposedFields = result.proposal.proposedFields.filter(
+    (field) => field.group !== "factual" || supportedFields.has(field.field),
+  );
+
+  if (proposedFields.length === 0) {
+    return {
+      status: "no_changes",
+      message: "DeepSeek found no safe improvements supported by the supplied evidence.",
+      proposal: null,
+    };
+  }
+
+  return {
+    ...result,
+    proposal: {
+      ...result.proposal,
+      factualSuggestions,
+      proposedFields,
+    },
+  };
+}
 
 export const placeholderAIEnrichmentProvider: AIEnrichmentProvider = {
   id: "placeholder",
@@ -71,7 +318,7 @@ export const placeholderAIEnrichmentProvider: AIEnrichmentProvider = {
 
 export function getMissingAIReviewFields(draft: MergedPlaceDraft): PlaceDraftField[] {
   const reviewFields = placeDraftFields.filter((field) =>
-    ["name", "city", "category", "address", "notes"].includes(field),
+    ["name", "city", "category", "address", "phone", "notes"].includes(field),
   );
 
   return reviewFields.filter((field) => {
@@ -85,8 +332,22 @@ export async function runAIEnrichment(
   request: AIEnrichmentRequest,
   provider: AIEnrichmentProvider = placeholderAIEnrichmentProvider,
 ) {
+  const eligibility = evaluateAIEnrichmentEligibility({
+    draft: request.mergedPlaceDraft,
+    extractedSourceData: request.extractedSourceData,
+    missingFields: request.missingFields,
+  });
+
+  if (!eligibility.shouldRun) {
+    return {
+      status: "no_changes" as const,
+      message: "No meaningful AI enrichment is needed for this draft.",
+      proposal: null,
+    };
+  }
+
   try {
-    return await provider.enrich(request);
+    return normalizeAIEnrichmentResult(await provider.enrich(request));
   } catch {
     return {
       status: "failed" as const,

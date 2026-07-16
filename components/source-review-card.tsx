@@ -42,6 +42,7 @@ const reviewFieldLabels: Record<PlaceDraftField, string> = {
   name: "地点名称",
   description: "描述",
   category: "分类",
+  cuisine: "子分类",
   city: "城市",
   address: "地址",
   phone: "电话",

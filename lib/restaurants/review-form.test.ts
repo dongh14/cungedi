@@ -174,3 +174,19 @@ test("review draft can save with missing optional fields", () => {
   assert.equal(draftInput.cuisine, null);
   assert.equal(draftInput.note, null);
 });
+
+test("accepted AI values are the normal editable review defaults", () => {
+  const values = getInitialDraftFormValues(
+    {
+      source_url: "https://www.teamlab.art/",
+      category: "景点",
+      cuisine: "Art Gallery",
+      note: "An international art collective.",
+    },
+    "https://www.teamlab.art/",
+  );
+
+  assert.equal(values.category, "景点");
+  assert.equal(values.cuisine, "Art Gallery");
+  assert.equal(values.note, "An international art collective.");
+});

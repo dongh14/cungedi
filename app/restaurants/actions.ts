@@ -14,6 +14,11 @@ import {
   buildRestaurantInsertPayload,
   buildRestaurantUpdatePayload,
 } from "@/lib/restaurants/record-payloads";
+import {
+  appendAIReviewDraftState,
+  parseAIReviewDraftState,
+  type AIReviewDraftState,
+} from "@/lib/restaurants/ai-review-state";
 import { parseSourceIntakeInput } from "@/lib/restaurants/source-intake";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -166,8 +171,31 @@ function buildCollectionsRedirect(state: {
 
 function buildReviewCollectionRedirect(
   sourceUrl: string,
-  state: { error?: string; message?: string },
+  state: {
+    error?: string;
+    message?: string;
+    aiDraftState?: AIReviewDraftState | null;
+    draftValues?: Record<string, string>;
+  },
 ) {
+  const params = new URLSearchParams({ source_url: sourceUrl });
+
+  if (state.error) {
+    params.set("collection_error", state.error);
+  }
+
+  if (state.message) {
+    params.set("collection_message", state.message);
+  }
+
+  for (const [field, value] of Object.entries(state.draftValues ?? {})) {
+    params.set(field, value);
+  }
+
+  if (state.aiDraftState) {
+    return `/restaurants/review?${appendAIReviewDraftState(params, state.aiDraftState).toString()}`;
+  }
+
   return buildRedirect("/restaurants/review", {
     source_url: sourceUrl,
     ...(state.error ? { collection_error: state.error } : {}),
@@ -250,7 +278,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const parsedCategory = getCategoryValue(category);
 
   if (!parsedCategory) {
-    redirectToDraft("分类只支持 美食、购物、玩乐、景点、住宿、其他。");
+      redirectToDraft("分类只支持 美食、景点、住宿、购物、娱乐、其他。");
   }
 
   const finalSourceUrl = sourceUrl as string;
@@ -303,7 +331,7 @@ function parseRestaurantUpdateForm(formData: FormData): RestaurantUpdateInput {
   if (!parsedCategory) {
     redirect(
       buildEditRestaurantRedirect(restaurantId, values, {
-        error: "分类只支持 美食、购物、玩乐、景点、住宿、其他。",
+        error: "分类只支持 美食、景点、住宿、购物、娱乐、其他；旧数据中的玩乐仍然兼容。",
       }),
     );
   }
@@ -499,9 +527,29 @@ export async function createCollectionAction(formData: FormData) {
   const name = getFormValue(formData, "name");
   const returnTo = getFormValue(formData, "return_to");
   const reviewSourceUrl = extractFirstHttpUrl(getFormValue(formData, "source_url"));
+  const aiDraftState = parseAIReviewDraftState({
+    ai_snapshot: formData.getAll("ai_snapshot").map((value) => value.toString()),
+    ai_snapshot_confidence: getFormValue(formData, "ai_snapshot_confidence"),
+    ai_snapshot_reason: getFormValue(formData, "ai_snapshot_reason"),
+    ai_accepted: formData.getAll("ai_accepted").map((value) => value.toString()),
+    ai_reject_factual: getFormValue(formData, "ai_reject_factual"),
+    ai_reject_understanding: getFormValue(formData, "ai_reject_understanding"),
+  });
+  const draftValues = Object.fromEntries(
+    ["name", "city", "address", "category", "cuisine", "note", "privacy"]
+      .flatMap((field) => {
+        const value = formData.get(`review_${field}`);
+
+        return value === null ? [] : [[field, value.toString()]];
+      }),
+  );
   const redirectCollectionResult = (state: { error?: string; message?: string }): never => {
     if (returnTo === "review" && reviewSourceUrl) {
-      redirect(buildReviewCollectionRedirect(reviewSourceUrl, state));
+      redirect(buildReviewCollectionRedirect(reviewSourceUrl, {
+        ...state,
+        aiDraftState,
+        draftValues,
+      }));
     }
 
     redirect(buildCollectionsRedirect(state));

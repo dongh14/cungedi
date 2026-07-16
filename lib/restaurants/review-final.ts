@@ -10,7 +10,7 @@ const reviewComparisonFields: PlaceDraftField[] = [
   "notes",
 ];
 
-function normalizeComparisonValue(value: string | number | null) {
+function normalizeComparisonValue(value: string | number | null | undefined) {
   return typeof value === "string" ? value.trim().toLocaleLowerCase() : value;
 }
 

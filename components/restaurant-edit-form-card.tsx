@@ -118,7 +118,7 @@ export function RestaurantEditFormCard({
               编辑已保存的地点信息
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步先支持你修正分类、类型细分、备注和可见范围。名称、城市和来源链接会继续保留原样，不提前扩展到后续步骤。
+              这一步先支持你修正分类、子分类、备注和可见范围。名称、城市和来源链接会继续保留原样，不提前扩展到后续步骤。
             </p>
           </div>
         </div>
@@ -166,7 +166,7 @@ export function RestaurantEditFormCard({
                     {subtypeConfig.hint}
                   </p>
                   <p className="text-xs leading-6 text-[var(--ink-muted)]">
-                    如果你切换到不兼容的分类，之前的细分类型会被清空，避免误保存。
+                      如果你切换到不兼容的分类，之前的子分类会被清空，避免误保存。
                   </p>
                 </div>
               ) : null}

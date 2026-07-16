@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildAIEnrichmentResultFromSnapshot,
+  normalizeAIEnrichmentResult,
   placeholderAIEnrichmentProvider,
   runAIEnrichment,
   type AIEnrichmentResult,
@@ -12,6 +14,7 @@ function createDraft(): MergedPlaceDraft {
   return {
     name: "Google Place",
     category: null,
+    cuisine: null,
     city: null,
     address: "Google address",
     latitude: 31.23,
@@ -38,18 +41,28 @@ function createSuggestions(): AIEnrichmentResult {
     status: "suggestions_available",
     message: "Suggestions are ready for review.",
     proposal: {
-      normalizedName: "AI Place Name",
-      city: "上海",
-      category: "美食",
-      address: "AI address",
-      notesSummary: "AI summary",
+      factualSuggestions: {
+        address: "AI address",
+        phone: "021-1234-5678",
+        city: "上海",
+        country: null,
+      },
+      understandingSuggestions: {
+        category: "美食",
+        cuisine: "面食",
+        tags: ["招牌"],
+        summary: "AI summary",
+        placeType: "餐厅",
+      },
       confidence: "medium",
       reasoningSummary: "Suggested from the supplied draft context.",
       proposedFields: [
-        { field: "normalizedName", value: "AI Place Name", confidence: "medium" },
-        { field: "city", value: "上海", confidence: "medium" },
-        { field: "address", value: "AI address", confidence: "low" },
-        { field: "notesSummary", value: "AI summary", confidence: "low" },
+        { field: "city", group: "factual", value: "上海", confidence: "medium" },
+        { field: "address", group: "factual", value: "AI address", confidence: "low" },
+        { field: "phone", group: "factual", value: "021-1234-5678", confidence: "medium" },
+        { field: "category", group: "understanding", value: "美食", confidence: "medium" },
+        { field: "cuisine", group: "understanding", value: "面食", confidence: "medium" },
+        { field: "summary", group: "understanding", value: "AI summary", confidence: "low" },
       ],
     },
   };
@@ -91,21 +104,27 @@ test("manual values take precedence over accepted AI suggestions", () => {
   const draft = createDraft();
   draft.name = "Manual Place";
   draft.fieldSources.name = "manual";
+  draft.category = "Manual Category";
+  draft.fieldSources.category = "manual";
 
-  const merged = applyAcceptedAIEnrichment(draft, createSuggestions(), ["normalizedName"]);
+  const merged = applyAcceptedAIEnrichment(draft, createSuggestions(), ["category"]);
 
   assert.equal(merged.name, "Manual Place");
   assert.equal(merged.fieldSources.name, "manual");
+  assert.equal(merged.category, "Manual Category");
+  assert.equal(merged.fieldSources.category, "manual");
 });
 
 test("accepted suggestions update only selected fields and retain attribution", () => {
-  const merged = applyAcceptedAIEnrichment(createDraft(), createSuggestions(), ["city"]);
+  const merged = applyAcceptedAIEnrichment(createDraft(), createSuggestions(), ["city", "cuisine"]);
 
   assert.equal(merged.city, "上海");
   assert.equal(merged.fieldSources.city, "ai_suggestion");
   assert.equal(merged.name, "Google Place");
   assert.equal(merged.address, "Google address");
   assert.equal(merged.fieldSources.address, "google_maps");
+  assert.equal(merged.cuisine, "面食");
+  assert.equal(merged.fieldSources.cuisine, "ai_suggestion");
 });
 
 test("rejected suggestions leave the draft unchanged", () => {
@@ -113,4 +132,101 @@ test("rejected suggestions leave the draft unchanged", () => {
   const merged = applyAcceptedAIEnrichment(draft, createSuggestions(), []);
 
   assert.deepEqual(merged, draft);
+});
+
+test("submitted grouped suggestions can be replayed after an acceptance action", () => {
+  const result = buildAIEnrichmentResultFromSnapshot([
+    { field: "city", group: "factual", value: "上海" },
+    { field: "category", group: "understanding", value: "美食" },
+    { field: "tags", group: "understanding", value: "招牌, 夜宵" },
+  ], "high", "Supported by the submitted source evidence.");
+
+  assert.equal(result.status, "suggestions_available");
+  assert.equal(result.proposal?.factualSuggestions.city, "上海");
+  assert.equal(result.proposal?.understandingSuggestions.category, "美食");
+  assert.deepEqual(result.proposal?.understandingSuggestions.tags, ["招牌", "夜宵"]);
+  assert.deepEqual(
+    result.proposal?.proposedFields.map(({ field, group }) => ({ field, group })),
+    [
+      { field: "city", group: "factual" },
+      { field: "category", group: "understanding" },
+      { field: "tags", group: "understanding" },
+    ],
+  );
+});
+
+test("AI understanding suggestions normalize Art Gallery into a place category and subcategory", () => {
+  const normalized = normalizeAIEnrichmentResult({
+    status: "suggestions_available",
+    message: "Suggestions are ready for review.",
+    proposal: {
+      factualSuggestions: { address: null, phone: null, city: null, country: null },
+      understandingSuggestions: {
+        category: "Art Gallery",
+        cuisine: null,
+        tags: ["art"],
+        summary: "An immersive art experience.",
+        placeType: "Attraction",
+      },
+      confidence: "medium",
+      reasoningSummary: "Based on the place description.",
+      proposedFields: [
+        { field: "category", group: "understanding", value: "Art Gallery", confidence: "medium" },
+        { field: "tags", group: "understanding", value: "art", confidence: "medium" },
+        { field: "summary", group: "understanding", value: "An immersive art experience.", confidence: "medium" },
+        { field: "placeType", group: "understanding", value: "Attraction", confidence: "medium" },
+      ],
+    },
+  });
+
+  assert.equal(normalized.proposal?.understandingSuggestions.category, "景点");
+  assert.equal(normalized.proposal?.understandingSuggestions.cuisine, "Art Gallery");
+  assert.deepEqual(
+    normalized.proposal?.proposedFields
+      .filter(({ field }) => field === "category" || field === "cuisine")
+      .map(({ field, value }) => ({ field, value })),
+    [
+      { field: "category", value: "景点" },
+      { field: "cuisine", value: "Art Gallery" },
+    ],
+  );
+});
+
+test("accepted normalized AI values populate the editable draft and notes", () => {
+  const result = normalizeAIEnrichmentResult({
+    status: "suggestions_available",
+    message: "Suggestions are ready for review.",
+    proposal: {
+      factualSuggestions: { address: null, phone: null, city: null, country: null },
+      understandingSuggestions: {
+        category: "Art Gallery",
+        cuisine: null,
+        tags: [],
+        summary: "An international art collective.",
+        placeType: "Attraction",
+      },
+      confidence: "medium",
+      reasoningSummary: "Based on the place description.",
+      proposedFields: [
+        { field: "category", group: "understanding", value: "Art Gallery", confidence: "medium" },
+        { field: "summary", group: "understanding", value: "An international art collective.", confidence: "medium" },
+      ],
+    },
+  });
+  const merged = applyAcceptedAIEnrichment(createDraft(), result, ["category", "cuisine", "summary"]);
+
+  assert.equal(merged.category, "景点");
+  assert.equal(merged.cuisine, "Art Gallery");
+  assert.equal(merged.notes, "An international art collective.");
+  assert.equal(merged.fieldSources.category, "ai_suggestion");
+  assert.equal(merged.fieldSources.cuisine, "ai_suggestion");
+  assert.equal(merged.fieldSources.notes, "ai_suggestion");
+});
+
+test("preview-only tags and place type cannot be accepted into the draft", () => {
+  const merged = applyAcceptedAIEnrichment(createDraft(), createSuggestions(), ["tags", "placeType"]);
+
+  assert.equal(merged.notes, null);
+  assert.equal(merged.fieldSources.notes, undefined);
+  assert.equal(merged.category, null);
 });

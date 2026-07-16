@@ -69,6 +69,295 @@ The map clustering checkpoint is now complete and has been validated with map-on
 
 The map place-detail interaction checkpoint is now complete and has been validated with richer popup preview cards and existing-route detail navigation, without changing map data behavior.
 
+The user collections checkpoint is now complete and has been validated with minimal user-scoped collections and join-table memberships, without changing the map system.
+
+The V1 add-place flow checkpoint is now complete and has been validated with a local-only intake and review-before-save flow, without changing the map system or saved-place schema.
+
+The V1 extraction architecture checkpoint is now complete and has been validated with local source detection, placeholder extractor selection, normalized results, and review-flow availability status.
+
+The Google Maps extractor V2 checkpoint is now complete and has been validated with deterministic URL-only parsing, coordinate validation, and extraction-quality metadata.
+
+## Validated Google Maps Extractor V2 Checkpoint
+
+### Google Maps Parsing Scope
+- The Google Maps extractor now performs URL-only deterministic parsing without scraping, Google APIs, external APIs, or AI extraction.
+- It supports `q` parameter parsing.
+- It supports `query` parameter parsing.
+- It supports `/maps/search/` parsing.
+- It supports `/maps/place/` parsing.
+- It extracts explicit `@latitude,longitude` coordinates when present in the URL.
+- It extracts an explicit `address` parameter when available.
+- Coordinate range validation prevents invalid latitude and longitude values from entering the normalized result.
+
+### Safety Boundaries
+- The extractor does not guess category, city, ratings, or reviews.
+- Fields that are not explicitly available in the URL remain empty.
+
+### Extraction Architecture Behavior
+- The source detector remains unchanged.
+- The extractor interface remains unchanged.
+- The normalized extraction result now carries `extractionStatus`, `confidence`, and `extractedFields` metadata.
+- The review flow displays extracted information and fields that still need manual input.
+
+### Unchanged Behavior
+- The Supabase schema remains unchanged.
+- Saved place flow remains unchanged.
+- The collections system remains unchanged.
+- Map rendering remains unchanged.
+- Marker clustering remains unchanged.
+- Map search remains unchanged.
+- City filtering remains unchanged.
+- City normalization remains unchanged.
+- The coordinate resolver remains unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Extraction tests passed (`19` tests).
+
+## Validated V1 Server-Side Website Fetching Checkpoint
+
+### Website Fetching Scope
+- A website URL fetching layer was added for the existing extraction architecture.
+- The server-side fetch flow is connected to the existing source detection, Website Extractor, review, and save boundaries.
+- Website extraction now supports URL validation, bounded HTML fetching, metadata parsing, and JSON-LD extraction.
+- Fetching remains limited to the submitted URL: it does not crawl links, execute scripts, call external APIs, use AI extraction, or store raw HTML.
+
+### Extraction Flow
+- The validated flow is: URL → source detection → fetcher → extractor → review → save.
+- Fetch failures remain visible in the review UI as extraction status and a manual-review message.
+- Extracted fields continue to enter the existing editable review form before any save.
+
+### Unchanged Behavior
+- The Supabase schema remains unchanged.
+- Saved place creation flow remains unchanged.
+- Google Maps extractor behavior remains unchanged.
+- Map rendering remains unchanged.
+- Marker clustering remains unchanged.
+- Map search remains unchanged.
+- City filtering remains unchanged.
+- City normalization remains unchanged.
+- The location resolver remains unchanged.
+- The collections system remains unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Extraction tests passed (`29` tests).
+
+## Validated V1 Source-Merging Checkpoint
+
+### Merge Scope
+- A pure place-draft merge layer was added.
+- Multiple extraction results can now enrich one review draft before saving.
+- Field-level source attribution records which source supplied each merged value.
+- The merge layer preserves missing fields as empty and does not invent data.
+- Manual edits remain supported and are applied as explicit review overrides.
+
+### Review Scope
+- A multi-source review UI was added so another source can be merged into the current draft.
+- The review form now uses merged name, city, address, category, and notes values while keeping them editable.
+- The review UI shows source attribution for combined fields and lists fields that still need manual review.
+
+### Unchanged Behavior
+- The Supabase schema remains unchanged.
+- Saved-place creation behavior remains unchanged.
+- The map system remains unchanged.
+- The collections system remains unchanged.
+- Existing extractor interfaces remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused extraction tests passed (`37` tests).
+
+## Validated AI Enrichment Architecture Checkpoint
+
+### AI Enrichment Scope
+- A provider-independent AI enrichment interface was added for merged drafts, extracted source data, source URLs, and missing fields.
+- AI enrichment is suggestion-only and remains separate from deterministic extraction and source merging.
+- A placeholder provider was added; it makes no network calls and reports that AI enrichment is unavailable.
+- Explicit AI states are supported: `unavailable`, `no_changes`, `suggestions_available`, and `failed`.
+
+### Safety Boundaries
+- AI suggestions never apply automatically.
+- Manual values always take priority.
+- Accepted AI fields retain `ai_suggestion` source attribution.
+- AI output never writes directly to Supabase.
+- No external AI API integration or API keys were added.
+
+### Unchanged Behavior
+- The extraction architecture remains unchanged.
+- The Google Maps extractor remains unchanged.
+- The Website Extractor remains unchanged.
+- Source merging remains the deterministic primary data source.
+- The saved place schema remains unchanged.
+- The map system remains unchanged.
+- The collections system remains unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused enrichment/extraction tests passed (`42` tests).
+
+## Validated V1 Final Review And Save Experience Checkpoint
+
+### Final Review Scope
+- A final review preview card was added before saving.
+- The preview displays confirmed information including name, category, city, address, phone, and notes.
+- Source badges and field-level attribution display Google Maps, Website, Manual input, and future AI suggestion sources when present.
+- Conflicting values from different sources are surfaced for manual confirmation.
+- Missing optional information is clearly shown without blocking save.
+- Manual edits remain the highest-priority values in the final review.
+
+### Collection Save Scope
+- Users can select one or more existing collections before saving.
+- Inline collection creation is supported from the review page.
+- Selected collection memberships are created after place creation through the existing `restaurant_collections` join-table architecture.
+- Optional fields do not block saving; users can save anyway or continue editing.
+
+### Unchanged Behavior
+- The extraction architecture remains unchanged.
+- Source merging remains unchanged.
+- The AI enrichment architecture remains unchanged.
+- The Supabase place schema remains unchanged.
+- The map system remains unchanged.
+- The collections data model remains unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused tests passed (`42` tests).
+
+## Validated V1 Place Discovery Checkpoint
+
+### Discovery Scope
+- A reusable `PlaceCard` component was added for consumer-facing place browsing.
+- The authenticated `/dashboard` now provides a simple discovery view with recently saved places.
+- Recent places are displayed in save-time order without recommendation algorithms or extra ranking.
+- Existing collection highlights are displayed alongside the recent place cards.
+- RLS-scoped discovery queries load saved places, collection memberships, and collection counts through the existing data model.
+
+### Card Scope
+- Place cards display place name, city, category, source host, and collection badges when available.
+- Optional image URLs are supported with a clean placeholder state when no image is available.
+- Cards link to the existing place detail/edit route.
+- No favorite ranking was added because the saved-place data has no favorite field.
+
+### Unchanged Behavior
+- The extraction architecture remains unchanged.
+- The Google Maps extractor remains unchanged.
+- The Website Extractor remains unchanged.
+- Source merging remains unchanged.
+- The AI enrichment architecture remains unchanged.
+- The Supabase schema remains unchanged.
+- The collections data model remains unchanged.
+- The map system remains unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused tests passed (`14` tests).
+
+## Validated V1 Extraction Architecture Checkpoint
+
+### Architecture Scope
+- A source detection layer now identifies `unknown`, `website`, `google_maps`, `xiaohongshu`, `douyin`, `instagram`, and `tiktok` source types.
+- A shared extractor interface now defines `sourceType`, `canHandle()`, and `extract()`.
+- An extractor registry architecture now selects the registered extractor for a detected source type.
+- Placeholder extractors were added for Google Maps, Website, Xiaohongshu, and Douyin.
+- Placeholder extractors return an explicit not-implemented result without inventing extracted fields.
+- A normalized extraction result type now defines name, category, city, address, latitude, longitude, source URL, notes, confidence, and extraction status.
+
+### Review Flow Scope
+- The current review flow now displays the detected source and extraction availability status.
+- Manual entry remains supported and continues through the existing review-before-save flow.
+- The extraction architecture remains a local boundary for future source implementations; it does not fetch or scrape source content.
+
+### Unchanged Behavior
+- The Supabase schema remains unchanged.
+- Saved place creation behavior remains unchanged.
+- Map rendering remains unchanged.
+- Marker clustering remains unchanged.
+- Map search remains unchanged.
+- City filtering remains unchanged.
+- City normalization remains unchanged.
+- Location resolver remains unchanged.
+- The collections system remains unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused extraction/source-intake tests passed.
+
+## Validated V1 Add-Place Flow Checkpoint
+
+### Flow Scope
+- `/restaurants/new` and `/restaurants/review` now support the improved save flow.
+- Source URL is now the primary entry point.
+- Source intake, review draft shaping, and saved-place creation are now separated layers.
+- Manual entry now also goes through review before saving.
+- Source recognition is local-only.
+
+### Boundaries
+- No external APIs were added.
+- No AI extraction was added.
+- No scraping was added.
+- No map changes were made.
+
+### Unchanged Behavior
+- The Supabase saved-place schema remains unchanged.
+- Marker rendering remains unchanged.
+- Clustering remains unchanged.
+- Map search remains unchanged.
+- City filtering remains unchanged.
+- City normalization remains unchanged.
+- Location resolver behavior remains unchanged.
+- Coordinate handling remains unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run lint` passed.
+- Focused add-place tests passed.
+
+## Validated User Collections Checkpoint
+
+### Collections Scope
+- A user-scoped collections feature was added.
+- A `collections` table was added.
+- A `restaurant_collections` join table was added.
+- RLS ownership rules were added for collections and collection memberships.
+- A saved place can now belong to multiple collections.
+- Removing a collection membership does not delete the saved place.
+
+### UI Scope
+- A `/collections` page was added.
+- The place edit page now supports adding and removing collection memberships.
+
+### Unchanged Behavior
+- Map rendering remains unchanged.
+- Marker clustering remains unchanged.
+- Map search remains unchanged.
+- City filtering remains unchanged.
+- City normalization remains unchanged.
+- Location resolver behavior remains unchanged.
+- Coordinate handling remains unchanged.
+- The saved place schema remains unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Collection focused tests passed.
+
 ## Validated Map Place-Detail Interaction Checkpoint
 
 ### Popup And Navigation Scope
@@ -1120,3 +1409,39 @@ Documented but not yet implemented in UI:
 - Step 10 source intake, Step 11 extraction preview, and Step 12 explicit confirmation are now in place and validated.
 - Inferred cuisine remains editable and should stay blank when confidence is low.
 - Step 13 multi-candidate work is paused until the `存个地` generalization direction is planned.
+
+## Validated AI Review-Form Integration Checkpoint
+
+### Review Form Integration
+- Accepted AI suggestions now populate the normal editable review form instead of remaining in an AI-only draft.
+- Persistable AI fields include `category`, `cuisine` as the temporary subcategory field, and the accepted summary mapped into `notes`.
+- The editable form values are the final source of truth for saving.
+- Manual edits remain the highest-priority values after AI suggestions are applied.
+- Applied AI values survive page refresh through the existing URL-backed review draft state.
+- Collection-creation redirects preserve the editable draft values.
+
+### URL State And Preview Boundaries
+- URL-backed AI state restores group-specific accepted selections.
+- Preview-only tags and place type remain marked `暂不保存`.
+- Preview-only suggestions cannot be accepted and are excluded from the save payload.
+- Repeated application of already-applied suggestions is disabled.
+
+### Manual Validation
+- The `teamLab` manual validation passed: category became `景点`.
+- The subcategory became `Art Gallery`.
+- A manual change to `Digital Art Museum` survived refresh.
+- No place was saved during validation.
+
+### Unchanged Behavior
+- The Supabase schema remains unchanged.
+- The map system remains unchanged.
+- The collections architecture remains unchanged.
+- The extraction architecture remains unchanged.
+- DeepSeek provider behavior remains unchanged.
+- Preview-only tags/place-type persistence remains unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused tests passed (`36` tests).

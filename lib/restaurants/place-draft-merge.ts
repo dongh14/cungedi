@@ -7,6 +7,7 @@ import type {
 export const placeDraftFields = [
   "name",
   "category",
+  "cuisine",
   "city",
   "address",
   "latitude",
@@ -31,6 +32,7 @@ export type ManualPlaceDraft = Partial<
 export type MergedPlaceDraft = {
   name: string | null;
   category: string | null;
+  cuisine: string | null;
   city: string | null;
   address: string | null;
   latitude: number | null;
@@ -98,6 +100,8 @@ function getAutomaticRank(
             : 0;
     case "category":
       return structured && source === "website" ? 300 : source === "website" ? 100 : 0;
+    case "cuisine":
+      return 0;
     case "description":
       return source === "website" ? 200 : 0;
     case "city":
@@ -124,11 +128,14 @@ function chooseField(
   results: NormalizedExtractionResult[],
   manual: ManualPlaceDraft,
 ) {
+  const manualFieldProvided = field === "description"
+    ? manual.description !== undefined || manual.notes !== undefined
+    : manual[field] !== undefined;
   const manualValue = normalizeValue(
     field === "description" ? manual.description ?? manual.notes : manual[field],
   );
 
-  if (field !== "latitude" && field !== "longitude" && manualValue !== null) {
+  if (field !== "latitude" && field !== "longitude" && manualFieldProvided) {
     return { value: manualValue, source: "manual" as const };
   }
 

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import {
   categoryOptions,
-  type RestaurantCategory,
+  getCanonicalPlaceCategory,
 } from "@/lib/restaurants/constants";
 
 type CategoryFieldProps = {
@@ -19,11 +19,7 @@ export function CategoryField({
   selectedValue,
   onChange,
 }: CategoryFieldProps) {
-  const normalizedSelectedValue = categoryOptions.some(
-    (option) => option.value === selectedValue,
-  )
-    ? (selectedValue as RestaurantCategory)
-    : "";
+  const normalizedSelectedValue = getCanonicalPlaceCategory(selectedValue) ?? "";
   const selectedOption = categoryOptions.find(
     (option) => option.value === normalizedSelectedValue,
   );
