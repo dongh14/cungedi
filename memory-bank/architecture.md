@@ -1208,6 +1208,32 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Focused personal-only, save-boundary, review-form, details, collection, map, category, and RLS migration tests passed (`57` tests).
 - A broader Node sweep reached `205/207` passing; the two failures are existing direct-Node module-resolution issues in `source-extraction.test.ts` and `source-url.test.ts`, unrelated to this change.
 
+## Step 7 Real-Place Workflow Validation
+
+### Validation Artifacts
+- `memory-bank/v1-real-place-test-plan.md` defines the 20-case structured validation set, pass/partial/fail criteria, manual execution guidance, privacy rules, and the Step 8 findings taxonomy.
+- `memory-bank/v1-real-place-validation-report.md` is the human-readable result report. It keeps raw evidence, full AI responses, credentials, and sensitive query-bearing URLs out of the record.
+- This phase does not redesign the UI, add public or social behavior, change schema, or automatically save places. It is intended to provide the Step 8 redesign brief.
+
+### Workflow Diagnostics
+- `lib/restaurants/workflow-diagnostics.ts` provides server-only development events for `intake_started`, `source_detected`, `extraction_completed`, `ai_completed`, `review_ready`, and `suggestion_applied`.
+- The logger sanitizes source context to hostnames and emits only event-safe metadata. `WORKFLOW_DEBUG_LOGS=false` disables the events; production never emits successful workflow diagnostics.
+- DeepSeek cache hit/miss/bypass events continue to use the existing privacy-safe diagnostics logger. No raw evidence, form contents, AI response bodies, user IDs, credentials, or complete URLs are logged.
+
+### Test-Runner Boundary
+- `npm test` now standardizes the broad sweep through `scripts/register-test-loader.mjs` and `scripts/test-loader.mjs`. The loader uses the existing TypeScript dependency, resolves extensionless TypeScript imports, and maps the Next `@/` alias without changing application modules.
+- Both previously failing files now execute their assertions. No assertions were weakened and no tests were removed.
+
+### Unchanged Boundaries
+- Personal-only privacy, authenticated owner-scoped access, RLS, saved-place schema, collections, extraction, AI suggestion-only behavior, map, and no-unconfirmed-save behavior remain enforced.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `285/285` tests.
+- Focused personal-only, workflow-diagnostics, save-boundary, review-form, details, collection, map, category, and RLS migration tests passed (`59` tests).
+
 ## Step 6 Generalized Place Category Architecture
 
 ### Canonical Module

@@ -1580,3 +1580,27 @@ Documented but not yet implemented in UI:
 - `npm run build` passed.
 - Focused personal-only, save-boundary, review-form, details, collection, map, category, and RLS migration tests passed (`57` tests).
 - A broader Node sweep reached `205/207` passing; the two failures are existing direct-Node module-resolution issues in `source-extraction.test.ts` and `source-url.test.ts`, unrelated to this change.
+
+## Validated Step 7 Real-Place Workflow Validation Checkpoint
+
+### Validation Phase
+- Added `memory-bank/v1-real-place-test-plan.md` with 20 realistic import cases: 5 food places, 3 cafes/bars, 3 attractions, 3 hotels, 3 shops, and 3 entertainment places.
+- Added `memory-bank/v1-real-place-validation-report.md` with per-case result fields, summary metrics, safety checks, and the Step 8 UI findings structure.
+- The manual 20-case run is deliberately pending. Automated validation saved no place and did not create a test record.
+- Step 8 is reserved for the major visual redesign; Step 7 only validates the current workflow and captures actionable findings.
+
+### Workflow Diagnostics
+- Added concise server-only development diagnostics for intake started, source detected, extraction completed, AI completed, review ready, and suggestion applied.
+- Diagnostics log only safe event metadata, source hostnames, source type, statuses, durations, and suggestion counts. They omit raw evidence, form contents, response bodies, user IDs, credentials, and full URLs.
+- Existing DeepSeek cache hit/miss/bypass diagnostics remain the source of AI cache events. `WORKFLOW_DEBUG_LOGS=false` disables the new workflow events; production emits none.
+
+### Test-Runner Findings
+- Standardized the broad sweep as `npm test` with a TypeScript-aware ESM loader that resolves extensionless TypeScript imports and the Next `@/` alias.
+- The previously failing `source-extraction.test.ts` and `source-url.test.ts` now execute their assertions successfully. No assertions were weakened and no tests were removed.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `285/285` tests.
+- Focused personal-only, workflow-diagnostics, save-boundary, review-form, details, collection, map, category, and RLS migration tests passed (`59` tests).
