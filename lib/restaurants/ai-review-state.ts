@@ -169,3 +169,22 @@ export function appendAIReviewDraftState(
 
   return next;
 }
+
+export function clearAIReviewDraftState(searchParams: URLSearchParams) {
+  const next = new URLSearchParams(searchParams);
+
+  [
+    "ai_snapshot",
+    "ai_snapshot_confidence",
+    "ai_snapshot_reason",
+    "ai_accepted",
+    "ai_accept",
+    "ai_accept_factual",
+    "ai_accept_understanding",
+    "ai_reject",
+    "ai_reject_factual",
+    "ai_reject_understanding",
+  ].forEach((key) => next.delete(key));
+
+  return next;
+}

@@ -35,7 +35,7 @@ test("AI suggestions can be stored in and restored from review draft state", () 
 
   const query = appendAIReviewDraftState(
     new URLSearchParams(
-      "source_url=https%3A%2F%2Fexample.com%2Fplace&category=%E6%99%AF%E7%82%B9&cuisine=Art+Gallery&note=Summary",
+      "source_url=https%3A%2F%2Fexample.com%2Fplace&manual_evidence=Place%0AShanghai&category=%E6%99%AF%E7%82%B9&cuisine=Art+Gallery&note=Summary",
     ),
     state,
   );
@@ -50,6 +50,7 @@ test("AI suggestions can be stored in and restored from review draft state", () 
 
   assert.deepEqual(restored, state);
   assert.equal(query.get("source_url"), "https://example.com/place");
+  assert.equal(query.get("manual_evidence"), "Place\nShanghai");
   assert.equal(query.get("category"), "景点");
   assert.equal(query.get("cuisine"), "Art Gallery");
   assert.equal(query.get("note"), "Summary");

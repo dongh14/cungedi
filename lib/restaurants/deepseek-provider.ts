@@ -1,5 +1,14 @@
 import { buildCompactAIContext } from "./ai-prompt.ts";
 import { evaluateAIEnrichmentEligibility } from "./ai-eligibility.ts";
+import {
+  buildAIEnrichmentCacheDescriptor,
+  defaultAIEnrichmentCacheTtlMs,
+  defaultAIEnrichmentModel,
+  defaultAIEnrichmentPromptVersion,
+  hashAIExtractionContent,
+  type AIEnrichmentCacheStore,
+} from "./ai-cache.ts";
+import { createSupabaseAIEnrichmentCacheStore } from "./ai-cache-store.ts";
 import type {
   AIEnrichmentConfidence,
   AIEnrichmentProvider,
@@ -7,20 +16,28 @@ import type {
   AIEnrichmentResult,
   AIProposedField,
 } from "./ai-enrichment.ts";
-import { sanitizeFactualAIEnrichment } from "./ai-enrichment.ts";
+import {
+  isValidCachedAIEnrichmentResult,
+  normalizeAIEnrichmentResult,
+  sanitizeFactualAIEnrichment,
+} from "./ai-enrichment.ts";
 
 export const deepSeekApiEndpoint = "https://api.deepseek.com/chat/completions";
-export const defaultDeepSeekModel = "deepseek-v4-flash";
+export const defaultDeepSeekModel = defaultAIEnrichmentModel;
 export const defaultDeepSeekTimeoutMs = 12000;
 export const defaultDeepSeekMaxOutputTokens = 600;
 
-type DeepSeekProviderOptions = {
+export type DeepSeekProviderOptions = {
   apiKey?: string;
   model?: string;
   endpoint?: string;
   timeoutMs?: number;
   maxOutputTokens?: number;
   fetchImpl?: typeof fetch;
+  cacheStore?: AIEnrichmentCacheStore;
+  cacheTtlMs?: number;
+  promptVersion?: string;
+  thinkingMode?: boolean;
 };
 
 type DeepSeekWireResponse = {
@@ -64,6 +81,28 @@ function logDevelopmentResponse(input: {
   });
 }
 
+function logDevelopmentCache(input: {
+  event: "hit" | "miss" | "bypass" | "invalid" | "provider" | "cache_warning";
+  cacheKey: string;
+  model: string;
+  promptVersion: string;
+  message?: string;
+}) {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.debug("[deepseek] cache", {
+    event: input.event,
+    cacheKey: input.cacheKey.slice(0, 16),
+    model: input.model,
+    promptVersion: input.promptVersion,
+    ...(input.message ? { message: input.message } : {}),
+  });
+}
+
+const inFlightRequests = new Map<string, Promise<AIEnrichmentResult>>();
+
 function getConfig(options: DeepSeekProviderOptions) {
   return {
     apiKey: options.apiKey ?? process.env.DEEPSEEK_API_KEY ?? "",
@@ -71,6 +110,10 @@ function getConfig(options: DeepSeekProviderOptions) {
     endpoint: options.endpoint ?? deepSeekApiEndpoint,
     timeoutMs: options.timeoutMs ?? defaultDeepSeekTimeoutMs,
     maxOutputTokens: options.maxOutputTokens ?? defaultDeepSeekMaxOutputTokens,
+    cacheTtlMs: options.cacheTtlMs ?? defaultAIEnrichmentCacheTtlMs,
+    promptVersion: options.promptVersion ?? defaultAIEnrichmentPromptVersion,
+    thinkingMode: options.thinkingMode ?? false,
+    cacheStore: options.cacheStore,
     fetchImpl: options.fetchImpl ?? fetch,
   };
 }
@@ -233,85 +276,231 @@ export function createDeepSeekAIEnrichmentProvider(
 
       const config = getConfig(options);
 
-      if (!config.apiKey) {
-        return {
-          status: "unavailable",
-          message: "AI enrichment unavailable: DEEPSEEK_API_KEY is not configured.",
-          proposal: null,
-        };
-      }
+      const sourceTypes = Array.from(new Set(request.extractedSourceData.map((result) => result.sourceType))).sort();
+      const sourceUrls = Array.from(new Set(request.sourceUrls)).sort();
+      const descriptor = buildAIEnrichmentCacheDescriptor({
+        provider: "deepseek",
+        model: config.model,
+        promptVersion: config.promptVersion,
+        sourceType: sourceTypes.join(","),
+        sourceUrl: sourceUrls.join("|"),
+        evidenceHash: hashAIExtractionContent(request.extractedSourceData),
+        missingFields: request.missingFields,
+        thinkingMode: config.thinkingMode,
+      });
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
+      const work = async (): Promise<AIEnrichmentResult> => {
+        let cacheStore = config.cacheStore;
 
-      try {
-        const response = await config.fetchImpl(config.endpoint, {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${config.apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+        if (!cacheStore && request.userId) {
+          try {
+            cacheStore = createSupabaseAIEnrichmentCacheStore(request.userId);
+          } catch (error) {
+            logDevelopmentCache({
+              event: "cache_warning",
+              cacheKey: descriptor.cacheKey,
+              model: config.model,
+              promptVersion: config.promptVersion,
+              message: error instanceof Error ? error.message : "cache store unavailable",
+            });
+          }
+        }
+
+        if (cacheStore && !request.forceRefresh) {
+          try {
+            const cached = await cacheStore.get(descriptor.cacheKey);
+
+            if (cached) {
+              if (isValidCachedAIEnrichmentResult(cached.responseJson)) {
+                logDevelopmentCache({
+                  event: "hit",
+                  cacheKey: descriptor.cacheKey,
+                  model: config.model,
+                  promptVersion: config.promptVersion,
+                });
+                return {
+                  ...sanitizeFactualAIEnrichment(
+                    normalizeAIEnrichmentResult(cached.responseJson),
+                    request.extractedSourceData,
+                  ),
+                  cacheStatus: "hit",
+                };
+              }
+
+              logDevelopmentCache({
+                event: "invalid",
+                cacheKey: descriptor.cacheKey,
+                model: config.model,
+                promptVersion: config.promptVersion,
+                message: "cached response failed current schema validation",
+              });
+              if (cacheStore.delete) {
+                await cacheStore.delete(descriptor.cacheKey).catch(() => undefined);
+              }
+            } else {
+              logDevelopmentCache({
+                event: "miss",
+                cacheKey: descriptor.cacheKey,
+                model: config.model,
+                promptVersion: config.promptVersion,
+              });
+            }
+          } catch (error) {
+            logDevelopmentCache({
+              event: "cache_warning",
+              cacheKey: descriptor.cacheKey,
+              model: config.model,
+              promptVersion: config.promptVersion,
+              message: error instanceof Error ? error.message : "cache lookup failed",
+            });
+          }
+        } else if (request.forceRefresh) {
+          logDevelopmentCache({
+            event: "bypass",
+            cacheKey: descriptor.cacheKey,
             model: config.model,
-            temperature: 0.1,
-            max_tokens: config.maxOutputTokens,
-            response_format: { type: "json_object" },
-            messages: [
-              {
-                role: "system",
-                content:
-                  "Return only one valid JSON object. Do not wrap JSON in markdown or code fences. Do not include explanations before or after JSON. Follow the provided schema exactly. Use only the allowed status and confidence strings. Never use numeric confidence. Do not return additional fields. Use only the provided evidence. Extract factual fields only when explicitly supported. Leave factual fields empty when evidence is absent. You may classify understanding fields from the provided name and description, but never invent addresses, phone numbers, ratings, or opening hours. Suggest only safe, explicit improvements.",
-              },
-              {
-                role: "user",
-                content: `${buildCompactAIContext(request)}\n\nReturn exactly this JSON shape and no other fields: {"status":"suggestions_available | no_changes | failed","factualSuggestions":{"address":"","phone":"","city":"","country":""},"understandingSuggestions":{"category":"","cuisine":"","tags":[],"summary":"","placeType":""},"confidence":"low | medium | high","reason":""}. Keep factualSuggestions evidence-only. Understanding suggestions may classify the provided name and description. Never return numeric confidence, markdown, or explanatory text.`,
-              },
-            ],
-          }),
-          signal: controller.signal,
+            promptVersion: config.promptVersion,
+          });
+        }
+
+        if (!config.apiKey) {
+          return {
+            status: "unavailable",
+            message: "AI enrichment unavailable: DEEPSEEK_API_KEY is not configured.",
+            proposal: null,
+          };
+        }
+
+        logDevelopmentCache({
+          event: "provider",
+          cacheKey: descriptor.cacheKey,
+          model: config.model,
+          promptVersion: config.promptVersion,
         });
 
-        if (!response.ok) {
-          return failedResult(`DeepSeek request failed with status ${response.status}.`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
+
+        try {
+          const response = await config.fetchImpl(config.endpoint, {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              Authorization: `Bearer ${config.apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: config.model,
+              temperature: 0.1,
+              max_tokens: config.maxOutputTokens,
+              response_format: { type: "json_object" },
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "Return only one valid JSON object. Do not wrap JSON in markdown or code fences. Do not include explanations before or after JSON. Follow the provided schema exactly. Use only the allowed status and confidence strings. Never use numeric confidence. Do not return additional fields. Use only the provided evidence. Extract factual fields only when explicitly supported. Leave factual fields empty when evidence is absent. You may classify understanding fields from the provided name and description, but never invent addresses, phone numbers, ratings, or opening hours. Suggest only safe, explicit improvements.",
+                },
+                {
+                  role: "user",
+                  content: `${buildCompactAIContext(request)}\n\nReturn exactly this JSON shape and no other fields: {"status":"suggestions_available | no_changes | failed","factualSuggestions":{"address":"","phone":"","city":"","country":""},"understandingSuggestions":{"category":"","cuisine":"","tags":[],"summary":"","placeType":""},"confidence":"low | medium | high","reason":""}. Keep factualSuggestions evidence-only. Understanding suggestions may classify the provided name and description. Never return numeric confidence, markdown, or explanatory text.`,
+                },
+              ],
+            }),
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            return failedResult(`DeepSeek request failed with status ${response.status}.`);
+          }
+
+          const payload = (await response.json()) as {
+            choices?: Array<{
+              finish_reason?: unknown;
+              message?: { content?: unknown };
+            }>;
+          };
+          const content = payload.choices?.[0]?.message?.content;
+          const rawResponseText = typeof content === "string"
+            ? content
+            : JSON.stringify(content ?? null);
+
+          logDevelopmentResponse(
+            {
+              httpStatus: response.status,
+              rawResponseText,
+              finishReason: payload.choices?.[0]?.finish_reason,
+              model: config.model,
+            },
+          );
+
+          if (typeof content !== "string") {
+            return failedResult("DeepSeek returned no JSON content.");
+          }
+
+          const normalizedResult = sanitizeFactualAIEnrichment(
+            parseDeepSeekResponse(content),
+            request.extractedSourceData,
+          );
+
+          if (
+            cacheStore &&
+            request.userId &&
+            isValidCachedAIEnrichmentResult(normalizedResult)
+          ) {
+            try {
+              await cacheStore.set({
+                descriptor,
+                userId: request.userId,
+                responseJson: normalizedResult,
+                expiresAt: new Date(Date.now() + config.cacheTtlMs).toISOString(),
+              });
+            } catch (error) {
+              logDevelopmentCache({
+                event: "cache_warning",
+                cacheKey: descriptor.cacheKey,
+                model: config.model,
+                promptVersion: config.promptVersion,
+                message: error instanceof Error ? error.message : "cache write failed",
+              });
+            }
+
+            return {
+              ...normalizedResult,
+              cacheStatus: request.forceRefresh ? "bypass" : "miss",
+            };
+          }
+
+          return normalizedResult;
+        } catch (error) {
+          const message = error instanceof Error && error.name === "AbortError"
+            ? "DeepSeek request timed out."
+            : "DeepSeek request failed without changing the current draft.";
+
+          return failedResult(message);
+        } finally {
+          clearTimeout(timeoutId);
         }
+      };
 
-        const payload = (await response.json()) as {
-          choices?: Array<{
-            finish_reason?: unknown;
-            message?: { content?: unknown };
-          }>;
-        };
-        const content = payload.choices?.[0]?.message?.content;
-        const rawResponseText = typeof content === "string"
-          ? content
-          : JSON.stringify(content ?? null);
+      const inFlightKey = request.userId ? `${request.userId}:${descriptor.cacheKey}` : null;
+      const existing = inFlightKey ? inFlightRequests.get(inFlightKey) : undefined;
 
-        logDevelopmentResponse(
-          {
-            httpStatus: response.status,
-            rawResponseText,
-            finishReason: payload.choices?.[0]?.finish_reason,
-            model: config.model,
-          },
-        );
+      if (existing) {
+        return existing;
+      }
 
-        if (typeof content !== "string") {
-          return failedResult("DeepSeek returned no JSON content.");
-        }
+      const pending = work();
 
-        return sanitizeFactualAIEnrichment(
-          parseDeepSeekResponse(content),
-          request.extractedSourceData,
-        );
-      } catch (error) {
-        const message = error instanceof Error && error.name === "AbortError"
-          ? "DeepSeek request timed out."
-          : "DeepSeek request failed without changing the current draft.";
+      if (inFlightKey) {
+        inFlightRequests.set(inFlightKey, pending);
+      }
 
-        return failedResult(message);
+      try {
+        return await pending;
       } finally {
-        clearTimeout(timeoutId);
+        if (inFlightKey && inFlightRequests.get(inFlightKey) === pending) {
+          inFlightRequests.delete(inFlightKey);
+        }
       }
     },
   };

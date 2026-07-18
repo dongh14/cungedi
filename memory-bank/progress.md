@@ -1445,3 +1445,26 @@ Documented but not yet implemented in UI:
 - `npm run lint` passed.
 - `npm run build` passed.
 - Focused tests passed (`36` tests).
+
+## Validated Step 2 Durable DeepSeek Cache Checkpoint
+
+### Durable Cache
+- Added an owner-scoped `public.ai_enrichment_cache` Supabase table with provider, model, prompt version, source metadata, evidence hash, normalized response JSON, creation time, and expiry time.
+- Added a unique `(user_id, cache_key)` constraint, lookup-supporting indexes, and authenticated owner-only RLS policies for cache CRUD.
+- Cache entries use a 30-day TTL and store only validated normalized AI results; raw HTML and full pasted evidence are never persisted.
+
+### Cache And Provider Flow
+- AI review state lookup priority is now: URL-backed review state, durable Supabase cache, then the DeepSeek provider.
+- Cache keys are deterministic and include provider, model, prompt version, source type, normalized source URL, compact extraction evidence hash, missing-field set, and thinking mode.
+- Concurrent requests for the same owner and cache key are coalesced through an in-flight request map.
+- Valid `suggestions_available` and `no_changes` results may be cached; failures, invalid responses, and timeouts are never cached.
+- Cache read, write, and invalid-entry cleanup failures are non-blocking and fall back to the provider safely.
+- Manual `重新分析` bypasses a valid cache entry once and warns that it will call AI again.
+- Manual approval remains required, and AI suggestions never write directly to Supabase.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused cache, DeepSeek, AI review-state, enrichment, and migration tests passed (`42` tests).
+- Automated validation completed without creating or saving a place record.

@@ -120,6 +120,10 @@ export function SourceReviewCard({
       return "Google Maps";
     }
 
+    if (source === "manual_evidence") {
+      return "用户粘贴的网页文字";
+    }
+
     return source === "website" ? "Website" : source ?? "未知来源";
   };
 

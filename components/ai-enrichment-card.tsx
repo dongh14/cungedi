@@ -1,4 +1,5 @@
 import { SurfaceCard } from "@/components/surface-card";
+import { AIRefreshControl } from "@/components/ai-refresh-control";
 import type {
   AIEnrichmentResult,
   AIEnrichmentSnapshotField,
@@ -45,12 +46,14 @@ export function AIEnrichmentCard({
   sourceUrls,
   rejectedGroups = [],
   acceptedFields = [],
+  refreshParams = [],
 }: {
   result: AIEnrichmentResult;
   sourceUrl: string;
   sourceUrls: string[];
   rejectedGroups?: AIProposedFieldGroup[];
   acceptedFields?: AIProposedFieldName[];
+  refreshParams?: Array<readonly [string, string]>;
 }) {
   const groups: AIProposedFieldGroup[] = ["factual", "understanding"];
   const accepted = new Set(acceptedFields);
@@ -211,6 +214,11 @@ export function AIEnrichmentCard({
               </div>
               <div className="mt-4 space-y-3">{groups.map(renderGroup)}</div>
             </>
+          ) : null}
+          {refreshParams.length > 0 && (result.status === "suggestions_available" || result.status === "no_changes") ? (
+            <div className="mt-4 border-t border-[var(--border-soft)] pt-4">
+              <AIRefreshControl params={refreshParams} />
+            </div>
           ) : null}
         </div>
       </div>

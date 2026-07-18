@@ -96,6 +96,7 @@ function buildReviewRestaurantRedirect(
     cuisine: string;
     note: string;
     collectionIds: number[];
+    manualEvidence?: string;
   },
   state: {
     error?: string;
@@ -117,6 +118,7 @@ function buildReviewRestaurantRedirect(
     ...(values.collectionIds.length > 0
       ? { collection_ids: values.collectionIds.join(",") }
       : {}),
+    ...(values.manualEvidence ? { manual_evidence: values.manualEvidence } : {}),
   });
 }
 
@@ -176,6 +178,7 @@ function buildReviewCollectionRedirect(
     message?: string;
     aiDraftState?: AIReviewDraftState | null;
     draftValues?: Record<string, string>;
+    manualEvidence?: string;
   },
 ) {
   const params = new URLSearchParams({ source_url: sourceUrl });
@@ -188,6 +191,10 @@ function buildReviewCollectionRedirect(
     params.set("collection_message", state.message);
   }
 
+  if (state.manualEvidence) {
+    params.set("manual_evidence", state.manualEvidence);
+  }
+
   for (const [field, value] of Object.entries(state.draftValues ?? {})) {
     params.set(field, value);
   }
@@ -196,11 +203,7 @@ function buildReviewCollectionRedirect(
     return `/restaurants/review?${appendAIReviewDraftState(params, state.aiDraftState).toString()}`;
   }
 
-  return buildRedirect("/restaurants/review", {
-    source_url: sourceUrl,
-    ...(state.error ? { collection_error: state.error } : {}),
-    ...(state.message ? { collection_message: state.message } : {}),
-  });
+  return `/restaurants/review?${params.toString()}`;
 }
 
 function buildEditRestaurantCollectionsRedirect(
@@ -225,6 +228,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const address = getFormValue(formData, "address");
   const cuisine = getFormValue(formData, "cuisine");
   const note = getFormValue(formData, "note");
+  const manualEvidence = getFormValue(formData, "manual_evidence");
   const collectionIds = normalizeSelectedCollectionIds(
     formData.getAll("collection_ids").map((value) => value.toString()),
   );
@@ -242,6 +246,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     cuisine,
     note,
     collectionIds,
+    manualEvidence,
   };
   const redirectToDraft = (error: string): never => {
     if (returnTo === "review" && reviewSourceUrl) {
@@ -297,6 +302,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     collectionIds,
     returnTo: returnTo === "review" ? "review" : "new",
     reviewSourceUrl: reviewSourceUrl || finalSourceUrl,
+    manualEvidence,
   };
 }
 
@@ -434,6 +440,7 @@ export async function createRestaurantAction(formData: FormData) {
       cuisine: restaurant.cuisine ?? "",
       note: restaurant.note ?? "",
       collectionIds: restaurant.collectionIds ?? [],
+      manualEvidence: restaurant.manualEvidence ?? "",
     };
 
     if (restaurant.returnTo === "review" && restaurant.reviewSourceUrl) {
@@ -527,6 +534,7 @@ export async function createCollectionAction(formData: FormData) {
   const name = getFormValue(formData, "name");
   const returnTo = getFormValue(formData, "return_to");
   const reviewSourceUrl = extractFirstHttpUrl(getFormValue(formData, "source_url"));
+  const manualEvidence = getFormValue(formData, "manual_evidence");
   const aiDraftState = parseAIReviewDraftState({
     ai_snapshot: formData.getAll("ai_snapshot").map((value) => value.toString()),
     ai_snapshot_confidence: getFormValue(formData, "ai_snapshot_confidence"),
@@ -549,6 +557,7 @@ export async function createCollectionAction(formData: FormData) {
         ...state,
         aiDraftState,
         draftValues,
+        manualEvidence,
       }));
     }
 

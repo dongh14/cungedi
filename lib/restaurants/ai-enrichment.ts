@@ -16,6 +16,7 @@ export const aiEnrichmentStatuses = [
 
 export type AIEnrichmentStatus = (typeof aiEnrichmentStatuses)[number];
 export type AIEnrichmentConfidence = "high" | "medium" | "low";
+export type AIEnrichmentCacheStatus = "hit" | "miss" | "bypass";
 
 export type AIFactualFieldName = "address" | "phone" | "city" | "country";
 export type AIUnderstandingFieldName =
@@ -62,12 +63,15 @@ export type AIEnrichmentRequest = {
   extractedSourceData: NormalizedExtractionResult[];
   sourceUrls: string[];
   missingFields: PlaceDraftField[];
+  userId?: string;
+  forceRefresh?: boolean;
 };
 
 export type AIEnrichmentResult = {
   status: AIEnrichmentStatus;
   message: string;
   proposal: AIEnrichmentProposal | null;
+  cacheStatus?: AIEnrichmentCacheStatus;
 };
 
 export type AIEnrichmentSnapshotField = {
@@ -75,6 +79,81 @@ export type AIEnrichmentSnapshotField = {
   group: AIProposedFieldGroup;
   value: string;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isConfidence(value: unknown): value is AIEnrichmentConfidence {
+  return value === "low" || value === "medium" || value === "high";
+}
+
+const factualFieldNames = new Set<AIFactualFieldName>(["address", "phone", "city", "country"]);
+const understandingFieldNames = new Set<AIUnderstandingFieldName>([
+  "category",
+  "cuisine",
+  "tags",
+  "summary",
+  "placeType",
+]);
+
+export function isValidCachedAIEnrichmentResult(value: unknown): value is AIEnrichmentResult {
+  if (!isRecord(value) || typeof value.status !== "string" || typeof value.message !== "string") {
+    return false;
+  }
+
+  if (value.status === "no_changes") {
+    return value.proposal === null;
+  }
+
+  if (value.status !== "suggestions_available" || !isRecord(value.proposal)) {
+    return false;
+  }
+
+  const factual = value.proposal.factualSuggestions;
+  const understanding = value.proposal.understandingSuggestions;
+  const proposedFields = value.proposal.proposedFields;
+
+  if (
+    !isRecord(factual) ||
+    !isRecord(understanding) ||
+    !isConfidence(value.proposal.confidence) ||
+    typeof value.proposal.reasoningSummary !== "string" ||
+    !Array.isArray(proposedFields)
+  ) {
+    return false;
+  }
+
+  if (
+    !["address", "phone", "city", "country"].every((field) =>
+      typeof factual[field] === "string" || factual[field] === null,
+    ) ||
+    typeof understanding.category !== "string" && understanding.category !== null ||
+    typeof understanding.cuisine !== "string" && understanding.cuisine !== null ||
+    typeof understanding.summary !== "string" && understanding.summary !== null ||
+    typeof understanding.placeType !== "string" && understanding.placeType !== null ||
+    !Array.isArray(understanding.tags) ||
+    !understanding.tags.every((tag) => typeof tag === "string")
+  ) {
+    return false;
+  }
+
+  return proposedFields.every((field) => {
+    if (!isRecord(field) || typeof field.field !== "string" || typeof field.group !== "string") {
+      return false;
+    }
+
+    const allowedFields = field.group === "factual" ? factualFieldNames : understandingFieldNames;
+
+    return (
+      (field.group === "factual" || field.group === "understanding") &&
+      allowedFields.has(field.field as never) &&
+      typeof field.value === "string" &&
+      Boolean(field.value.trim()) &&
+      isConfidence(field.confidence)
+    );
+  });
+}
 
 export function normalizeAIEnrichmentResult(
   result: AIEnrichmentResult,
@@ -241,6 +320,7 @@ function getFactualEvidenceValues(result: NormalizedExtractionResult) {
       entry.phone,
       entry.websiteUrl,
     ]),
+    result.evidence?.manualText,
   ].filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
 }
 

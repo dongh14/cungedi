@@ -11,6 +11,7 @@ export function ReviewCollectionSelector({
   formId = "review-save-form",
   aiDraftState,
   draftValues,
+  manualEvidence,
 }: {
   collectionOptions: CollectionOptionItem[];
   selectedCollectionIds: number[];
@@ -27,6 +28,7 @@ export function ReviewCollectionSelector({
     note: string;
     privacy: string;
   }>;
+  manualEvidence?: string;
 }) {
   function renderAIDraftStateInputs() {
     if (!aiDraftState) {
@@ -108,6 +110,9 @@ export function ReviewCollectionSelector({
           {Object.entries(draftValues ?? {}).map(([field, value]) => (
             <input key={`review-${field}`} type="hidden" name={`review_${field}`} value={value} />
           ))}
+          {manualEvidence ? (
+            <input type="hidden" name="manual_evidence" value={manualEvidence} />
+          ) : null}
           <input
             name="name"
             required

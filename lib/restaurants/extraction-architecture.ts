@@ -31,7 +31,11 @@ export const extractionFields = [
 
 export type ExtractedField = (typeof extractionFields)[number];
 
-export type ExtractionFieldOrigin = "structured" | "metadata" | "url";
+export type ExtractionFieldOrigin =
+  | "structured"
+  | "metadata"
+  | "url"
+  | "manual_evidence";
 
 export type NormalizedExtractionResult = {
   name: string | null;
@@ -59,6 +63,7 @@ export type NormalizedExtractionResult = {
 export type ExtractionEvidence = {
   metadata?: Partial<WebsiteMetadataFields>;
   structuredData?: WebsiteStructuredData[];
+  manualText?: string;
 };
 
 export type SourceDetection = {

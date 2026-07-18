@@ -76,11 +76,13 @@ function getEvidenceSnapshot(result: AIEnrichmentRequest["extractedSourceData"][
   const relevantSnippets = [result.description, result.address, result.phone]
     .map((value) => trimText(value, 240))
     .filter(Boolean);
+  const manualText = trimText(result.evidence?.manualText, 1800);
 
   return {
     metadata,
     structuredData,
     relevantSnippets,
+    ...(manualText ? { manualText } : {}),
   };
 }
 
@@ -150,6 +152,7 @@ export function buildCompactAIContext(request: AIEnrichmentRequest) {
           phone: entry.phone,
         })),
         relevantSnippets: source.evidence.relevantSnippets.slice(0, 2),
+        ...(source.evidence.manualText ? { manualText: trimText(source.evidence.manualText, 1800) } : {}),
       },
     })),
   });
@@ -188,6 +191,7 @@ export function buildCompactAIContext(request: AIEnrichmentRequest) {
           phone: trimText(entry.phone, 80),
         })),
         relevantSnippets: source.evidence.relevantSnippets.slice(0, 1),
+        ...(source.evidence.manualText ? { manualText: trimText(source.evidence.manualText, 1200) } : {}),
       },
     })),
   });
@@ -200,5 +204,10 @@ export function buildCompactAIContext(request: AIEnrichmentRequest) {
     missingFields: compactContext.missingFields,
     conflicts: compactContext.conflicts,
     sourceUrls: compactContext.sourceUrls.slice(0, 1),
+    manualEvidence: compactContext.extractedSources
+      .map((source) => source.evidence.manualText)
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 1800),
   });
 }

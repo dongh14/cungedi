@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { AIEnrichmentCard } from "@/components/ai-enrichment-card";
 import { AppShell } from "@/components/app-shell";
 import { ExtractionConfirmationCard } from "@/components/extraction-confirmation-card";
+import { ManualEvidenceRecoveryCard } from "@/components/manual-evidence-recovery-card";
 import { PlaceholderCard } from "@/components/placeholder-card";
 import { ReviewFinalPreviewCard } from "@/components/review-final-preview-card";
 import { ReviewCollectionSelector } from "@/components/review-collection-selector";
@@ -19,12 +20,18 @@ import {
 import { applyAcceptedAIEnrichment } from "@/lib/restaurants/ai-enrichment-merge";
 import {
   appendAIReviewDraftState,
+  clearAIReviewDraftState,
   getAIReviewDraftState,
   parseAIReviewDraftState,
 } from "@/lib/restaurants/ai-review-state";
 import { deepSeekAIEnrichmentProvider } from "@/lib/restaurants/deepseek-provider";
 import { runExtractionPipelineWithWebsiteFetch } from "@/lib/restaurants/extraction-architecture";
 import { mergePlaceDraftSources } from "@/lib/restaurants/place-draft-merge";
+import {
+  buildManualEvidenceExtractionResult,
+  isWebsiteRecoveryRequired,
+  normalizeManualEvidenceText,
+} from "@/lib/restaurants/manual-evidence";
 import { getCurrentUserCollectionOptions } from "@/lib/restaurants/queries";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 import { getReviewCollectionIds, type ReviewSearchParams } from "@/lib/restaurants/review-form";
@@ -46,6 +53,8 @@ type RestaurantReviewPageProps = {
     ai_reject?: string;
     ai_reject_factual?: string;
     ai_reject_understanding?: string;
+    manual_evidence?: string;
+    ai_refresh?: string;
   }>;
 };
 
@@ -113,7 +122,29 @@ export default async function RestaurantReviewPage({
   const extractionPipelines = await Promise.all(
     sourceUrls.map((sourceUrl) => runExtractionPipelineWithWebsiteFetch(sourceUrl)),
   );
-  const extractionResults = extractionPipelines.map((pipeline) => pipeline.result);
+  const manualEvidenceAttempted = params.manual_evidence !== undefined;
+  const normalizedManualEvidence = manualEvidenceAttempted
+    ? normalizeManualEvidenceText(params.manual_evidence)
+    : null;
+  const manualEvidenceText = normalizedManualEvidence?.ok ? normalizedManualEvidence.text : null;
+  const manualEvidenceError = normalizedManualEvidence && !normalizedManualEvidence.ok
+    ? normalizedManualEvidence.error
+    : null;
+  const manualEvidenceResult = manualEvidenceText
+    ? buildManualEvidenceExtractionResult(normalizedSourceUrl, manualEvidenceText)
+    : null;
+  const extractionResults = [
+    ...extractionPipelines.map((pipeline) => pipeline.result),
+    ...(manualEvidenceResult ? [manualEvidenceResult] : []),
+  ];
+  const aiExtractionResults = manualEvidenceResult
+    ? extractionResults.filter(
+        (result) =>
+          result === manualEvidenceResult ||
+          result.extractionStatus !== "unavailable" ||
+          result.sourceType !== "website",
+      )
+    : extractionResults;
   const mergedDraft = mergePlaceDraftSources(extractionResults, {
     ...(params.name !== undefined ? { name: params.name } : {}),
     ...(params.city !== undefined ? { city: params.city } : {}),
@@ -122,14 +153,35 @@ export default async function RestaurantReviewPage({
     ...(params.cuisine !== undefined ? { cuisine: params.cuisine } : {}),
     ...(params.note !== undefined ? { notes: params.note } : {}),
   });
-  const storedAIState = parseAIReviewDraftState(params);
-  const acceptedAIFields = storedAIState?.acceptedFields ?? getAcceptedAIFields(
+  const isForcedReanalysis = params.ai_refresh === "1";
+  const storedAIState = isForcedReanalysis ? null : parseAIReviewDraftState(params);
+  const acceptedAIFields = isForcedReanalysis
+    ? []
+    : storedAIState?.acceptedFields ?? getAcceptedAIFields(
     params.ai_accept,
     params.ai_accept_factual,
     params.ai_accept_understanding,
   );
   const rejectedAIGroups = storedAIState?.rejectedGroups ?? [];
-  const rawAIEnrichment = params.ai_reject === "1"
+  const rawAIEnrichment = manualEvidenceAttempted && !manualEvidenceText
+    ? {
+        status: "no_changes" as const,
+        message: manualEvidenceError ?? "请先粘贴网页中可见的文字。",
+        proposal: null,
+      }
+    : isForcedReanalysis
+    ? await runAIEnrichment(
+        {
+          mergedPlaceDraft: mergedDraft,
+          extractedSourceData: aiExtractionResults,
+          sourceUrls,
+          missingFields: getMissingAIReviewFields(mergedDraft),
+          userId: user.userId,
+          forceRefresh: true,
+        },
+        deepSeekAIEnrichmentProvider,
+      )
+    : params.ai_reject === "1"
     ? {
         status: "no_changes" as const,
         message: "AI suggestions were rejected without changing the current draft.",
@@ -144,9 +196,10 @@ export default async function RestaurantReviewPage({
     : await runAIEnrichment(
         {
           mergedPlaceDraft: mergedDraft,
-          extractedSourceData: extractionResults,
+          extractedSourceData: aiExtractionResults,
           sourceUrls,
           missingFields: getMissingAIReviewFields(mergedDraft),
+          userId: user.userId,
         },
         deepSeekAIEnrichmentProvider,
       );
@@ -169,13 +222,65 @@ export default async function RestaurantReviewPage({
     }
 
     const stateQuery = appendAIReviewDraftState(query, aiDraftState);
+    stateQuery.delete("ai_refresh");
+
+    if (manualEvidenceText) {
+      stateQuery.set("manual_evidence", manualEvidenceText);
+    }
+
     redirect(`/restaurants/review?${stateQuery.toString()}`);
+  }
+
+  if (isForcedReanalysis) {
+    const refreshedQuery = clearAIReviewDraftState(new URLSearchParams(
+      Object.entries(params).flatMap(([key, value]) =>
+        Array.isArray(value)
+          ? value.map((entry) => [key, entry] as [string, string])
+          : typeof value === "string"
+            ? [[key, value] as [string, string]]
+            : [],
+      ),
+    ));
+    refreshedQuery.delete("ai_refresh");
+    redirect(`/restaurants/review?${refreshedQuery.toString()}`);
+  }
+
+  if (manualEvidenceText && params.manual_evidence !== manualEvidenceText) {
+    const normalizedQuery = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(params)) {
+      if (Array.isArray(value)) {
+        value.forEach((entry) => normalizedQuery.append(key, entry));
+      } else if (typeof value === "string") {
+        normalizedQuery.set(key, value);
+      }
+    }
+
+    normalizedQuery.set("manual_evidence", manualEvidenceText);
+    redirect(`/restaurants/review?${normalizedQuery.toString()}`);
   }
   const reviewDraft = applyAcceptedAIEnrichment(
     mergedDraft,
     aiEnrichment,
     acceptedAIFields,
   );
+  const websiteRecoveryPipelines = extractionPipelines.filter(
+    (pipeline) => isWebsiteRecoveryRequired({
+      sourceType: pipeline.detection.sourceType,
+      extractionStatus: pipeline.result.extractionStatus,
+      fetchStatus: pipeline.fetchResult?.fetchStatus,
+    }),
+  );
+  const showManualEvidenceRecovery = websiteRecoveryPipelines.length > 0 || Boolean(manualEvidenceAttempted);
+  const recoveryMessage = manualEvidenceError ?? undefined;
+  const refreshParams = Object.entries(params).flatMap(([key, value]) =>
+    Array.isArray(value)
+      ? value.map((entry) => [key, entry] as const)
+      : typeof value === "string"
+        ? [[key, value] as const]
+        : [],
+  ).filter(([key]) => key !== "ai_refresh");
+  refreshParams.push(["ai_refresh", "1"]);
 
   return (
     <AppShell
@@ -231,6 +336,7 @@ export default async function RestaurantReviewPage({
               ...(params.note !== undefined ? { note: params.note } : {}),
               ...(params.privacy !== undefined ? { privacy: params.privacy } : {}),
             }}
+            manualEvidence={manualEvidenceText ?? undefined}
           />
           <ExtractionConfirmationCard
             sourceUrl={normalizedSourceUrl}
@@ -242,12 +348,32 @@ export default async function RestaurantReviewPage({
         </div>
 
         <div className="space-y-4">
+          {showManualEvidenceRecovery ? (
+            <ManualEvidenceRecoveryCard
+              sourceUrl={normalizedSourceUrl}
+              sourceUrls={sourceUrls}
+              value={manualEvidenceText ?? ""}
+              error={recoveryMessage ?? websiteRecoveryPipelines[0]?.result.message}
+              aiDraftState={aiDraftState}
+              selectedCollectionIds={selectedCollectionIds}
+              draftValues={{
+                ...(params.name !== undefined ? { name: params.name } : {}),
+                ...(params.city !== undefined ? { city: params.city } : {}),
+                ...(params.address !== undefined ? { address: params.address } : {}),
+                ...(params.category !== undefined ? { category: params.category } : {}),
+                ...(params.cuisine !== undefined ? { cuisine: params.cuisine } : {}),
+                ...(params.note !== undefined ? { note: params.note } : {}),
+                ...(params.privacy !== undefined ? { privacy: params.privacy } : {}),
+              }}
+            />
+          ) : null}
           <AIEnrichmentCard
             result={aiEnrichment}
             sourceUrl={normalizedSourceUrl}
             sourceUrls={sourceUrls}
             rejectedGroups={rejectedAIGroups}
             acceptedFields={acceptedAIFields}
+            refreshParams={refreshParams}
           />
           <PlaceholderCard
             title="这一步现在重点做什么"

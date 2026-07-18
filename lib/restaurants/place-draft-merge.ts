@@ -23,6 +23,7 @@ export type PlaceDraftField = (typeof placeDraftFields)[number];
 export type PlaceDraftSource =
   | Exclude<SourceType, "unknown">
   | "manual"
+  | "manual_evidence"
   | "ai_suggestion";
 
 export type ManualPlaceDraft = Partial<
@@ -63,7 +64,14 @@ function normalizeValue(value: string | number | null | undefined) {
   return typeof value === "string" ? value.trim() : value;
 }
 
-function getSource(result: NormalizedExtractionResult): PlaceDraftSource {
+function getSource(
+  result: NormalizedExtractionResult,
+  field?: ExtractedField,
+): PlaceDraftSource {
+  if (field && result.fieldOrigins?.[field] === "manual_evidence") {
+    return "manual_evidence";
+  }
+
   return result.sourceType === "unknown" ? "website" : result.sourceType;
 }
 
@@ -78,12 +86,14 @@ function getAutomaticRank(
   result: NormalizedExtractionResult,
   field: PlaceDraftField,
 ) {
-  const source = getSource(result);
+  const source = getSource(result, field);
   const structured = isStructuredField(result, field);
 
   switch (field) {
     case "name":
-      return structured && source === "website"
+      return source === "manual_evidence"
+        ? 250
+        : structured && source === "website"
         ? 400
         : source === "google_maps"
           ? 300
@@ -91,7 +101,9 @@ function getAutomaticRank(
             ? 200
             : 100;
     case "address":
-      return structured && source === "website"
+      return source === "manual_evidence"
+        ? 250
+        : structured && source === "website"
         ? 300
         : source === "google_maps"
           ? 200
@@ -99,23 +111,37 @@ function getAutomaticRank(
             ? 100
             : 0;
     case "category":
-      return structured && source === "website" ? 300 : source === "website" ? 100 : 0;
+      return source === "manual_evidence"
+        ? 250
+        : structured && source === "website"
+          ? 300
+          : source === "website"
+            ? 100
+            : 0;
     case "cuisine":
       return 0;
     case "description":
-      return source === "website" ? 200 : 0;
+      return source === "manual_evidence" ? 250 : source === "website" ? 200 : 0;
     case "city":
-      return source === "website" || source === "google_maps" ? 100 : 0;
+      return source === "manual_evidence"
+        ? 150
+        : source === "website" || source === "google_maps"
+          ? 100
+          : 0;
     case "phone":
     case "websiteUrl":
-      return source === "website" ? (structured ? 200 : 100) : 0;
+      return source === "manual_evidence"
+        ? 250
+        : source === "website"
+          ? (structured ? 200 : 100)
+          : 0;
     case "imageUrl":
       return source === "website" ? (structured ? 300 : 200) : 0;
     case "latitude":
     case "longitude":
       return source === "google_maps" ? 200 : 0;
     case "notes":
-      return 0;
+      return source === "manual_evidence" ? 250 : 0;
   }
 }
 
@@ -142,7 +168,7 @@ function chooseField(
   const candidates = results
     .map((result, index) => ({
       value: getResultValue(result, field),
-      source: getSource(result),
+      source: getSource(result, field),
       rank: getAutomaticRank(result, field),
       index,
     }))

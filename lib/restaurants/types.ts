@@ -12,6 +12,7 @@ export type RestaurantInsertInput = {
   collectionIds?: number[];
   returnTo?: "new" | "review";
   reviewSourceUrl?: string;
+  manualEvidence?: string;
 };
 
 export type RestaurantUpdateInput = {

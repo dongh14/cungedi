@@ -8,6 +8,7 @@ import {
 } from "./deepseek-provider.ts";
 import type { MergedPlaceDraft } from "./place-draft-merge.ts";
 import type { NormalizedExtractionResult } from "./extraction-architecture.ts";
+import type { AIEnrichmentCacheEntry, AIEnrichmentCacheStore } from "./ai-cache.ts";
 
 function createDraft(overrides: Partial<MergedPlaceDraft> = {}): MergedPlaceDraft {
   return {
@@ -63,6 +64,35 @@ function createRequest(overrides: Partial<AIEnrichmentRequest> = {}): AIEnrichme
     sourceUrls: ["https://example.com/place"],
     missingFields: ["city", "category", "address"],
     ...overrides,
+  };
+}
+
+function createMemoryCache(initial: AIEnrichmentCacheEntry | null = null) {
+  let entry = initial;
+  let getCalls = 0;
+  let setCalls = 0;
+  let deleteCalls = 0;
+  const store: AIEnrichmentCacheStore = {
+    async get() {
+      getCalls += 1;
+      return entry;
+    },
+    async set(input) {
+      setCalls += 1;
+      entry = { responseJson: input.responseJson, expiresAt: input.expiresAt };
+    },
+    async delete() {
+      deleteCalls += 1;
+      entry = null;
+    },
+  };
+
+  return {
+    store,
+    getEntry: () => entry,
+    getCalls: () => getCalls,
+    setCalls: () => setCalls,
+    deleteCalls: () => deleteCalls,
   };
 }
 
@@ -238,9 +268,11 @@ test("development diagnostics include status, model, finish reason, and raw cont
     });
 
     const result = await provider.enrich(createRequest());
-    const diagnostic = debugCalls[0]?.[1] as Record<string, unknown>;
+    const diagnosticCall = debugCalls.find((call) => call[0] === "[deepseek] raw response before JSON parsing");
+    const diagnostic = diagnosticCall?.[1] as Record<string, unknown>;
 
     assert.equal(result.status, "no_changes");
+    assert.ok(diagnosticCall);
     assert.equal(diagnostic.httpStatus, 200);
     assert.equal(diagnostic.selectedModel, "test-model");
     assert.equal(diagnostic.finishReason, "stop");
@@ -409,4 +441,154 @@ test("API failures return a safe failed result", async () => {
   assert.equal(result.status, "failed");
   assert.equal(result.proposal, null);
   assert.match(result.message, /503/);
+});
+
+test("durable cache hit avoids a second DeepSeek request", async () => {
+  let providerCalls = 0;
+  const cache = createMemoryCache();
+  const provider = createDeepSeekAIEnrichmentProvider({
+    apiKey: "test-key",
+    cacheStore: cache.store,
+    fetchImpl: async () => {
+      providerCalls += 1;
+      return jsonResponse(validWireResponse());
+    },
+  });
+  const request = createRequest({ userId: "user-1" });
+
+  const first = await provider.enrich(request);
+  const second = await provider.enrich(request);
+
+  assert.equal(first.status, "suggestions_available");
+  assert.equal(first.cacheStatus, "miss");
+  assert.equal(second.cacheStatus, "hit");
+  assert.equal(providerCalls, 1);
+  assert.equal(cache.getCalls(), 2);
+  assert.equal(cache.setCalls(), 1);
+});
+
+test("forced reanalysis bypasses a valid cache row once", async () => {
+  let providerCalls = 0;
+  const cache = createMemoryCache();
+  const provider = createDeepSeekAIEnrichmentProvider({
+    apiKey: "test-key",
+    cacheStore: cache.store,
+    fetchImpl: async () => {
+      providerCalls += 1;
+      return jsonResponse(validWireResponse({
+        understandingSuggestions: validUnderstandingSuggestions({ category: "Museum" }),
+      }));
+    },
+  });
+  const request = createRequest({ userId: "user-2" });
+
+  await provider.enrich(request);
+  const refreshed = await provider.enrich({ ...request, forceRefresh: true });
+
+  assert.equal(refreshed.cacheStatus, "bypass");
+  assert.equal(providerCalls, 2);
+  assert.equal(cache.setCalls(), 2);
+});
+
+test("invalid cached data is discarded and triggers one fresh request", async () => {
+  let providerCalls = 0;
+  const cache = createMemoryCache({
+    responseJson: { status: "suggestions_available", proposal: "unsafe" },
+    expiresAt: new Date(Date.now() + 1000).toISOString(),
+  });
+  const provider = createDeepSeekAIEnrichmentProvider({
+    apiKey: "test-key",
+    cacheStore: cache.store,
+    fetchImpl: async () => {
+      providerCalls += 1;
+      return jsonResponse(validWireResponse());
+    },
+  });
+
+  const result = await provider.enrich(createRequest({ userId: "user-3" }));
+
+  assert.equal(result.status, "suggestions_available");
+  assert.equal(providerCalls, 1);
+  assert.equal(cache.deleteCalls(), 1);
+  assert.equal(cache.setCalls(), 1);
+});
+
+test("valid no_changes results are cached but failed results are not", async () => {
+  const noChangesCache = createMemoryCache();
+  let noChangesCalls = 0;
+  const noChangesProvider = createDeepSeekAIEnrichmentProvider({
+    apiKey: "test-key",
+    cacheStore: noChangesCache.store,
+    fetchImpl: async () => {
+      noChangesCalls += 1;
+      return jsonResponse(validWireResponse({
+        status: "no_changes",
+        factualSuggestions: validFactualSuggestions({ city: "" }),
+      }));
+    },
+  });
+  const noChangesRequest = createRequest({ userId: "user-4" });
+  const noChangesFirst = await noChangesProvider.enrich(noChangesRequest);
+  const noChangesSecond = await noChangesProvider.enrich(noChangesRequest);
+
+  assert.equal(noChangesFirst.status, "no_changes");
+  assert.equal(noChangesSecond.cacheStatus, "hit");
+  assert.equal(noChangesCalls, 1);
+
+  const failedCache = createMemoryCache();
+  const failedProvider = createDeepSeekAIEnrichmentProvider({
+    apiKey: "test-key",
+    cacheStore: failedCache.store,
+    fetchImpl: async () => jsonResponse("not-json"),
+  });
+  const failed = await failedProvider.enrich(createRequest({ userId: "user-5" }));
+
+  assert.equal(failed.status, "failed");
+  assert.equal(failedCache.setCalls(), 0);
+});
+
+test("cache read and write failures do not change provider results", async () => {
+  let providerCalls = 0;
+  const failingCache: AIEnrichmentCacheStore = {
+    async get() {
+      throw new Error("read failed");
+    },
+    async set() {
+      throw new Error("write failed");
+    },
+  };
+  const provider = createDeepSeekAIEnrichmentProvider({
+    apiKey: "test-key",
+    cacheStore: failingCache,
+    fetchImpl: async () => {
+      providerCalls += 1;
+      return jsonResponse(validWireResponse());
+    },
+  });
+
+  const result = await provider.enrich(createRequest({ userId: "user-6" }));
+
+  assert.equal(result.status, "suggestions_available");
+  assert.equal(providerCalls, 1);
+});
+
+test("concurrent duplicate requests share one provider call", async () => {
+  let providerCalls = 0;
+  const cache = createMemoryCache();
+  const provider = createDeepSeekAIEnrichmentProvider({
+    apiKey: "test-key",
+    cacheStore: cache.store,
+    fetchImpl: async () => {
+      providerCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return jsonResponse(validWireResponse());
+    },
+  });
+  const request = createRequest({ userId: "user-7" });
+
+  const results = await Promise.all([provider.enrich(request), provider.enrich(request)]);
+
+  assert.equal(results[0].status, "suggestions_available");
+  assert.equal(results[1].status, "suggestions_available");
+  assert.equal(providerCalls, 1);
 });

@@ -102,6 +102,9 @@ export function ExtractionConfirmationCard({
         <form id="review-save-form" action={createRestaurantAction} className="space-y-5">
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="review_source_url" value={sourceUrl} />
+          {searchParams.manual_evidence ? (
+            <input type="hidden" name="manual_evidence" value={searchParams.manual_evidence} />
+          ) : null}
           {sourceUrls?.slice(1).map((additionalSourceUrl) => (
             <input
               key={additionalSourceUrl}

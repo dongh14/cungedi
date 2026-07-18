@@ -142,6 +142,29 @@ test("compact AI context packages parsed source evidence and missing-field prior
   assert.ok(!buildCompactAIContext(request).includes("<html"));
 });
 
+test("compact AI context includes bounded manual page evidence without HTML", () => {
+  const request: AIEnrichmentRequest = {
+    mergedPlaceDraft: createDraft(),
+    extractedSourceData: [createResult({
+      sourceType: "website",
+      sourceUrl: "https://blocked.example/place",
+      evidence: {
+        manualText: "City Art Gallery\nShanghai\nAddress: 88 Yongjia Road",
+      },
+      fieldOrigins: { name: "manual_evidence" },
+    })],
+    sourceUrls: ["https://blocked.example/place"],
+    missingFields: ["city", "category", "address"],
+  };
+
+  const context = buildCompactAIContext(request);
+
+  assert.match(context, /City Art Gallery/);
+  assert.match(context, /Shanghai/);
+  assert.ok(!context.includes("<html"));
+  assert.ok(context.length <= maxDeepSeekPromptCharacters);
+});
+
 test("absent evidence remains empty instead of receiving invented values", () => {
   const request: AIEnrichmentRequest = {
     mergedPlaceDraft: createDraft(),

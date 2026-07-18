@@ -22,7 +22,8 @@ export type RestaurantDraftFormValues = {
 export type ReviewSearchParams = Partial<
   RestaurantDraftFormValues & {
     source_url: string;
-    collection_ids: string | string[];
+  collection_ids: string | string[];
+    manual_evidence: string;
     error: string;
     message: string;
   }
