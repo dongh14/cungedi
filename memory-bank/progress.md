@@ -1468,3 +1468,25 @@ Documented but not yet implemented in UI:
 - `npm run build` passed.
 - Focused cache, DeepSeek, AI review-state, enrichment, and migration tests passed (`42` tests).
 - Automated validation completed without creating or saving a place record.
+
+## Validated Step 3 Production Logging And AI Privacy Checkpoint
+
+### Safe Diagnostics
+- Replaced default raw DeepSeek response logging with concise structured diagnostics.
+- Development logs cover cache hit/miss/bypass/read/write failures, provider calls/successes/failures, validation outcomes, finish reasons, HTTP status, model, prompt version, request duration, and cache operation duration.
+- Production suppresses successful provider and cache events and emits only sanitized actionable failures or warnings.
+- Cache diagnostics use short cache-key prefixes only; full cache keys, user IDs, evidence hashes, suggestions, response objects, and source URLs are omitted.
+
+### Privacy Controls
+- `DEEPSEEK_DEBUG_RAW_RESPONSE=true` is required for raw response logging and is honored only in development; raw responses are never logged in production.
+- Source context is reduced to hostnames with paths, queries, fragments, usernames, and passwords removed.
+- Safe error serialization keeps only operation, error name, safe message, provider code, HTTP status, and retryable state; credentials, tokens, cookies, bodies, stacks, and connection details are excluded.
+- User-pasted evidence is not logged, not stored in the AI cache, and is not written to Supabase before final place save.
+- Added optional server-only variables `DEEPSEEK_DEBUG_LOGS` and `DEEPSEEK_DEBUG_RAW_RESPONSE` to `.env.example`.
+
+### Validation
+- Development miss/hit diagnostics were regression-tested without raw content, evidence, credentials, user IDs, or full cache keys.
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused logging, privacy, DeepSeek, cache, review-state, enrichment, and migration tests passed (`50` tests).

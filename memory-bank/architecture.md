@@ -1126,3 +1126,34 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - `npm run lint` passed.
 - `npm run build` passed.
 - Focused cache, DeepSeek, AI review-state, enrichment, and migration tests passed (`42` tests).
+
+## Step 3 Production Logging And AI Privacy
+
+### Diagnostic Policy
+- DeepSeek diagnostics are emitted through a server-only structured logger.
+- Safe diagnostic events are enabled by default only when `NODE_ENV=development`; `DEEPSEEK_DEBUG_LOGS=false` disables them.
+- Production emits only actionable provider/cache failures and warnings. Successful cache hits, misses, bypasses, provider calls, and provider successes are omitted.
+- Diagnostic payloads may contain model, prompt version, HTTP status, finish reason, validation outcome, operation duration, cache duration, and a short cache-key prefix.
+- Full cache keys, user IDs, evidence hashes, source URLs, response JSON, AI suggestions, prompts, and evidence are never included.
+
+### Raw Response And Error Handling
+- Raw DeepSeek response text is omitted by default in all environments.
+- Raw response logging requires `DEEPSEEK_DEBUG_RAW_RESPONSE=true` and is still limited to development; production cannot enable it.
+- Source URLs are sanitized to hostnames only. Invalid values become `unknown-host`.
+- Safe errors retain only operation, error name, sanitized message, provider error code, HTTP status, and retryable boolean. Production stack traces, request/response bodies, credentials, cookies, tokens, and database connection details are excluded.
+
+### Evidence Privacy
+- Pasted webpage evidence is passed only to the existing extraction/enrichment flow when needed.
+- It is not emitted in diagnostics, not stored as raw cache content, and is not written to Supabase before explicit final place save.
+- Cache behavior, AI eligibility, suggestion approval, review state, and deterministic extraction remain unchanged.
+
+### Configuration
+- `DEEPSEEK_DEBUG_LOGS` controls safe development diagnostics and is not exposed to the browser.
+- `DEEPSEEK_DEBUG_RAW_RESPONSE` controls the development-only raw response opt-in and is not exposed to the browser.
+
+### Validation
+- Development cache miss and hit diagnostics were tested with concise, sanitized output.
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused logging, privacy, DeepSeek, cache, review-state, enrichment, and migration tests passed (`50` tests).

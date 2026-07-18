@@ -21,6 +21,10 @@ import {
   normalizeAIEnrichmentResult,
   sanitizeFactualAIEnrichment,
 } from "./ai-enrichment.ts";
+import {
+  logDeepSeekDiagnostic,
+  serializeSafeError,
+} from "./deepseek-diagnostics.ts";
 
 export const deepSeekApiEndpoint = "https://api.deepseek.com/chat/completions";
 export const defaultDeepSeekModel = defaultAIEnrichmentModel;
@@ -62,44 +66,6 @@ type DeepSeekWireResponse = {
 const responseKeys = ["status", "factualSuggestions", "understandingSuggestions", "confidence", "reason"] as const;
 const factualKeys = ["address", "phone", "city", "country"] as const;
 const understandingKeys = ["category", "cuisine", "tags", "summary", "placeType"] as const;
-
-function logDevelopmentResponse(input: {
-  httpStatus: number;
-  rawResponseText: string;
-  finishReason: unknown;
-  model: string;
-}) {
-  if (process.env.NODE_ENV !== "development") {
-    return;
-  }
-
-  console.debug("[deepseek] raw response before JSON parsing", {
-    httpStatus: input.httpStatus,
-    selectedModel: input.model,
-    finishReason: typeof input.finishReason === "string" ? input.finishReason : null,
-    rawResponseText: input.rawResponseText,
-  });
-}
-
-function logDevelopmentCache(input: {
-  event: "hit" | "miss" | "bypass" | "invalid" | "provider" | "cache_warning";
-  cacheKey: string;
-  model: string;
-  promptVersion: string;
-  message?: string;
-}) {
-  if (process.env.NODE_ENV !== "development") {
-    return;
-  }
-
-  console.debug("[deepseek] cache", {
-    event: input.event,
-    cacheKey: input.cacheKey.slice(0, 16),
-    model: input.model,
-    promptVersion: input.promptVersion,
-    ...(input.message ? { message: input.message } : {}),
-  });
-}
 
 const inFlightRequests = new Map<string, Promise<AIEnrichmentResult>>();
 
@@ -296,27 +262,36 @@ export function createDeepSeekAIEnrichmentProvider(
           try {
             cacheStore = createSupabaseAIEnrichmentCacheStore(request.userId);
           } catch (error) {
-            logDevelopmentCache({
-              event: "cache_warning",
+            logDeepSeekDiagnostic({
+              event: "cache_read_failed",
               cacheKey: descriptor.cacheKey,
               model: config.model,
               promptVersion: config.promptVersion,
-              message: error instanceof Error ? error.message : "cache store unavailable",
+              error: serializeSafeError({
+                operation: "cache_store_init",
+                error,
+                safeMessage: "Cache store unavailable.",
+                retryable: true,
+              }),
             });
           }
         }
 
         if (cacheStore && !request.forceRefresh) {
+          const cacheReadStartedAt = Date.now();
+
           try {
             const cached = await cacheStore.get(descriptor.cacheKey);
+            const durationMs = Date.now() - cacheReadStartedAt;
 
             if (cached) {
               if (isValidCachedAIEnrichmentResult(cached.responseJson)) {
-                logDevelopmentCache({
-                  event: "hit",
+                logDeepSeekDiagnostic({
+                  event: "cache_hit",
                   cacheKey: descriptor.cacheKey,
                   model: config.model,
                   promptVersion: config.promptVersion,
+                  durationMs,
                 });
                 return {
                   ...sanitizeFactualAIEnrichment(
@@ -327,43 +302,65 @@ export function createDeepSeekAIEnrichmentProvider(
                 };
               }
 
-              logDevelopmentCache({
-                event: "invalid",
+              logDeepSeekDiagnostic({
+                event: "cache_invalid",
                 cacheKey: descriptor.cacheKey,
                 model: config.model,
                 promptVersion: config.promptVersion,
-                message: "cached response failed current schema validation",
+                durationMs,
+                responseValidation: "invalid",
               });
               if (cacheStore.delete) {
                 await cacheStore.delete(descriptor.cacheKey).catch(() => undefined);
               }
             } else {
-              logDevelopmentCache({
-                event: "miss",
+              logDeepSeekDiagnostic({
+                event: "cache_miss",
                 cacheKey: descriptor.cacheKey,
                 model: config.model,
                 promptVersion: config.promptVersion,
+                durationMs,
               });
             }
           } catch (error) {
-            logDevelopmentCache({
-              event: "cache_warning",
+            logDeepSeekDiagnostic({
+              event: "cache_read_failed",
               cacheKey: descriptor.cacheKey,
               model: config.model,
               promptVersion: config.promptVersion,
-              message: error instanceof Error ? error.message : "cache lookup failed",
+              durationMs: Date.now() - cacheReadStartedAt,
+              error: serializeSafeError({
+                operation: "cache_read",
+                error,
+                safeMessage: "Cache read failed.",
+                retryable: true,
+              }),
             });
           }
         } else if (request.forceRefresh) {
-          logDevelopmentCache({
-            event: "bypass",
+          logDeepSeekDiagnostic({
+            event: "cache_bypass",
             cacheKey: descriptor.cacheKey,
             model: config.model,
             promptVersion: config.promptVersion,
+            durationMs: 0,
           });
         }
 
         if (!config.apiKey) {
+          logDeepSeekDiagnostic({
+            event: "provider_failure",
+            cacheKey: descriptor.cacheKey,
+            model: config.model,
+            promptVersion: config.promptVersion,
+            sourceUrls,
+            responseValidation: "unavailable",
+            error: serializeSafeError({
+              operation: "provider_config",
+              safeMessage: "DeepSeek provider is not configured.",
+              retryable: false,
+            }),
+          });
           return {
             status: "unavailable",
             message: "AI enrichment unavailable: DEEPSEEK_API_KEY is not configured.",
@@ -371,15 +368,20 @@ export function createDeepSeekAIEnrichmentProvider(
           };
         }
 
-        logDevelopmentCache({
-          event: "provider",
+        logDeepSeekDiagnostic({
+          event: "provider_call",
           cacheKey: descriptor.cacheKey,
           model: config.model,
           promptVersion: config.promptVersion,
+          sourceUrls,
+          durationMs: 0,
         });
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
+        const providerStartedAt = Date.now();
+        let responseStatus: number | undefined;
+        let finishReason: unknown;
 
         try {
           const response = await config.fetchImpl(config.endpoint, {
@@ -408,8 +410,25 @@ export function createDeepSeekAIEnrichmentProvider(
             }),
             signal: controller.signal,
           });
+          responseStatus = response.status;
 
           if (!response.ok) {
+            logDeepSeekDiagnostic({
+              event: "provider_failure",
+              cacheKey: descriptor.cacheKey,
+              model: config.model,
+              promptVersion: config.promptVersion,
+              sourceUrls,
+              httpStatus: response.status,
+              durationMs: Date.now() - providerStartedAt,
+              responseValidation: "http_error",
+              error: serializeSafeError({
+                operation: "provider_request",
+                safeMessage: "DeepSeek request failed.",
+                httpStatus: response.status,
+                retryable: response.status === 429 || response.status >= 500,
+              }),
+            });
             return failedResult(`DeepSeek request failed with status ${response.status}.`);
           }
 
@@ -419,21 +438,35 @@ export function createDeepSeekAIEnrichmentProvider(
               message?: { content?: unknown };
             }>;
           };
+          finishReason = payload.choices?.[0]?.finish_reason;
           const content = payload.choices?.[0]?.message?.content;
           const rawResponseText = typeof content === "string"
             ? content
             : JSON.stringify(content ?? null);
 
-          logDevelopmentResponse(
-            {
-              httpStatus: response.status,
-              rawResponseText,
-              finishReason: payload.choices?.[0]?.finish_reason,
-              model: config.model,
-            },
-          );
+          logDeepSeekDiagnostic({
+            event: "raw_response",
+            rawResponseText,
+          });
 
           if (typeof content !== "string") {
+            logDeepSeekDiagnostic({
+              event: "provider_failure",
+              cacheKey: descriptor.cacheKey,
+              model: config.model,
+              promptVersion: config.promptVersion,
+              sourceUrls,
+              httpStatus: response.status,
+              finishReason,
+              durationMs: Date.now() - providerStartedAt,
+              responseValidation: "invalid",
+              error: serializeSafeError({
+                operation: "response_validation",
+                safeMessage: "DeepSeek returned no JSON content.",
+                httpStatus: response.status,
+                retryable: false,
+              }),
+            });
             return failedResult("DeepSeek returned no JSON content.");
           }
 
@@ -442,11 +475,39 @@ export function createDeepSeekAIEnrichmentProvider(
             request.extractedSourceData,
           );
 
+          const responseValidation = normalizedResult.status === "failed"
+            ? "invalid"
+            : normalizedResult.status;
+
+          logDeepSeekDiagnostic({
+            event: normalizedResult.status === "failed" ? "provider_failure" : "provider_success",
+            cacheKey: descriptor.cacheKey,
+            model: config.model,
+            promptVersion: config.promptVersion,
+            sourceUrls,
+            httpStatus: response.status,
+            finishReason,
+            durationMs: Date.now() - providerStartedAt,
+            responseValidation,
+            ...(normalizedResult.status === "failed"
+              ? {
+                  error: serializeSafeError({
+                    operation: "response_validation",
+                    safeMessage: "DeepSeek response validation failed.",
+                    httpStatus: response.status,
+                    retryable: false,
+                  }),
+                }
+              : {}),
+          });
+
           if (
             cacheStore &&
             request.userId &&
             isValidCachedAIEnrichmentResult(normalizedResult)
           ) {
+            const cacheWriteStartedAt = Date.now();
+
             try {
               await cacheStore.set({
                 descriptor,
@@ -454,13 +515,26 @@ export function createDeepSeekAIEnrichmentProvider(
                 responseJson: normalizedResult,
                 expiresAt: new Date(Date.now() + config.cacheTtlMs).toISOString(),
               });
-            } catch (error) {
-              logDevelopmentCache({
-                event: "cache_warning",
+              logDeepSeekDiagnostic({
+                event: "cache_write",
                 cacheKey: descriptor.cacheKey,
                 model: config.model,
                 promptVersion: config.promptVersion,
-                message: error instanceof Error ? error.message : "cache write failed",
+                durationMs: Date.now() - cacheWriteStartedAt,
+              });
+            } catch (error) {
+              logDeepSeekDiagnostic({
+                event: "cache_write_failed",
+                cacheKey: descriptor.cacheKey,
+                model: config.model,
+                promptVersion: config.promptVersion,
+                durationMs: Date.now() - cacheWriteStartedAt,
+                error: serializeSafeError({
+                  operation: "cache_write",
+                  error,
+                  safeMessage: "Cache write failed.",
+                  retryable: true,
+                }),
               });
             }
 
@@ -472,9 +546,29 @@ export function createDeepSeekAIEnrichmentProvider(
 
           return normalizedResult;
         } catch (error) {
-          const message = error instanceof Error && error.name === "AbortError"
+          const timedOut = error instanceof Error && error.name === "AbortError";
+          const message = timedOut
             ? "DeepSeek request timed out."
             : "DeepSeek request failed without changing the current draft.";
+
+          logDeepSeekDiagnostic({
+            event: "provider_failure",
+            cacheKey: descriptor.cacheKey,
+            model: config.model,
+            promptVersion: config.promptVersion,
+            sourceUrls,
+            ...(responseStatus !== undefined ? { httpStatus: responseStatus } : {}),
+            finishReason,
+            durationMs: Date.now() - providerStartedAt,
+            responseValidation: timedOut ? "timeout" : "failed",
+            error: serializeSafeError({
+              operation: "provider_request",
+              error,
+              safeMessage: message,
+              httpStatus: responseStatus,
+              retryable: true,
+            }),
+          });
 
           return failedResult(message);
         } finally {

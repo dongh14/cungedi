@@ -247,12 +247,16 @@ test("unsupported factual suggestions are removed while understanding suggestion
   assert.equal(result.proposal?.proposedFields.some((field) => field.field === "address"), false);
 });
 
-test("development diagnostics include status, model, finish reason, and raw content only", async () => {
+test("development diagnostics are concise and omit raw content by default", async () => {
   const mutableEnv = process.env as unknown as Record<string, string | undefined>;
   const originalNodeEnv = mutableEnv.NODE_ENV;
+  const originalDebugLogs = mutableEnv.DEEPSEEK_DEBUG_LOGS;
+  const originalRawResponse = mutableEnv.DEEPSEEK_DEBUG_RAW_RESPONSE;
   const originalDebug = console.debug;
   const debugCalls: unknown[][] = [];
   mutableEnv.NODE_ENV = "development";
+  delete mutableEnv.DEEPSEEK_DEBUG_LOGS;
+  delete mutableEnv.DEEPSEEK_DEBUG_RAW_RESPONSE;
   console.debug = (...args) => {
     debugCalls.push(args);
   };
@@ -268,23 +272,135 @@ test("development diagnostics include status, model, finish reason, and raw cont
     });
 
     const result = await provider.enrich(createRequest());
-    const diagnosticCall = debugCalls.find((call) => call[0] === "[deepseek] raw response before JSON parsing");
+    const diagnosticCall = debugCalls.find((call) => call[0] === "[deepseek] provider_success");
     const diagnostic = diagnosticCall?.[1] as Record<string, unknown>;
 
     assert.equal(result.status, "no_changes");
     assert.ok(diagnosticCall);
     assert.equal(diagnostic.httpStatus, 200);
-    assert.equal(diagnostic.selectedModel, "test-model");
+    assert.equal(diagnostic.model, "test-model");
     assert.equal(diagnostic.finishReason, "stop");
-    assert.equal(diagnostic.rawResponseText, validWireResponse({
-      status: "no_changes",
-      factualSuggestions: validFactualSuggestions({ city: "" }),
-    }));
+    assert.equal(diagnostic.responseValidation, "no_changes");
+    assert.equal(typeof diagnostic.durationMs, "number");
+    assert.equal(debugCalls.some((call) => call[0] === "[deepseek] raw_response"), false);
     assert.doesNotMatch(JSON.stringify(debugCalls), /test-key/);
   } finally {
     console.debug = originalDebug;
     if (originalNodeEnv === undefined) delete mutableEnv.NODE_ENV;
     else mutableEnv.NODE_ENV = originalNodeEnv;
+    if (originalDebugLogs === undefined) delete mutableEnv.DEEPSEEK_DEBUG_LOGS;
+    else mutableEnv.DEEPSEEK_DEBUG_LOGS = originalDebugLogs;
+    if (originalRawResponse === undefined) delete mutableEnv.DEEPSEEK_DEBUG_RAW_RESPONSE;
+    else mutableEnv.DEEPSEEK_DEBUG_RAW_RESPONSE = originalRawResponse;
+  }
+});
+
+test("raw response logging requires explicit development opt-in", async () => {
+  const mutableEnv = process.env as unknown as Record<string, string | undefined>;
+  const originalNodeEnv = mutableEnv.NODE_ENV;
+  const originalRawResponse = mutableEnv.DEEPSEEK_DEBUG_RAW_RESPONSE;
+  const originalDebug = console.debug;
+  const debugCalls: unknown[][] = [];
+  mutableEnv.NODE_ENV = "development";
+  mutableEnv.DEEPSEEK_DEBUG_RAW_RESPONSE = "true";
+  console.debug = (...args) => {
+    debugCalls.push(args);
+  };
+
+  try {
+    const responseText = validWireResponse({
+      status: "no_changes",
+      factualSuggestions: validFactualSuggestions({ city: "" }),
+    });
+    const provider = createDeepSeekAIEnrichmentProvider({
+      apiKey: "test-key",
+      fetchImpl: async () => jsonResponse(responseText),
+    });
+
+    await provider.enrich(createRequest());
+
+    const rawCall = debugCalls.find((call) => call[0] === "[deepseek] raw_response");
+    assert.ok(rawCall);
+    assert.equal((rawCall?.[1] as Record<string, unknown> | undefined)?.rawResponseText, responseText);
+  } finally {
+    console.debug = originalDebug;
+    if (originalNodeEnv === undefined) delete mutableEnv.NODE_ENV;
+    else mutableEnv.NODE_ENV = originalNodeEnv;
+    if (originalRawResponse === undefined) delete mutableEnv.DEEPSEEK_DEBUG_RAW_RESPONSE;
+    else mutableEnv.DEEPSEEK_DEBUG_RAW_RESPONSE = originalRawResponse;
+  }
+});
+
+test("pasted evidence is not included in provider diagnostics", async () => {
+  const mutableEnv = process.env as unknown as Record<string, string | undefined>;
+  const originalNodeEnv = mutableEnv.NODE_ENV;
+  const originalDebugLogs = mutableEnv.DEEPSEEK_DEBUG_LOGS;
+  const originalDebug = console.debug;
+  const debugCalls: unknown[][] = [];
+  mutableEnv.NODE_ENV = "development";
+  delete mutableEnv.DEEPSEEK_DEBUG_LOGS;
+  console.debug = (...args) => {
+    debugCalls.push(args);
+  };
+
+  try {
+    const provider = createDeepSeekAIEnrichmentProvider({
+      apiKey: "test-key",
+      fetchImpl: async () => jsonResponse(validWireResponse()),
+    });
+
+    await provider.enrich(createRequest({
+      extractedSourceData: [createResult({
+        evidence: { manualText: "PRIVATE_PASTED_EVIDENCE_123" },
+      })],
+    }));
+
+    assert.doesNotMatch(JSON.stringify(debugCalls), /PRIVATE_PASTED_EVIDENCE_123/);
+  } finally {
+    console.debug = originalDebug;
+    if (originalNodeEnv === undefined) delete mutableEnv.NODE_ENV;
+    else mutableEnv.NODE_ENV = originalNodeEnv;
+    if (originalDebugLogs === undefined) delete mutableEnv.DEEPSEEK_DEBUG_LOGS;
+    else mutableEnv.DEEPSEEK_DEBUG_LOGS = originalDebugLogs;
+  }
+});
+
+test("development cache miss and hit diagnostics stay concise", async () => {
+  const mutableEnv = process.env as unknown as Record<string, string | undefined>;
+  const originalNodeEnv = mutableEnv.NODE_ENV;
+  const originalDebugLogs = mutableEnv.DEEPSEEK_DEBUG_LOGS;
+  const originalDebug = console.debug;
+  const debugCalls: unknown[][] = [];
+  mutableEnv.NODE_ENV = "development";
+  delete mutableEnv.DEEPSEEK_DEBUG_LOGS;
+  console.debug = (...args) => {
+    debugCalls.push(args);
+  };
+
+  try {
+    const memoryCache = createMemoryCache();
+    const provider = createDeepSeekAIEnrichmentProvider({
+      apiKey: "test-key",
+      cacheStore: memoryCache.store,
+      fetchImpl: async () => jsonResponse(validWireResponse()),
+    });
+    const request = createRequest({ userId: "user-private" });
+
+    await provider.enrich(request);
+    await provider.enrich(request);
+
+    const eventNames = debugCalls.map((call) => call[0]);
+    assert.equal(eventNames.includes("[deepseek] cache_miss"), true);
+    assert.equal(eventNames.includes("[deepseek] cache_hit"), true);
+    assert.doesNotMatch(JSON.stringify(debugCalls), /user-private/);
+    assert.doesNotMatch(JSON.stringify(debugCalls), /test-key/);
+    assert.doesNotMatch(JSON.stringify(debugCalls), /rawResponseText/);
+  } finally {
+    console.debug = originalDebug;
+    if (originalNodeEnv === undefined) delete mutableEnv.NODE_ENV;
+    else mutableEnv.NODE_ENV = originalNodeEnv;
+    if (originalDebugLogs === undefined) delete mutableEnv.DEEPSEEK_DEBUG_LOGS;
+    else mutableEnv.DEEPSEEK_DEBUG_LOGS = originalDebugLogs;
   }
 });
 
