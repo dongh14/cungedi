@@ -42,3 +42,12 @@ test("place card data keeps the core fields and detail target", () => {
   assert.equal(card.detailHref, "/restaurants/7");
   assert.equal(card.sourceHost, "example.com");
 });
+
+test("place cards display legacy 玩乐 under the generalized 娱乐 label", () => {
+  const card = getPlaceCardDisplayData({
+    ...basePlace,
+    category: "玩乐",
+  });
+
+  assert.equal(card.category, "娱乐");
+});

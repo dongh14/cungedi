@@ -7,8 +7,9 @@ import {
 } from "@/lib/restaurants/collection-memberships";
 import {
   isRestaurantCategory,
+  normalizePlaceCategory,
+  personalOnlyPrivacy,
   type RestaurantCategory,
-  type RestaurantPrivacy,
 } from "@/lib/restaurants/constants";
 import {
   buildRestaurantInsertPayload,
@@ -42,20 +43,8 @@ function normalizeOptionalField(value: string) {
   return value ? value : null;
 }
 
-function getPrivacyValue(value: string): RestaurantPrivacy | null {
-  if (value === "private" || value === "public") {
-    return value;
-  }
-
-  return null;
-}
-
 function getCategoryValue(value: string): RestaurantCategory | null {
-  if (isRestaurantCategory(value)) {
-    return value;
-  }
-
-  return null;
+  return isRestaurantCategory(value) ? normalizePlaceCategory(value) : null;
 }
 
 function buildNewRestaurantRedirect(
@@ -223,7 +212,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const name = getFormValue(formData, "name");
   const city = getFormValue(formData, "city");
   const sourceInput = getFormValue(formData, "source_url");
-  const privacy = getFormValue(formData, "privacy");
+  const privacy = personalOnlyPrivacy;
   const category = getFormValue(formData, "category");
   const address = getFormValue(formData, "address");
   const cuisine = getFormValue(formData, "cuisine");
@@ -264,20 +253,14 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     redirect(buildNewRestaurantRedirect(values, error));
   };
 
-  if (!name || !city || !sourceInput || !privacy || !category) {
-    redirectToDraft("请先填写所有必填项：地点名称、城市、来源输入、分类和可见范围。");
+  if (!name || !city || !sourceInput || !category) {
+    redirectToDraft("请先填写所有必填项：地点名称、城市、来源输入和分类。");
   }
 
   const sourceUrl = extractFirstHttpUrl(sourceInput);
 
   if (!sourceUrl) {
     redirectToDraft("请粘贴有效的链接，或包含有效链接的分享文案");
-  }
-
-  const parsedPrivacy = getPrivacyValue(privacy);
-
-  if (!parsedPrivacy) {
-    redirectToDraft("可见范围只支持 private 或 public。");
   }
 
   const parsedCategory = getCategoryValue(category);
@@ -287,14 +270,13 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   }
 
   const finalSourceUrl = sourceUrl as string;
-  const finalPrivacy = parsedPrivacy as RestaurantPrivacy;
   const finalCategory = parsedCategory as RestaurantCategory;
 
   return {
     name,
     city,
     sourceUrl: finalSourceUrl,
-    privacy: finalPrivacy,
+    privacy: personalOnlyPrivacy,
     category: finalCategory,
     address: normalizeOptionalField(address),
     cuisine: normalizeOptionalField(cuisine),
@@ -308,7 +290,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
 
 function parseRestaurantUpdateForm(formData: FormData): RestaurantUpdateInput {
   const restaurantIdValue = getFormValue(formData, "restaurant_id");
-  const privacy = getFormValue(formData, "privacy");
+  const privacy = personalOnlyPrivacy;
   const category = getFormValue(formData, "category");
   const cuisine = getFormValue(formData, "cuisine");
   const note = getFormValue(formData, "note");
@@ -322,14 +304,6 @@ function parseRestaurantUpdateForm(formData: FormData): RestaurantUpdateInput {
 
   if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
     redirect("/restaurants");
-  }
-
-  if (privacy !== "private" && privacy !== "public") {
-    redirect(
-      buildEditRestaurantRedirect(restaurantId, values, {
-        error: "可见范围只支持 private 或 public。",
-      }),
-    );
   }
 
   const parsedCategory = getCategoryValue(category);
@@ -377,7 +351,7 @@ function parseReviewDraftForm(formData: FormData) {
   const sourceInput = getFormValue(formData, "source_url");
   const name = getFormValue(formData, "name");
   const city = getFormValue(formData, "city");
-  const privacy = getFormValue(formData, "privacy");
+  const privacy = personalOnlyPrivacy;
   const category = getFormValue(formData, "category");
   const address = getFormValue(formData, "address");
   const cuisine = getFormValue(formData, "cuisine");
@@ -544,7 +518,7 @@ export async function createCollectionAction(formData: FormData) {
     ai_reject_understanding: getFormValue(formData, "ai_reject_understanding"),
   });
   const draftValues = Object.fromEntries(
-    ["name", "city", "address", "category", "cuisine", "note", "privacy"]
+    ["name", "city", "address", "category", "cuisine", "note"]
       .flatMap((field) => {
         const value = formData.get(`review_${field}`);
 

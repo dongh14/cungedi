@@ -75,38 +75,32 @@ export const otherSubtypeSuggestions = [
   "待分类",
 ] as const;
 
-export const placeCategoryOptions = [
-  {
-    value: "美食",
-    label: "美食",
-    description: "适合餐厅、小吃、咖啡馆和其他想吃想喝的地点。",
-  },
-  {
-    value: "购物",
-    label: "购物",
-    description: "适合商场、买手店、集市和想顺手保存的购物地点。",
-  },
-  {
-    value: "娱乐",
-    label: "娱乐",
-    description: "适合展览、夜生活、亲子活动和休闲娱乐地点。",
-  },
-  {
-    value: "景点",
-    label: "景点",
-    description: "适合地标、自然风景和想打卡的旅行地点。",
-  },
-  {
-    value: "住宿",
-    label: "住宿",
-    description: "适合酒店、民宿和其他过夜选择。",
-  },
-  {
-    value: "其他",
-    label: "其他",
-    description: "适合暂时不想归入前面几类的地点。",
-  },
+export const canonicalPlaceCategories = [
+  "美食",
+  "景点",
+  "住宿",
+  "购物",
+  "娱乐",
+  "其他",
 ] as const;
+
+export type CanonicalPlaceCategory = (typeof canonicalPlaceCategories)[number];
+export const legacyPlaceCategoryAliases = { 玩乐: "娱乐" } as const;
+
+const categoryDescriptions: Record<CanonicalPlaceCategory, string> = {
+  美食: "适合餐厅、小吃、咖啡馆和其他想吃想喝的地点。",
+  景点: "适合地标、自然风景和想打卡的旅行地点。",
+  住宿: "适合酒店、民宿和其他过夜选择。",
+  购物: "适合商场、买手店、集市和想顺手保存的购物地点。",
+  娱乐: "适合展览、夜生活、亲子活动和休闲娱乐地点。",
+  其他: "适合暂时不想归入前面几类的地点。",
+};
+
+export const placeCategoryOptions = canonicalPlaceCategories.map((value) => ({
+  value,
+  label: value,
+  description: categoryDescriptions[value],
+}));
 
 export const categoryOptions = placeCategoryOptions;
 
@@ -127,7 +121,8 @@ export const defaultPlaceCategory = "美食" as const;
 export const defaultRestaurantCategory = defaultPlaceCategory;
 
 export type RestaurantPrivacy = (typeof privacyOptions)[number]["value"];
-export type PlaceCategory = (typeof placeCategoryOptions)[number]["value"] | "玩乐";
+export const personalOnlyPrivacy = "private" as const;
+export type PlaceCategory = CanonicalPlaceCategory | "玩乐";
 export type RestaurantCategory = PlaceCategory;
 export type RestaurantSubtypeConfig = {
   label: string;
@@ -136,6 +131,38 @@ export type RestaurantSubtypeConfig = {
   pickerAriaLabel: string;
   suggestions: readonly string[];
 };
+
+export const categoryEvidenceTerms: ReadonlyArray<{
+  category: CanonicalPlaceCategory;
+  terms: readonly string[];
+}> = [
+  { category: "美食", terms: ["美食", "restaurant", "cafe", "café", "coffee", "bar", "bakery", "food", "dining"] },
+  { category: "景点", terms: ["景点", "attraction", "museum", "art gallery", "landmark", "gallery"] },
+  { category: "住宿", terms: ["住宿", "hotel", "resort", "hostel", "lodging"] },
+  { category: "购物", terms: ["购物", "shopping", "store", "market", "mall"] },
+  { category: "娱乐", terms: ["娱乐", "entertainment", "cinema", "theme park", "theater", "theatre", "ktv", "karaoke", "nightlife", "exhibition"] },
+  { category: "其他", terms: ["其他", "other"] },
+];
+
+export function normalizePlaceCategory(value: string | null | undefined): CanonicalPlaceCategory | null {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === "玩乐") {
+    return legacyPlaceCategoryAliases.玩乐;
+  }
+
+  return canonicalPlaceCategories.includes(normalized as CanonicalPlaceCategory)
+    ? (normalized as CanonicalPlaceCategory)
+    : null;
+}
+
+export function getPlaceCategoryLabel(value: string | null | undefined) {
+  return normalizePlaceCategory(value) ?? "其他";
+}
 
 export function normalizeAIPlaceUnderstanding(
   category: string | null,
@@ -158,42 +185,29 @@ export function normalizeAIPlaceUnderstanding(
     return index >= 0 ? candidates[index] : null;
   };
 
-  const attraction = findAlias(["art gallery", "attraction", "museum", "landmark"]);
-  if (attraction) {
-    return {
-      category: "景点",
-      cuisine:
-        attraction.toLocaleLowerCase() === "attraction"
-          ? "Art Gallery"
-          : attraction,
-    };
+  const normalizedCategory = normalizePlaceCategory(categoryText);
+
+  if (normalizedCategory) {
+    return { category: normalizedCategory, cuisine: cuisineText || null };
   }
 
-  const food = findAlias(["restaurant", "cafe", "café", "bar"]);
-  if (food) {
-    return { category: "美食", cuisine: cuisineText || food };
+  for (const candidate of categoryEvidenceTerms) {
+    const matched = findAlias([...candidate.terms]);
+
+    if (matched) {
+      return {
+        category: candidate.category,
+        cuisine:
+          cuisineText || (matched.toLocaleLowerCase() === "attraction" ? "Art Gallery" : matched),
+      };
+    }
   }
 
-  const lodging = findAlias(["hotel", "resort"]);
-  if (lodging) {
-    return { category: "住宿", cuisine: cuisineText || lodging };
-  }
-
-  const categoryAliases: Record<string, PlaceCategory> = {
-    entertainment: "娱乐",
-    shopping: "购物",
-    other: "其他",
-  };
-  const aliasedCategory = categoryAliases[categoryText.toLocaleLowerCase()];
-
-  return {
-    category: aliasedCategory ?? (categoryText || null),
-    cuisine: cuisineText || null,
-  };
+  return { category: null, cuisine: cuisineText || null };
 }
 
 export function isRestaurantCategory(value: string): value is RestaurantCategory {
-  return value === "玩乐" || placeCategoryOptions.some((option) => option.value === value);
+  return normalizePlaceCategory(value) !== null;
 }
 
 export function isPlaceCategory(value: string): value is PlaceCategory {
@@ -202,14 +216,8 @@ export function isPlaceCategory(value: string): value is PlaceCategory {
 
 export function getCanonicalPlaceCategory(
   value: string,
-): Exclude<PlaceCategory, "玩乐"> | null {
-  if (value === "玩乐") {
-    return "娱乐";
-  }
-
-  const canonical = placeCategoryOptions.find((option) => option.value === value);
-
-  return canonical?.value ?? null;
+): CanonicalPlaceCategory | null {
+  return normalizePlaceCategory(value);
 }
 
 export function getSubtypeFieldConfig(
@@ -239,7 +247,7 @@ export function getSubtypeFieldConfig(
         label: "子分类",
         placeholder: "例如：KTV、酒吧、展览",
         hint: "适合记录娱乐方式或场地类型，也可以手动补充。",
-        pickerAriaLabel: "展开玩乐类型列表",
+      pickerAriaLabel: "展开娱乐类型列表",
         suggestions: entertainmentSubtypeSuggestions,
       };
     case "景点":

@@ -17,3 +17,14 @@ test("collection place cards target the read-only details route", () => {
     },
   );
 });
+
+test("collection place cards display legacy 玩乐 as 娱乐", () => {
+  const card = getCollectionPlaceCardDisplayData({
+    id: 25,
+    name: "旧娱乐记录",
+    city: "上海",
+    category: "玩乐",
+  });
+
+  assert.equal(card.metadata, "上海 · 娱乐");
+});

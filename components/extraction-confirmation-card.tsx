@@ -94,7 +94,7 @@ export function ExtractionConfirmationCard({
             </div>
           ) : (
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              当前必填字段都已经填写，你仍然可以继续修改名称、城市、地址、子分类、备注和可见范围。
+              当前必填字段都已经填写，你仍然可以继续修改名称、城市、地址、子分类和备注。
             </p>
           )}
         </div>

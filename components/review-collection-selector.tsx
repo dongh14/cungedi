@@ -26,7 +26,6 @@ export function ReviewCollectionSelector({
     category: string;
     cuisine: string;
     note: string;
-    privacy: string;
   }>;
   manualEvidence?: string;
 }) {

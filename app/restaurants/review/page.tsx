@@ -334,7 +334,6 @@ export default async function RestaurantReviewPage({
               ...(params.category !== undefined ? { category: params.category } : {}),
               ...(params.cuisine !== undefined ? { cuisine: params.cuisine } : {}),
               ...(params.note !== undefined ? { note: params.note } : {}),
-              ...(params.privacy !== undefined ? { privacy: params.privacy } : {}),
             }}
             manualEvidence={manualEvidenceText ?? undefined}
           />
@@ -363,7 +362,6 @@ export default async function RestaurantReviewPage({
                 ...(params.category !== undefined ? { category: params.category } : {}),
                 ...(params.cuisine !== undefined ? { cuisine: params.cuisine } : {}),
                 ...(params.note !== undefined ? { note: params.note } : {}),
-                ...(params.privacy !== undefined ? { privacy: params.privacy } : {}),
               }}
             />
           ) : null}

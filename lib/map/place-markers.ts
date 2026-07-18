@@ -1,4 +1,5 @@
 import { resolvePlaceLocation } from "./place-location.ts";
+import { getPlaceCategoryLabel } from "../restaurants/constants.ts";
 
 export type PlaceMarkerInput = {
   id: number;
@@ -6,6 +7,8 @@ export type PlaceMarkerInput = {
   city: string;
   category?: string | null;
   address?: string | null;
+  cuisine?: string | null;
+  note?: string | null;
   latitude?: number | null;
   longitude?: number | null;
 };
@@ -60,7 +63,7 @@ export function createMapMarkerResolution(places: PlaceMarkerInput[]): MapMarker
       id: place.id,
       name: place.name,
       city: place.city,
-      category: place.category ?? null,
+      category: place.category ? getPlaceCategoryLabel(place.category) : null,
       address: place.address ?? null,
       latitude: resolvedLocation.location.latitude,
       longitude: resolvedLocation.location.longitude,

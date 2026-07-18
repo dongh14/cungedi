@@ -69,9 +69,6 @@ export default async function RestaurantDetailsPage({
                 <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold tracking-[0.16em] text-[var(--accent-deep)] uppercase">
                   暂无图片
                 </span>
-                <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-                  {details.privacyLabel}
-                </span>
               </div>
               <div>
                 <p className="text-sm font-medium text-[var(--accent-deep)]">{details.category}</p>
@@ -100,7 +97,6 @@ export default async function RestaurantDetailsPage({
                 <DetailField label="子分类" value={details.subcategory} />
                 <DetailField label="城市" value={details.city} />
                 <DetailField label="地址" value={details.address} />
-                <DetailField label="可见范围" value={details.privacyLabel} />
                 <DetailField label="保存时间" value={details.createdAtLabel} />
               </div>
               {details.notes ? (

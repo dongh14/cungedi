@@ -1,4 +1,5 @@
 import type { PlaceMarkerData } from "./place-markers.ts";
+import { getPlaceCategoryLabel } from "../restaurants/constants.ts";
 
 export function getMapPlaceDetailHref(placeId: number) {
   return `/restaurants/${placeId}`;
@@ -12,7 +13,7 @@ export function createMapPlacePopupViewModel(marker: PlaceMarkerData) {
   return {
     name: marker.name,
     city: marker.city,
-    category: marker.category,
+    category: marker.category ? getPlaceCategoryLabel(marker.category) : null,
     address: marker.address,
     locationLabel: getMapPlaceLocationLabel(marker),
     locationDescription: marker.approximate

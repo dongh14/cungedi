@@ -10,7 +10,6 @@ import {
   getSubtypeFieldConfig,
   isRestaurantCategory,
   isSubtypeSuggestionCompatible,
-  privacyOptions,
 } from "@/lib/restaurants/constants";
 import type { RestaurantEditItem } from "@/lib/restaurants/types";
 
@@ -21,7 +20,6 @@ type RestaurantEditFormCardProps = {
     message?: string;
     category?: string;
     cuisine?: string;
-    privacy?: string;
     note?: string;
   };
 };
@@ -71,10 +69,6 @@ export function RestaurantEditFormCard({
       : restaurant.category;
   const noteValue =
     searchParams.note !== undefined ? searchParams.note : restaurant.note ?? "";
-  const privacyValue =
-    searchParams.privacy !== undefined
-      ? searchParams.privacy
-      : restaurant.privacy;
   const [categoryValue, setCategoryValue] = useState(initialCategoryValue);
   const [subtypeValue, setSubtypeValue] = useState(initialCuisineValue);
 
@@ -118,7 +112,7 @@ export function RestaurantEditFormCard({
               编辑已保存的地点信息
             </h2>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步先支持你修正分类、子分类、备注和可见范围。名称、城市和来源链接会继续保留原样，不提前扩展到后续步骤。
+              这一步先支持你修正分类、子分类和备注。名称、城市和来源链接会继续保留原样，不提前扩展到后续步骤。
             </p>
           </div>
         </div>
@@ -174,36 +168,6 @@ export function RestaurantEditFormCard({
             <p className="text-xs leading-6 text-[var(--ink-muted)]">
               这里允许你把已保存记录改到更合适的类别，当前仍保留在现有地点编辑流程里。
             </p>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-[var(--ink-strong)]">
-              可见范围<span className="ml-1 text-[var(--accent)]">*</span>
-            </p>
-            <div className="grid gap-3">
-              {privacyOptions.map((option) => (
-                <label
-                  key={option.value}
-                  className="flex cursor-pointer gap-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4 transition hover:border-[var(--accent)]/45"
-                >
-                  <input
-                    type="radio"
-                    name="privacy"
-                    value={option.value}
-                    defaultChecked={privacyValue === option.value}
-                    className="mt-1 h-4 w-4 accent-[var(--accent)]"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-[var(--ink-strong)]">
-                      {option.label}
-                    </span>
-                    <span className="mt-1 block text-xs leading-6 text-[var(--ink-soft)]">
-                      {option.description}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
           </div>
 
           <div className="space-y-2">

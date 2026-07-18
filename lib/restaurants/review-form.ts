@@ -1,7 +1,8 @@
 import {
   defaultRestaurantCategory,
-  isRestaurantCategory,
-  type RestaurantCategory,
+  normalizePlaceCategory,
+  personalOnlyPrivacy,
+  type CanonicalPlaceCategory,
   type RestaurantPrivacy,
 } from "./constants.ts";
 import type { RestaurantInsertInput } from "./types.ts";
@@ -13,7 +14,7 @@ export type RestaurantDraftFormValues = {
   city: string;
   source_input: string;
   privacy: RestaurantPrivacy;
-  category: RestaurantCategory;
+  category: CanonicalPlaceCategory;
   address: string;
   cuisine: string;
   note: string;
@@ -47,14 +48,11 @@ export function getInitialDraftFormValues(
     name: searchParams.name ?? extractionResult?.name ?? "",
     city: searchParams.city ?? extractionResult?.city ?? "",
     source_input: searchParams.source_input ?? sourceUrl,
-    privacy: searchParams.privacy === "public" ? "public" : "private",
+    privacy: personalOnlyPrivacy,
     category:
-      searchParams.category !== undefined &&
-      isRestaurantCategory(searchParams.category)
-        ? searchParams.category
-        : extractionResult?.category && isRestaurantCategory(extractionResult.category)
-          ? extractionResult.category
-          : defaultRestaurantCategory,
+      normalizePlaceCategory(searchParams.category) ??
+      normalizePlaceCategory(extractionResult?.category) ??
+      defaultRestaurantCategory,
     address: searchParams.address ?? extractionResult?.address ?? "",
     cuisine: searchParams.cuisine ?? extractionResult?.cuisine ?? "",
     note: searchParams.note ?? extractionResult?.notes ?? extractionResult?.description ?? "",
@@ -125,8 +123,8 @@ export function buildRestaurantDraftInput(
     name: values.name.trim(),
     city: values.city.trim(),
     sourceUrl: values.source_input.trim(),
-    privacy: values.privacy as RestaurantPrivacy,
-    category: values.category as RestaurantCategory,
+    privacy: personalOnlyPrivacy,
+    category: values.category,
     address: normalizeOptionalField(values.address),
     cuisine: normalizeOptionalField(values.cuisine),
     note: normalizeOptionalField(values.note),

@@ -88,6 +88,8 @@ export type RestaurantMapItem = {
   city: string;
   category: RestaurantCategory;
   address: string | null;
+  cuisine: string | null;
+  note: string | null;
   latitude: number | null;
   longitude: number | null;
 };

@@ -1,6 +1,7 @@
 import type { RestaurantListItem } from "@/lib/restaurants/types";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { getPlaceCategoryLabel } from "@/lib/restaurants/constants";
 
 type RestaurantListCardProps = {
   restaurant: RestaurantListItem;
@@ -79,10 +80,7 @@ export function RestaurantListCard({
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-            分类：{restaurant.category}
-          </span>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-            {restaurant.privacy === "private" ? "仅自己可见" : "标记为公开"}
+            分类：{getPlaceCategoryLabel(restaurant.category)}
           </span>
           <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
             保存于 {formatSavedDate(restaurant.created_at)}
@@ -91,7 +89,7 @@ export function RestaurantListCard({
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        <DetailItem label="分类" value={restaurant.category} />
+        <DetailItem label="分类" value={getPlaceCategoryLabel(restaurant.category)} />
         <DetailItem label="子分类" value={restaurant.cuisine} />
         <DetailItem label="地址" value={restaurant.address} />
       </div>

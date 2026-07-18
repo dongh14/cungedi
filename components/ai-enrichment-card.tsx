@@ -7,6 +7,7 @@ import type {
   AIProposedField,
   AIProposedFieldGroup,
 } from "@/lib/restaurants/ai-enrichment";
+import { getPlaceCategoryLabel } from "@/lib/restaurants/constants";
 
 function getStatusLabel(status: AIEnrichmentResult["status"]) {
   switch (status) {
@@ -144,7 +145,9 @@ export function AIEnrichmentCard({
                   className="min-w-0 text-sm text-[var(--ink-strong)]"
                 >
                   <span className="font-semibold">{fieldLabels[field.field] ?? field.field}</span>
-                  <span className="ml-2 break-words text-[var(--ink-soft)]">{field.value}</span>
+                  <span className="ml-2 break-words text-[var(--ink-soft)]">
+                    {field.field === "category" ? getPlaceCategoryLabel(field.value) : field.value}
+                  </span>
                   {accepted.has(field.field) ? (
                     <span className="ml-2 text-xs font-semibold text-emerald-700">已接受</span>
                   ) : null}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import { SurfaceCard } from "@/components/surface-card";
+import { getPlaceCategoryLabel } from "@/lib/restaurants/constants";
 import type {
   NormalizedExtractionResult,
 } from "@/lib/restaurants/extraction-architecture";
@@ -109,7 +110,7 @@ export function SourceReviewCard({
   const foundFields = reviewDisplayFields.filter(hasDraftValue);
   const fieldsNeedingReview = reviewFields.filter((field) => !hasDraftValue(field));
   const extractionMessages = Array.from(
-    new Set(results.map((result) => result.message).filter(Boolean)),
+    new Set(results.map((result) => result.message?.replaceAll("玩乐", "娱乐")).filter(Boolean)),
   );
   const getFieldSourceLabel = (source: PlaceDraftSource | undefined) => {
     if (source === "manual") {
@@ -166,7 +167,9 @@ export function SourceReviewCard({
                     <li key={field}>
                       <span>✓ {reviewFieldLabels[field]}</span>
                       <span className="ml-2 text-emerald-700/75">
-                        {String(merged[field])} · {getFieldSourceLabel(merged.fieldSources[field])}
+                        {field === "category"
+                          ? getPlaceCategoryLabel(String(merged[field]))
+                          : String(merged[field])} · {getFieldSourceLabel(merged.fieldSources[field])}
                       </span>
                     </li>
                   ))}

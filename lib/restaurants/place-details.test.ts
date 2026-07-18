@@ -45,7 +45,7 @@ test("details projection includes saved fields and safe source presentation", ()
   });
 });
 
-test("legacy 玩乐 values remain visible without changing saved data", () => {
+test("legacy 玩乐 values display as 娱乐 without changing saved data", () => {
   const details = getPlaceDetailsDisplayData({
     ...basePlace,
     category: "玩乐",
@@ -58,7 +58,7 @@ test("legacy 玩乐 values remain visible without changing saved data", () => {
     city: "Unknown City",
   });
 
-  assert.equal(details.category, "玩乐");
+  assert.equal(details.category, "娱乐");
   assert.equal(details.subcategory, null);
   assert.equal(details.address, null);
   assert.equal(details.notes, null);

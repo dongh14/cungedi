@@ -1517,3 +1517,66 @@ Documented but not yet implemented in UI:
 - `npm run build` passed and recognized `/restaurants/[id]`.
 - Focused details, collection-card, saved-place-card, map-popup, location, and collection-membership tests passed (`25` tests).
 - Interactive authenticated 390x844 manual validation was not run in this environment; no place was created or modified during validation.
+
+## Validated Step 5 Homepage Experience Checkpoint
+
+### Homepage Hierarchy
+- The authenticated `/dashboard` homepage is now centered on `存个地` with the hierarchy: identity, prominent `添加地点`, `最近收藏`, `收藏夹`, `按分类浏览`, and `查看地图` / map search access.
+- Recent places use the existing `PlaceCard`, are newest-first, limited to a compact preview, and link to `/restaurants/[id]`. The empty state is `还没有收藏地点` with a direct first-place action.
+- Collection summaries link to the existing `/collections` page and collection anchors, with an empty state when no collections exist.
+- Homepage category shortcuts use only `美食`, `景点`, `住宿`, `购物`, `娱乐`, and `其他`, show counts, and route through the existing `/restaurants?category=...` list filter.
+- Legacy `玩乐` records are grouped and displayed under `娱乐` without changing saved values.
+
+### Data And Boundaries
+- Dashboard data is loaded through the existing authenticated owner-scoped discovery query; recent ordering and category counts are derived locally without duplicate homepage queries.
+- Homepage errors use safe generic messaging and do not expose Supabase error details.
+- Map access reuses `/map`, including the existing local search, city filtering, marker, and clustering experience. No homepage map or second search backend was added.
+- No recommendation algorithms, social content, favorite ranking, schema changes, collection architecture changes, extraction changes, AI changes, or authentication changes were introduced.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused homepage, navigation, category, place-card, collection-card, and collection-membership tests passed (`14` tests).
+- Interactive authenticated 390x844 manual validation was not run in this environment; automated validation did not create or modify a place.
+
+## Validated Step 6 Generalized Place Categories Checkpoint
+
+### Canonical Category Layer
+- Centralized generalized place-category behavior in `lib/restaurants/constants.ts` with the canonical order `美食`, `景点`, `住宿`, `购物`, `娱乐`, `其他`.
+- Added shared normalization, labels, descriptions, subtype metadata, and evidence terms so forms, AI mapping, manual evidence, filters, counts, search, and display use one category vocabulary.
+- Legacy `玩乐` remains accepted as an internal compatibility value and normalizes to `娱乐` for display and comparison. New review, insert, and update boundaries write canonical `娱乐`; invalid category values are rejected rather than silently accepted.
+- User-facing landing, form, list, card, details, popup, review, collection, and dashboard displays no longer expose a separate `玩乐` option or bucket.
+
+### Behavior And Boundaries
+- Existing saved values are not rewritten and no schema migration is needed: the current category constraint already permits all six canonical values plus legacy `玩乐`.
+- Category filters and homepage counts combine `娱乐` and `玩乐`; malformed filter values do not create a query value. Local map search now covers canonical category, legacy category, subcategory, city, address, and notes.
+- AI category understanding reuses the canonical mapping: restaurant/cafe/bar/bakery map to `美食`, attraction/museum/art gallery/landmark to `景点`, hotel/resort/hostel to `住宿`, store/shopping mall/market to `购物`, and supported entertainment terms to `娱乐`. Unsupported categories remain unaccepted.
+- Supabase schema and saved rows, map rendering and marker pipeline, clustering, coordinate resolution, collections architecture, extraction architecture, and DeepSeek behavior remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused category, save-boundary, review-form, home-discovery, map-filter, marker, popup, card, details, collection, and manual-evidence tests passed (`58` tests).
+- Interactive browser validation was not run in this environment; automated validation created or saved no place.
+
+## Validated Step 14 Personal-Only Product Mode Checkpoint
+
+### Personal Ownership
+- 存个地 V1 is now explicitly personal-only. New places and edited places always persist with `privacy = private`, including when stale public values arrive through old URLs or crafted form submissions.
+- The existing `privacy` database column and `public` compatibility value remain in the data model; no migration was added and existing rows were not rewritten.
+- All place and collection routes remain authenticated and owner-scoped through `requireAuthenticatedUser`, Supabase RLS, and existing owner-based queries. Public rows are not exposed through a public route.
+
+### Simplified Experience
+- Removed the privacy selector from manual entry, review confirmation, and edit forms.
+- Removed public/private badges from normal place list and details pages.
+- Collections remain personal organization only, with no public sharing, collaboration, profiles, followers, sharing links, or social discovery behavior.
+- Source URLs continue to be stored only as external references; they are not sharing links.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused personal-only, save-boundary, review-form, details, collection, map, category, and RLS migration tests passed (`57` tests).
+- A broader Node sweep reached `205/207` passing; the two failures are existing direct-Node module-resolution issues in `source-extraction.test.ts` and `source-url.test.ts`, unrelated to this change.

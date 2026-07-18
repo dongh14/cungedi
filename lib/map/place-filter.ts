@@ -4,6 +4,7 @@ import {
 } from "./place-markers.ts";
 import { normalizeCityForComparison, normalizeCityName } from "./city-centers.ts";
 import { isCountryLevelLocation } from "./country-locations.ts";
+import { getPlaceCategoryLabel } from "../restaurants/constants.ts";
 
 export const allCitiesFilterValue = "";
 export const emptyPlaceSearchQuery = "";
@@ -24,7 +25,10 @@ function getPlaceSearchHaystack(place: PlaceMarkerInput) {
     normalizedComparableCity && normalizedComparableCity !== place.city
       ? normalizedComparableCity
       : "",
-    place.category ?? "",
+    getPlaceCategoryLabel(place.category),
+    place.cuisine ?? "",
+    place.address ?? "",
+    place.note ?? "",
   ]
     .join("\n")
     .toLocaleLowerCase("zh-CN");

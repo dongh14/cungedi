@@ -22,7 +22,6 @@ type EditRestaurantPageProps = {
     collection_message?: string;
     category?: string;
     cuisine?: string;
-    privacy?: string;
     note?: string;
   }>;
 };
@@ -94,7 +93,7 @@ export default async function EditRestaurantPage({
             title="这一步现在支持什么"
             description="Step 9 的重点是让你能回头修正已经保存过的地点记录，而不是把 Step 10 之后的来源提取链路提前做进来。"
             items={[
-              "当前支持更新分类、类型细分、备注和可见范围。",
+              "当前支持更新分类、类型细分和备注；地点始终保持个人私有。",
               "当前也支持把地点加入或移出个人合集。",
               "保存后可以刷新页面，确认修改已经持久化。",
               "现有 owner-only RLS 仍会继续限制你只能编辑自己的记录。",

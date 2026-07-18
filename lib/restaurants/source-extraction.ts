@@ -1,7 +1,7 @@
 import { inferAccommodationSubtype, hasAccommodationStructuredType } from "./accommodation-inference";
 import { inferAttractionSubtype, hasAttractionStructuredType } from "./attraction-inference";
 import { inferCuisineFromSourceContent } from "./cuisine-inference";
-import { defaultRestaurantCategory } from "./constants";
+import { defaultRestaurantCategory, type RestaurantCategory } from "./constants";
 import {
   inferEntertainmentSubtype,
   hasEntertainmentStructuredType,
@@ -51,7 +51,7 @@ type FieldProposal = {
 };
 
 type CandidateFieldKey = "name" | "city" | "address" | "cuisine";
-type ExtractionCategory = "美食" | "住宿" | "景点" | "购物" | "玩乐" | "其他";
+type ExtractionCategory = RestaurantCategory;
 
 const relevantStructuredTypes = new Set([
   "place",

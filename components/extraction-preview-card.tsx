@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { RestaurantExtractionResult } from "@/lib/restaurants/extraction-types";
-import { getSubtypeFieldConfig } from "@/lib/restaurants/constants";
+import { getPlaceCategoryLabel, getSubtypeFieldConfig } from "@/lib/restaurants/constants";
 import { SurfaceCard } from "@/components/surface-card";
 
 type ExtractionPreviewCardProps = {
@@ -37,7 +37,7 @@ function getPageTypeLabel(result: RestaurantExtractionResult) {
 
 export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
   const extractedCategory =
-    result.status === "success" ? result.candidate.category : null;
+    result.status === "success" ? getPlaceCategoryLabel(result.candidate.category) : null;
   const nameField = result.status === "success" ? result.candidate.fields.name : null;
   const cityField = result.status === "success" ? result.candidate.fields.city : null;
   const addressField = result.status === "success" ? result.candidate.fields.address : null;
@@ -95,8 +95,8 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
       ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。住宿自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
       : extractedCategory === "景点"
         ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。景点自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
-        : extractedCategory === "玩乐"
-          ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。玩乐地点自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
+        : extractedCategory === "娱乐"
+          ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。娱乐地点自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
         : extractedCategory === "购物"
           ? "当前只展示已被 Step 11 接受的字段，低置信度或被拒绝的内容不会出现在这里。购物地点自动提取目前只在强结构化数据足够明确时才会生成草稿，你仍然需要在下方确认、补全并主动点击保存。"
         : extractedCategory === "其他"
@@ -117,7 +117,7 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
               {result.status === "success"
                 ? successDescription
-                : "当前来源没有返回足够稳定的美食、住宿、景点、购物、玩乐或其他类单地点信息，系统不会强行猜测。你可以保留来源链接，直接进入手动表单继续保存其他地点。"}
+                : "当前来源没有返回足够稳定的美食、住宿、景点、购物、娱乐或其他类单地点信息，系统不会强行猜测。你可以保留来源链接，直接进入手动表单继续保存其他地点。"}
             </p>
           </div>
         </div>
@@ -164,14 +164,14 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
               <p className="text-sm font-semibold text-[var(--ink-strong)]">草稿通过原因</p>
               <ul className="mt-3 space-y-2 text-sm leading-7 text-[var(--ink-soft)]">
                 {result.acceptanceReasons.map((reason) => (
-                  <li key={reason}>- {reason}</li>
+                  <li key={reason}>- {reason.replaceAll("玩乐", "娱乐")}</li>
                 ))}
               </ul>
             </div>
           </div>
         ) : (
           <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-800">
-            {result.reason}
+            {result.reason.replaceAll("玩乐", "娱乐")}
           </div>
         )}
 

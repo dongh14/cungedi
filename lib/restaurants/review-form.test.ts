@@ -45,7 +45,7 @@ test("prefers manual review overrides", () => {
   assert.equal(values.city, "苏州");
   assert.equal(values.cuisine, "意大利菜");
   assert.equal(values.note, "晚餐候选");
-  assert.equal(values.privacy, "public");
+  assert.equal(values.privacy, "private");
   assert.equal(values.category, "景点");
 });
 
@@ -138,7 +138,7 @@ test("manual review data converts into a saved-place input", () => {
     name: "Blue Bottle",
     city: "上海",
     sourceUrl: "https://example.com/blue-bottle",
-    privacy: "public",
+    privacy: "private",
     category: "美食",
     address: "静安区示例路 8 号",
     cuisine: "咖啡",

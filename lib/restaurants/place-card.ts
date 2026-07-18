@@ -1,3 +1,4 @@
+import { getCanonicalPlaceCategory } from "./constants.ts";
 import type { DiscoveryPlaceItem, RestaurantCollectionBadge } from "./types";
 
 export type PlaceCardInput = Pick<
@@ -51,7 +52,7 @@ export function getPlaceCardDisplayData(place: PlaceCardInput): PlaceCardDisplay
     detailHref: `/restaurants/${place.id}`,
     name: place.name,
     city: place.city,
-    category: place.category,
+    category: getCanonicalPlaceCategory(place.category) ?? place.category,
     imageUrl,
     hasImage: Boolean(imageUrl),
     collectionBadges,

@@ -1185,3 +1185,73 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - `npm run build` passed; `/restaurants/[id]` is included as a dynamic route.
 - Focused details, collection-card, saved-place-card, map-popup, location, and collection-membership tests passed (`25` tests).
 - Interactive authenticated mobile validation was not run in this environment; automated validation did not create or save a place.
+
+## Step 14 Personal-Only Product Mode
+
+### Privacy Boundary
+- `lib/restaurants/constants.ts` defines `personalOnlyPrivacy = "private"` as the application save boundary. Insert and update payload builders ignore incoming privacy values and always write `private`; review defaults and server actions use the same value.
+- `privacy` remains in restaurant types, queries, and the database solely for compatibility with existing data and the existing `private` / `public` constraint. No migration removes the column and no existing rows are rewritten.
+- Public rows, if present, are not discoverable: the app has no public place route, and all place, map, dashboard, collection, new, review, details, and edit routes require `requireAuthenticatedUser`. Supabase RLS remains the owner boundary for restaurants, collections, and restaurant memberships.
+
+### UI Boundary
+- Privacy controls were removed from manual entry, review confirmation, and edit forms. Normal list and details views no longer render privacy badges or public/private labels.
+- Collections remain owner-scoped personal organization. No public collections, sharing links, collaboration controls, public profiles, followers, or social discovery routes were added.
+- `source_url` remains an external source reference and is not treated as a sharing URL.
+
+### Unchanged Systems
+- Supabase schema, existing RLS policies, saved-place fields, map rendering, marker clustering, search, city filtering, city normalization, coordinate resolution, extraction, AI enrichment, and collection membership behavior remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused personal-only, save-boundary, review-form, details, collection, map, category, and RLS migration tests passed (`57` tests).
+- A broader Node sweep reached `205/207` passing; the two failures are existing direct-Node module-resolution issues in `source-extraction.test.ts` and `source-url.test.ts`, unrelated to this change.
+
+## Step 6 Generalized Place Category Architecture
+
+### Canonical Module
+- `lib/restaurants/constants.ts` is the single category authority. It exports the canonical ordered values `美食`, `景点`, `住宿`, `购物`, `娱乐`, `其他`, shared labels/descriptions/subtype configuration, evidence terms, `normalizePlaceCategory`, and `getPlaceCategoryLabel`.
+- The compatibility alias `玩乐 -> 娱乐` is intentionally retained for existing saved records and internal extraction compatibility. It is normalized only at comparison, filtering, review/display, and save boundaries; existing database rows are not rewritten.
+- New and edited save payloads, review defaults, query filters, homepage counts, map search, place cards, details, popups, collection cards, source review, extraction review, and AI review all consume the canonical layer.
+
+### Category Flow
+- Manual evidence and AI understanding use the shared evidence vocabulary rather than separate category alias tables. AI mappings accept only supported general-place signals and leave unsupported values unaccepted.
+- The restaurant list maps `娱乐` filters to both `娱乐` and legacy `玩乐` records. Homepage counts use the same normalized bucket. Map search remains local and matches canonical category, legacy category, cuisine/subcategory, city, address, and notes before marker generation.
+- Save validation rejects invalid category values. Canonical values are written for new or edited records, while legacy values remain readable and compatible.
+
+### Unchanged Boundaries
+- No Supabase schema or migration change was required because the existing category constraint already supports the canonical six values and legacy `玩乐`.
+- Map rendering, marker generation, clustering, coordinate resolution, city normalization/filtering, collections, extraction and source merging, DeepSeek provider behavior, and saved-place data remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused category, save-boundary, review-form, home-discovery, map-filter, marker, popup, card, details, collection, and manual-evidence tests passed (`58` tests).
+- Interactive browser validation was not run in this environment; no place was created or modified during automated validation.
+
+## Step 5 Homepage Experience
+
+### Authenticated Dashboard
+- `/dashboard` is the focused `存个地` home: a single primary `添加地点` action, compact recent saved places, collection summaries, generalized category shortcuts, and map/search access.
+- Recent cards reuse `PlaceCard` and its `/restaurants/[id]` details target. The dashboard derives a newest-first compact preview from the discovery result and provides a full-list link to `/restaurants`.
+- Collection cards link to existing `/collections#collection-{id}` anchors. Category cards link to the existing `/restaurants?category={category}` list route rather than adding a second filtering system.
+- The dashboard uses the existing `AppShell`, including the mobile bottom navigation and existing add affordance, with spacing and minimum touch targets that keep the primary action visible on small screens.
+
+### Discovery Derivations
+- `lib/restaurants/home-discovery.ts` is a pure local layer for recent-place limiting, generalized category counts, category routes, and the map route.
+- Category counts normalize legacy `玩乐` to the display bucket `娱乐`; saved category values remain unchanged.
+- The dashboard makes one owner-scoped discovery data request and derives recent items, category counts, and collection counts locally. Error text is replaced with safe generic UI messaging.
+- `getCurrentUserRestaurants(category)` supports the same list route for category shortcuts and matches both `娱乐` and legacy `玩乐` when the `娱乐` filter is selected.
+
+### Unchanged Systems
+- Supabase schema, authenticated owner-scoped access, place details, edit flow, collections data model, extraction architecture, DeepSeek behavior, map architecture, marker clustering, location resolver, and authentication remain unchanged.
+- No recommendation, social, favorite-ranking, public-collection, or alternate search backend was added.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused homepage, navigation, category, place-card, collection-card, and collection-membership tests passed (`14` tests).
+- Interactive authenticated mobile validation was not run in this environment; automated validation did not create or save a place.

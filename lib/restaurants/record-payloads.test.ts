@@ -20,15 +20,15 @@ test("manual save payload supports every allowed category", () => {
     });
 
     assert.equal(payload.category, option.value);
-    assert.equal(payload.privacy, "public");
+    assert.equal(payload.privacy, "private");
     assert.equal(payload.cuisine, "川菜");
   }
 });
 
-test("edit payload includes category changes without altering cuisine or privacy behavior", () => {
+test("edit payload includes category changes and always remains private", () => {
   const payload = buildRestaurantUpdatePayload({
     id: 3,
-    privacy: "private",
+    privacy: "public",
     category: "住宿",
     cuisine: "咖啡馆",
     note: "改成住宿分类后仍保留原备注",
@@ -40,4 +40,42 @@ test("edit payload includes category changes without altering cuisine or privacy
     note: "改成住宿分类后仍保留原备注",
     privacy: "private",
   });
+});
+
+test("new and edited payloads normalize legacy 玩乐 to 娱乐", () => {
+  const insertPayload = buildRestaurantInsertPayload("user-1", {
+    name: "旧娱乐地点",
+    city: "上海",
+    sourceUrl: "https://example.com/place",
+    privacy: "private",
+    category: "玩乐",
+    address: null,
+    cuisine: null,
+    note: null,
+  });
+  const updatePayload = buildRestaurantUpdatePayload({
+    id: 2,
+    privacy: "private",
+    category: "玩乐",
+    cuisine: null,
+    note: null,
+  });
+
+  assert.equal(insertPayload.category, "娱乐");
+  assert.equal(updatePayload.category, "娱乐");
+});
+
+test("invalid categories are rejected instead of written", () => {
+  assert.throws(() =>
+    buildRestaurantInsertPayload("user-1", {
+      name: "无效地点",
+      city: "上海",
+      sourceUrl: "https://example.com/place",
+      privacy: "private",
+      category: "Museum" as never,
+      address: null,
+      cuisine: null,
+      note: null,
+    }),
+  );
 });

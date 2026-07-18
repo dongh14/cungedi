@@ -5,11 +5,13 @@ import { RestaurantList } from "@/components/restaurant-list";
 import { SurfaceCard } from "@/components/surface-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
 import { getCurrentUserRestaurants } from "@/lib/restaurants/queries";
+import { normalizePlaceCategory } from "@/lib/restaurants/constants";
 
 type RestaurantsPageProps = {
   searchParams?: Promise<{
     message?: string;
     created?: string;
+    category?: string;
   }>;
 };
 
@@ -18,14 +20,15 @@ export default async function RestaurantsPage({
 }: RestaurantsPageProps) {
   const user = await requireAuthenticatedUser();
   const params = (await searchParams) ?? {};
-  const { restaurants, error } = await getCurrentUserRestaurants();
+  const selectedCategory = normalizePlaceCategory(params.category) ?? undefined;
+  const { restaurants, error } = await getCurrentUserRestaurants(selectedCategory);
   const createdRestaurantId = params.created ? Number(params.created) : null;
 
   return (
     <AppShell
       currentPath="/restaurants"
       eyebrow="已收藏地点"
-      title="你收藏过的地点都在这里"
+      title={selectedCategory ? `${selectedCategory}地点` : "你收藏过的地点都在这里"}
       description="这里会展示当前账号在现有 RLS 规则下可访问的全部地点记录。你可以快速确认刚保存的内容，也可以继续回看之前收藏过的地方。"
       userEmail={user.email}
       userId={user.userId}
@@ -61,6 +64,14 @@ export default async function RestaurantsPage({
                 <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
                   核心信息会优先展示出来。分类会和类型细分、地址、备注一起保留在列表里，方便你先做小范围归类，而不改动现有页面结构。
                 </p>
+                {selectedCategory ? (
+                  <Link
+                    href="/restaurants"
+                    className="mt-3 inline-flex text-sm font-semibold text-[var(--accent-deep)] underline underline-offset-4"
+                  >
+                    查看全部地点
+                  </Link>
+                ) : null}
               </div>
 
               {error ? (

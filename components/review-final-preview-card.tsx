@@ -1,4 +1,5 @@
 import { SurfaceCard } from "@/components/surface-card";
+import { getPlaceCategoryLabel } from "@/lib/restaurants/constants";
 import type { CollectionOptionItem } from "@/lib/restaurants/types";
 import type { NormalizedExtractionResult } from "@/lib/restaurants/extraction-architecture";
 import { getConflictingReviewFields, getReviewSourceBadges } from "@/lib/restaurants/review-final";
@@ -82,7 +83,11 @@ export function ReviewFinalPreviewCard({
                   {fieldLabels[field]}
                 </dt>
                 <dd className="text-sm text-[var(--ink-strong)]">
-                  {hasValue(draft[field]) ? String(draft[field]) : "未填写"}
+                  {hasValue(draft[field])
+                    ? field === "category"
+                      ? getPlaceCategoryLabel(String(draft[field]))
+                      : String(draft[field])
+                    : "未填写"}
                 </dd>
               </div>
             ))}

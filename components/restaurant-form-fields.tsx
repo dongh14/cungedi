@@ -5,7 +5,6 @@ import {
   getSubtypeFieldConfig,
   isRestaurantCategory,
   isSubtypeSuggestionCompatible,
-  privacyOptions,
   type RestaurantCategory,
 } from "@/lib/restaurants/constants";
 import { CategoryField } from "@/components/category-field";
@@ -15,7 +14,6 @@ export type RestaurantFormFieldValues = {
   name: string;
   city: string;
   source_input: string;
-  privacy: string;
   category: string;
   address: string;
   cuisine: string;
@@ -187,37 +185,6 @@ export function RestaurantFormFields({
         <p className="text-xs leading-6 text-[var(--ink-muted)]">
           当前先在现有地点收藏流程里补充分类字段，不改动现有路由和保存入口。
         </p>
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-sm font-medium text-[var(--ink-strong)]">
-          可见范围<span className="ml-1 text-[var(--accent)]">*</span>
-        </p>
-        <div className="grid gap-3">
-          {privacyOptions.map((option) => (
-            <label
-              key={option.value}
-              className="flex cursor-pointer gap-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4 transition hover:border-[var(--accent)]/45"
-            >
-              <input
-                type="radio"
-                name="privacy"
-                value={option.value}
-                defaultChecked={values.privacy === option.value}
-                onChange={(event) => persistDraftField("privacy", event.target.value)}
-                className="mt-1 h-4 w-4 accent-[var(--accent)]"
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-[var(--ink-strong)]">
-                  {option.label}
-                </span>
-                <span className="mt-1 block text-xs leading-6 text-[var(--ink-soft)]">
-                  {option.description}
-                </span>
-              </span>
-            </label>
-          ))}
-        </div>
       </div>
 
       <div className="space-y-2">

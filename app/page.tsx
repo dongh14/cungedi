@@ -8,7 +8,7 @@ export default function Home() {
     <PublicShell
       eyebrow="Step 6 导航外壳"
       title="用更轻松的方式整理你看到的地点灵感"
-      description="这个版本先把主要页面与导航搭好，让你能在手机尺寸下顺畅地走完整体路径。无论是美食、购物、玩乐、景点还是住宿，后续都可以在这里慢慢存起来。"
+      description="这个版本先把主要页面与导航搭好，让你能在手机尺寸下顺畅地走完整体路径。无论是美食、购物、娱乐、景点还是住宿，后续都可以在这里慢慢存起来。"
       aside={
         <>
           <PlaceholderCard

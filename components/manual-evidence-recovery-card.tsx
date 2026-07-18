@@ -8,7 +8,7 @@ type ManualEvidenceRecoveryCardProps = {
   error?: string;
   aiDraftState?: AIReviewDraftState | null;
   selectedCollectionIds?: number[];
-  draftValues?: Partial<Record<"name" | "city" | "address" | "category" | "cuisine" | "note" | "privacy", string>>;
+  draftValues?: Partial<Record<"name" | "city" | "address" | "category" | "cuisine" | "note", string>>;
 };
 
 export function ManualEvidenceRecoveryCard({

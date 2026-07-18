@@ -3,7 +3,7 @@ import {
   normalizeCityName,
 } from "../map/city-centers.ts";
 import {
-  type PlaceCategory,
+  categoryEvidenceTerms,
 } from "./constants.ts";
 import type {
   ExtractedField,
@@ -193,15 +193,6 @@ function extractCity(text: string) {
   return normalizeCityName(cityAliases[match.toLocaleLowerCase()] ?? match);
 }
 
-const categoryAliases: Array<{ category: PlaceCategory; terms: string[] }> = [
-  { category: "美食", terms: ["美食", "restaurant", "cafe", "café", "coffee", "bar", "food", "dining"] },
-  { category: "景点", terms: ["景点", "attraction", "museum", "art gallery", "landmark", "gallery"] },
-  { category: "住宿", terms: ["住宿", "hotel", "resort", "lodging"] },
-  { category: "购物", terms: ["购物", "shopping", "store", "market", "mall"] },
-  { category: "娱乐", terms: ["娱乐", "entertainment", "cinema", "theater", "theatre", "ktv", "exhibition"] },
-  { category: "其他", terms: ["其他", "other"] },
-];
-
 function includesTerm(text: string, term: string) {
   return /^[a-z]/iu.test(term)
     ? new RegExp(`\\b${escapeRegExp(term)}\\b`, "iu").test(text)
@@ -209,7 +200,7 @@ function includesTerm(text: string, term: string) {
 }
 
 function extractCategory(text: string) {
-  for (const candidate of categoryAliases) {
+  for (const candidate of categoryEvidenceTerms) {
     if (candidate.terms.some((term) => includesTerm(text, term))) {
       return candidate.category;
     }

@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { RestaurantCategory } from "./constants.ts";
 import type {
   CollectionListItem,
   CollectionOptionItem,
@@ -25,14 +26,22 @@ function buildCollectionPlaceCounts(
   return counts;
 }
 
-export async function getCurrentUserRestaurants() {
+export async function getCurrentUserRestaurants(category?: RestaurantCategory) {
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("restaurants")
     .select(
       "id, name, city, source_url, privacy, category, address, cuisine, note, created_at",
     )
     .order("created_at", { ascending: false });
+
+  if (category === "娱乐") {
+    query = query.in("category", ["娱乐", "玩乐"]);
+  } else if (category) {
+    query = query.eq("category", category);
+  }
+
+  const { data, error } = await query;
 
   return {
     restaurants: (data ?? []) as RestaurantListItem[],
@@ -161,7 +170,7 @@ export async function getCurrentUserRestaurantsForMap() {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("restaurants")
-    .select("id, name, city, category, address, latitude, longitude")
+    .select("id, name, city, category, address, cuisine, note, latitude, longitude")
     .order("created_at", { ascending: false });
 
   return {

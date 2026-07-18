@@ -1,4 +1,5 @@
 import { resolvePlaceLocation } from "../map/place-location.ts";
+import { getPlaceCategoryLabel } from "./constants.ts";
 import type { RestaurantCollectionBadge, RestaurantEditItem } from "./types.ts";
 
 export type PlaceDetailsInput = RestaurantEditItem & {
@@ -14,7 +15,6 @@ export type PlaceDetailsDisplayData = {
   city: string | null;
   address: string | null;
   notes: string | null;
-  privacyLabel: string;
   createdAtLabel: string;
   sourceLabel: string;
   sourceHref: string | null;
@@ -96,12 +96,11 @@ export function getPlaceDetailsDisplayData(
     detailHref: `/restaurants/${place.id}`,
     editHref: `/restaurants/${place.id}/edit`,
     name: place.name,
-    category: place.category,
+    category: getPlaceCategoryLabel(place.category),
     subcategory: optionalText(place.cuisine),
     city: optionalText(place.city),
     address: optionalText(place.address),
     notes: optionalText(place.note),
-    privacyLabel: place.privacy === "private" ? "仅自己可见" : "标记为公开",
     createdAtLabel: formatCreatedAt(place.created_at),
     sourceLabel: source.label,
     sourceHref: source.href,

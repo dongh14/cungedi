@@ -17,6 +17,7 @@ import {
   syncActiveMapPlaceId,
 } from "@/lib/map/place-selection";
 import type { RestaurantMapItem } from "@/lib/restaurants/types";
+import { getPlaceCategoryLabel } from "@/lib/restaurants/constants";
 
 type MapBrowserProps = {
   places: RestaurantMapItem[];
@@ -213,7 +214,7 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
                       <p className="text-sm font-semibold text-[var(--ink-strong)]">{place.name}</p>
                       <p className="mt-1 text-xs leading-5 text-[var(--ink-soft)]">
                         {place.city}
-                        {place.category ? ` · ${place.category}` : ""}
+                        {place.category ? ` · ${getPlaceCategoryLabel(place.category)}` : ""}
                       </p>
                     </div>
                     {place.approximate ? (

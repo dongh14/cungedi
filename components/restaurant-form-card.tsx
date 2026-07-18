@@ -16,7 +16,6 @@ export function RestaurantFormCard({ searchParams }: RestaurantFormCardProps) {
     name: searchParams.name ?? "",
     city: searchParams.city ?? "",
     source_input: searchParams.source_input ?? "",
-    privacy: searchParams.privacy ?? "private",
     category: searchParams.category ?? "",
     address: searchParams.address ?? "",
     cuisine: searchParams.cuisine ?? "",
