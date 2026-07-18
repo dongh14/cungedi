@@ -1,7 +1,7 @@
 import type { PlaceMarkerData } from "./place-markers.ts";
 
 export function getMapPlaceDetailHref(placeId: number) {
-  return `/restaurants/${placeId}/edit`;
+  return `/restaurants/${placeId}`;
 }
 
 export function getMapPlaceLocationLabel(marker: Pick<PlaceMarkerData, "approximate">) {

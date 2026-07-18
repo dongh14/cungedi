@@ -59,7 +59,12 @@ export function RestaurantListCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-lg font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              {restaurant.name}
+              <Link
+                href={`/restaurants/${restaurant.id}`}
+                className="rounded-md underline-offset-4 hover:underline focus:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent-glow)]"
+              >
+                {restaurant.name}
+              </Link>
             </h3>
             {isNewlyCreated ? (
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[var(--accent-deep)]">

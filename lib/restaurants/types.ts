@@ -52,7 +52,13 @@ export type CollectionListItem = {
   created_at: string;
   updated_at: string;
   place_count: number;
+  places?: CollectionPlacePreview[];
 };
+
+export type CollectionPlacePreview = Pick<
+  RestaurantListItem,
+  "id" | "name" | "city" | "category"
+>;
 
 export type CollectionOptionItem = {
   id: number;
@@ -69,8 +75,12 @@ export type RestaurantEditItem = {
   address: string | null;
   cuisine: string | null;
   note: string | null;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
 };
+
+export type RestaurantDetailCollection = RestaurantCollectionBadge;
 
 export type RestaurantMapItem = {
   id: number;

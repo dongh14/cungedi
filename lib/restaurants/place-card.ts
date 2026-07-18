@@ -48,7 +48,7 @@ export function getPlaceCardDisplayData(place: PlaceCardInput): PlaceCardDisplay
   );
 
   return {
-    detailHref: `/restaurants/${place.id}/edit`,
+    detailHref: `/restaurants/${place.id}`,
     name: place.name,
     city: place.city,
     category: place.category,

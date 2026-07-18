@@ -1157,3 +1157,31 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - `npm run lint` passed.
 - `npm run build` passed.
 - Focused logging, privacy, DeepSeek, cache, review-state, enrichment, and migration tests passed (`50` tests).
+
+## Step 4 Read-Only Place Details
+
+### View And Edit Separation
+- `/restaurants/[id]` is the authenticated read-only place details route.
+- `/restaurants/[id]/edit` remains the only edit surface. The details route uses the existing authenticated server Supabase client and owner-scoped RLS queries, returning not-found for missing or inaccessible records.
+- A pure `place-details` projection shapes persisted data for display without changing saved values. It hides empty optional fields, preserves legacy `玩乐`, treats `cuisine` as the visible subcategory, and safely reduces source presentation to a hostname plus an external link.
+- The current schema does not persist phone or image fields, so the details view omits phone and renders the existing no-image placeholder.
+
+### Navigation And Collection Links
+- Primary saved-place entry points now target `/restaurants/[id]`: dashboard cards, saved-list names, map popup details actions, and collection place cards.
+- Editing remains an explicit action to `/restaurants/[id]/edit`.
+- Collection summaries remain on `/collections`; their existing RLS-scoped query now includes lightweight place previews, and each preview links to the details route. Assigned collection badges on details link to existing collection anchors. The collections schema and join-table architecture are unchanged.
+
+### Location Reuse
+- The details page uses a lightweight client wrapper around the existing `MapLibreFoundation`, `createPlaceMarkerData`, marker popup, exact coordinate, approximate city fallback, and unresolved-location behavior.
+- No parallel map implementation was added. Clustering, marker rendering, search, city filtering, city normalization, and coordinate resolution remain unchanged.
+
+### Unchanged Systems
+- Saved-place schema and Supabase migrations remain unchanged.
+- Extraction architecture, source merging, Google Maps and Website extractors, DeepSeek provider behavior, AI review state, and save flow remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed; `/restaurants/[id]` is included as a dynamic route.
+- Focused details, collection-card, saved-place-card, map-popup, location, and collection-membership tests passed (`25` tests).
+- Interactive authenticated mobile validation was not run in this environment; automated validation did not create or save a place.

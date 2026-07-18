@@ -39,6 +39,6 @@ test("place card data keeps the core fields and detail target", () => {
   assert.equal(card.name, "Blue Bottle Coffee");
   assert.equal(card.city, "东京");
   assert.equal(card.category, "美食");
-  assert.equal(card.detailHref, "/restaurants/7/edit");
+  assert.equal(card.detailHref, "/restaurants/7");
   assert.equal(card.sourceHost, "example.com");
 });

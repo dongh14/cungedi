@@ -1490,3 +1490,30 @@ Documented but not yet implemented in UI:
 - `npm run lint` passed.
 - `npm run build` passed.
 - Focused logging, privacy, DeepSeek, cache, review-state, enrichment, and migration tests passed (`50` tests).
+
+## Validated Step 4 Read-Only Place Details Checkpoint
+
+### Details Route
+- Added the authenticated read-only `/restaurants/[id]` details route.
+- The route uses the existing server Supabase client and owner-scoped RLS query path; inaccessible or missing places use the existing not-found behavior.
+- `/restaurants/[id]/edit` remains the explicit editing route. Details actions link to `编辑地点` without adding delete controls.
+- The details view shows available name, generalized category, existing `cuisine` as subcategory, city, address, notes, privacy, creation date, assigned collections, and a safe source hostname with an external link.
+- Empty optional fields are hidden. Phone is omitted because it is not persisted by the current saved-place model. Missing images use the existing no-image visual treatment.
+- Legacy `玩乐` category values remain display-compatible and saved place data is not rewritten.
+
+### Navigation And Collections
+- Dashboard `PlaceCard`, saved-place list names, map popup details links, and collection place cards now target `/restaurants/[id]`.
+- Explicit edit links continue to target `/restaurants/[id]/edit`.
+- Collection place previews are loaded through the existing RLS-scoped Supabase queries and link to the read-only details page.
+- Assigned collection badges on the details page link back to the existing `/collections` page anchors; no collection schema or membership behavior changed.
+
+### Location And Unchanged Boundaries
+- The details location section reuses the existing MapLibre component, marker generation pipeline, coordinate resolver, exact marker behavior, and approximate city fallback behavior.
+- No second map architecture was introduced, and no map rendering, clustering, search, city filtering, city normalization, extraction, AI, or saved-place schema behavior changed.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed and recognized `/restaurants/[id]`.
+- Focused details, collection-card, saved-place-card, map-popup, location, and collection-membership tests passed (`25` tests).
+- Interactive authenticated 390x844 manual validation was not run in this environment; no place was created or modified during validation.
