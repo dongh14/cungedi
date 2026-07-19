@@ -8,7 +8,9 @@ import { createLocalPmtilesMapStyle, defaultMapCenter, defaultMapZoom } from "@/
 import type { PlaceMarkerData } from "@/lib/map/place-markers";
 import {
   createPmtilesConfigErrorMessage,
-  resolveLocalPmtilesBasemapConfig,
+  createPmtilesMissingFileMessage,
+  createPmtilesRemoteFailureMessage,
+  resolvePmtilesBasemapConfig,
 } from "@/lib/map/pmtiles-config";
 import {
   getMapContainerSize,
@@ -154,7 +156,9 @@ export function MapLibreFoundation({
   }, [placeMarkers, activeMarkerId, editableLocation, onLocationChange]);
 
   useEffect(() => {
-    const resolvedBasemapConfig = resolveLocalPmtilesBasemapConfig();
+    const resolvedBasemapConfig = resolvePmtilesBasemapConfig({
+      origin: window.location.origin,
+    });
     let cancelled = false;
     let map: MapLibreMap | null = null;
     let readinessTimer: number | null = null;
@@ -283,7 +287,12 @@ export function MapLibreFoundation({
     async function setupMap() {
       try {
         if (resolvedBasemapConfig.status !== "ready") {
-          throw new Error(createPmtilesConfigErrorMessage(resolvedBasemapConfig.publicPath));
+          throw new Error(
+            createPmtilesConfigErrorMessage(
+              resolvedBasemapConfig.publicPath,
+              resolvedBasemapConfig.reason,
+            ),
+          );
         }
 
         const basemapConfig = resolvedBasemapConfig;
@@ -311,16 +320,20 @@ export function MapLibreFoundation({
           layerCount: style.layers.length,
         });
 
-        const resolvedPmtilesUrl = new URL(basemapConfig.publicPath, window.location.href);
+        const resolvedPmtilesUrl = new URL(basemapConfig.requestUrl);
         advanceStage("12", "PMTiles URL resolved", {
           origin: resolvedPmtilesUrl.origin,
           pathname: resolvedPmtilesUrl.pathname,
         });
 
         advanceStage("12a", "PMTiles range preflight started");
-        const preflight = await preflightPmtilesArchive(basemapConfig.publicPath);
+        const preflight = await preflightPmtilesArchive(basemapConfig.requestUrl);
         if (preflight.status !== "ready") {
-          throw new Error(`PMTiles preflight ${preflight.reason}`);
+          throw new Error(
+            basemapConfig.storage === "remote"
+              ? createPmtilesRemoteFailureMessage()
+              : `${createPmtilesMissingFileMessage(basemapConfig.publicPath)} (${preflight.reason})`,
+          );
         }
         advanceStage("12b", "PMTiles range preflight completed", {
           httpStatus: preflight.httpStatus,

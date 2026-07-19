@@ -1186,6 +1186,29 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Focused details, collection-card, saved-place-card, map-popup, location, and collection-membership tests passed (`25` tests).
 - Interactive authenticated mobile validation was not run in this environment; automated validation did not create or save a place.
 
+## Step 10A Vercel Production Deployment Preparation
+
+### Environment And Auth
+- `lib/supabase/env.ts` is the public configuration boundary. The app requires `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; missing values fail server Supabase construction clearly and return a safe client-unconfigured state.
+- `next.config.ts` also validates those two required public variables and `NEXT_PUBLIC_PMTILES_URL` during production builds, so deployment configuration errors surface before a Vercel release.
+- DeepSeek configuration is server-only. `DEEPSEEK_API_KEY` is optional, `DEEPSEEK_MODEL` defaults to `deepseek-v4-flash`, and diagnostic flags are not browser variables. `DEEPSEEK_DEBUG_RAW_RESPONSE` remains disabled unless explicitly enabled in development.
+- The root/auth/protected-route redirect contract remains server-side and uses app-relative routes, not a hardcoded localhost origin. Supabase Auth Site URL and production redirect URLs must be set after the real Vercel hostname exists.
+
+### Deployment Boundaries
+- `next.config.ts` keeps the LAN IP in `allowedDevOrigins` solely for development-origin access; it is not a production CORS configuration.
+- `/setup` is guarded with `notFound()` in production. Development fixtures are already disabled in production, and neither surface is linked from normal user navigation.
+- Local PMTiles URLs are same-origin public paths, the MapLibre style contains no remote localhost/LAN asset URLs, and protocol registration is stable across map lifecycle remounts. The application has no service worker or offline cache for authenticated data.
+- The Vercel runtime does not require application filesystem writes or long-running processes. Client components do not import server-only DeepSeek or service-role functionality. Production errors use existing concise recovery surfaces and redacted diagnostics.
+
+### Asset Readiness
+- `public/icon.svg` is the manifest/app icon and the manifest remains standalone with `/` scope and start URL so auth routing decides the first screen.
+- `lib/map/pmtiles-config.ts` is the shared PMTiles URL boundary. It uses `/maps/base.pmtiles` against the current origin during local development and requires a valid HTTPS `NEXT_PUBLIC_PMTILES_URL` for preview/production. The resolver returns the same request URL used by both MapLibre's PMTiles protocol and bounded preflight.
+- `public/maps/base.pmtiles` remains ignored by Git and local-only. The immutable production asset is uploaded separately to a public Blob pathname such as `maps/base-v1.pmtiles`; replacement uses a new versioned pathname rather than overwriting cached tile data.
+
+### Documentation And Validation
+- `.env.example` now separates public and server-only variables with safe defaults and no credentials. `memory-bank/deployment-checklist.md` records before/during/after deployment, Supabase Auth URL configuration, asset readiness, security checks, and rollback guidance.
+- `git diff --check`, `npm run lint`, `NEXT_PUBLIC_PMTILES_URL=https://example.com/maps/base-v1.pmtiles npm run build`, `npm test`, and read-only migration-list validation are the release-preparation gate. No Supabase schema or data mutation is part of Step 10A.
+
 ## Saved-Place Edit Architecture
 
 ### Edit Surface

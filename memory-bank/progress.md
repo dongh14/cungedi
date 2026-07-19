@@ -1956,3 +1956,24 @@ Documented but not yet implemented in UI:
 - Focused edit, location-search, payload, and compatibility tests passed (`17` tests).
 - Full `npm test` passed with `365/365` tests.
 - No database migration, `db push`, `db reset`, or destructive data operation was run.
+
+## Step 10A Vercel Production Deployment Preparation
+
+### Release Configuration
+- Audited Vercel environment usage. Required public variables are `NEXT_PUBLIC_SUPABASE_URL`, the repository's actual `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `NEXT_PUBLIC_PMTILES_URL` for Preview/Production; `NEXT_PUBLIC_PM_TILES_BASEMAP_PATH` remains the local-development fallback and `NEXT_PUBLIC_APP_URL` remains an optional deployment hint.
+- Server-only DeepSeek variables remain outside the browser bundle: `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `DEEPSEEK_DEBUG_LOGS`, `DEEPSEEK_DEBUG_RAW_RESPONSE`, and `WORKFLOW_DEBUG_LOGS`. `.env.example` contains safe placeholders only, and diagnostics remain disabled in production with raw response logging explicitly opt-in.
+- `next.config.ts` now fails a production build with missing required Supabase or `NEXT_PUBLIC_PMTILES_URL` configuration instead of allowing a late runtime failure.
+- `next.config.ts` retains `allowedDevOrigins: ["192.168.66.180"]` only as the current development LAN setting; no production CORS policy was added.
+
+### Production Boundaries
+- `/setup` is now development-only and is not linked from normal authentication or app navigation. Existing `/dev-fixtures/*` routes remain unavailable in production.
+- Auth routing remains server-side and loop-free: logged-out `/` and protected routes go to `/login`, authenticated `/` goes to `/dashboard`, and authenticated users opening `/login` or `/sign-up` go to `/dashboard`. Logout continues to return to `/login`.
+- PMTiles integration remains MapLibre-compatible and uses the shared resolver, MapLibre style, and bounded preflight; PWA manifest/icon, owner-scoped Supabase queries, private-only saves, DeepSeek redaction, extraction, collections, and schema remain unchanged.
+
+### PMTiles Asset Strategy
+- Preview and production now require `NEXT_PUBLIC_PMTILES_URL`, a public HTTPS URL for an immutable Vercel Blob archive such as `maps/base-v1.pmtiles`. Local development keeps the ignored `/maps/base.pmtiles` fallback.
+- The deployment checklist records public Blob store creation, versioned upload, `vercel blob put`, Preview/Production environment configuration, bounded Range verification, and provider-side CORS verification. No archive was uploaded and no Blob token was added to the app.
+
+### Validation
+- `git diff --check`, `npm run lint`, `npm run build`, and `npm test` passed.
+- Read-only `npx supabase migration list` was included in the release gate; no `db push`, `db reset`, or destructive database command was run.
