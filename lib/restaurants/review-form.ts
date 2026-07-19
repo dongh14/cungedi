@@ -1,6 +1,7 @@
 import {
   defaultRestaurantCategory,
   normalizePlaceCategory,
+  normalizePlaceSubtype,
   personalOnlyPrivacy,
   type CanonicalPlaceCategory,
   type RestaurantPrivacy,
@@ -8,10 +9,13 @@ import {
 import type { RestaurantInsertInput } from "./types.ts";
 import type { NormalizedExtractionResult } from "./extraction-architecture.ts";
 import { normalizeSelectedCollectionIds } from "./collection-memberships.ts";
+import { resolvePlaceArea } from "../location.ts";
 
 export type RestaurantDraftFormValues = {
   name: string;
   city: string;
+  district?: string;
+  country?: string;
   source_input: string;
   privacy: RestaurantPrivacy;
   category: CanonicalPlaceCategory;
@@ -41,12 +45,14 @@ export function getInitialDraftFormValues(
   sourceUrl: string,
   extractionResult?: Partial<Pick<
     NormalizedExtractionResult,
-    "name" | "city" | "address" | "category" | "notes" | "description"
+    "name" | "city" | "country" | "district" | "address" | "category" | "notes" | "description"
   >> & { cuisine?: string | null },
 ): RestaurantDraftFormValues {
   return {
     name: searchParams.name ?? extractionResult?.name ?? "",
     city: searchParams.city ?? extractionResult?.city ?? "",
+    country: searchParams.country ?? extractionResult?.country ?? resolvePlaceArea({ city: searchParams.city ?? extractionResult?.city }).country ?? "",
+    district: searchParams.district ?? extractionResult?.district ?? "",
     source_input: searchParams.source_input ?? sourceUrl,
     privacy: personalOnlyPrivacy,
     category:
@@ -54,7 +60,7 @@ export function getInitialDraftFormValues(
       normalizePlaceCategory(extractionResult?.category) ??
       defaultRestaurantCategory,
     address: searchParams.address ?? extractionResult?.address ?? "",
-    cuisine: searchParams.cuisine ?? extractionResult?.cuisine ?? "",
+    cuisine: normalizePlaceSubtype(searchParams.cuisine ?? extractionResult?.cuisine) ?? "",
     note: searchParams.note ?? extractionResult?.notes ?? extractionResult?.description ?? "",
   };
 }
@@ -107,8 +113,8 @@ export function getMissingDraftFields(
   return missingFields;
 }
 
-function normalizeOptionalField(value: string) {
-  const normalizedValue = value.trim();
+function normalizeOptionalField(value: string | undefined) {
+  const normalizedValue = value?.trim() ?? "";
 
   return normalizedValue ? normalizedValue : null;
 }
@@ -122,6 +128,8 @@ export function buildRestaurantDraftInput(
   return {
     name: values.name.trim(),
     city: values.city.trim(),
+    country: normalizeOptionalField(values.country),
+    district: normalizeOptionalField(values.district),
     sourceUrl: values.source_input.trim(),
     privacy: personalOnlyPrivacy,
     category: values.category,

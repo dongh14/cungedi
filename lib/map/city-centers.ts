@@ -1,3 +1,12 @@
+import {
+  getKnownCityCountry,
+  normalizeCityForComparison,
+  normalizeCityName,
+  normalizeCountryName,
+} from "../location.ts";
+
+export { normalizeCityForComparison, normalizeCityName } from "../location.ts";
+
 export const cityLocationPrecision = "city" as const;
 export const localCityCenterSource = "local_city_center" as const;
 
@@ -5,6 +14,7 @@ export type CityCenterRecord = {
   cityName: string;
   latitude: number;
   longitude: number;
+  country?: string;
 };
 
 export type ApproximateCityCenterLocation = {
@@ -37,134 +47,43 @@ const cityCenterRecords = [
   { cityName: "三亚", latitude: 18.2528, longitude: 109.5121 },
   { cityName: "香港", latitude: 22.3193, longitude: 114.1694 },
   { cityName: "澳门", latitude: 22.1987, longitude: 113.5439 },
-  { cityName: "Tokyo", latitude: 35.6762, longitude: 139.6503 },
-  { cityName: "New York", latitude: 40.7128, longitude: -74.006 },
+  { cityName: "Tokyo", latitude: 35.6762, longitude: 139.6503, country: "日本" },
+  { cityName: "Osaka", latitude: 34.6937, longitude: 135.5023, country: "日本" },
+  { cityName: "Kyoto", latitude: 35.0116, longitude: 135.7681, country: "日本" },
+  { cityName: "Seoul", latitude: 37.5665, longitude: 126.978, country: "韩国" },
+  { cityName: "Bangkok", latitude: 13.7563, longitude: 100.5018, country: "泰国" },
+  { cityName: "Singapore", latitude: 1.3521, longitude: 103.8198, country: "新加坡" },
+  { cityName: "Taipei", latitude: 25.033, longitude: 121.5654, country: "中国台湾" },
+  { cityName: "London", latitude: 51.5074, longitude: -0.1278, country: "英国" },
+  { cityName: "Paris", latitude: 48.8566, longitude: 2.3522, country: "法国" },
+  { cityName: "New York", latitude: 40.7128, longitude: -74.006, country: "美国" },
+  { cityName: "Los Angeles", latitude: 34.0522, longitude: -118.2437, country: "美国" },
+  { cityName: "San Francisco", latitude: 37.7749, longitude: -122.4194, country: "美国" },
+  { cityName: "Sydney", latitude: -33.8688, longitude: 151.2093, country: "澳大利亚" },
 ] as const satisfies readonly CityCenterRecord[];
-
-const chineseMunicipalitySuffix = "市";
-
-const englishAliasMap = new Map<string, string>([
-  ["beijing", "北京"],
-  ["beijing city", "北京"],
-  ["shanghai", "上海"],
-  ["shanghai city", "上海"],
-  ["guangzhou", "广州"],
-  ["guangzhou city", "广州"],
-  ["shenzhen", "深圳"],
-  ["shenzhen city", "深圳"],
-  ["chengdu", "成都"],
-  ["chengdu city", "成都"],
-  ["chongqing", "重庆"],
-  ["chongqing city", "重庆"],
-  ["hangzhou", "杭州"],
-  ["hangzhou city", "杭州"],
-  ["nanjing", "南京"],
-  ["nanjing city", "南京"],
-  ["wuhan", "武汉"],
-  ["wuhan city", "武汉"],
-  ["xian", "西安"],
-  ["xi'an", "西安"],
-  ["xian city", "西安"],
-  ["xi'an city", "西安"],
-  ["suzhou", "苏州"],
-  ["suzhou city", "苏州"],
-  ["tianjin", "天津"],
-  ["tianjin city", "天津"],
-  ["qingdao", "青岛"],
-  ["qingdao city", "青岛"],
-  ["xiamen", "厦门"],
-  ["xiamen city", "厦门"],
-  ["changsha", "长沙"],
-  ["changsha city", "长沙"],
-  ["zhengzhou", "郑州"],
-  ["zhengzhou city", "郑州"],
-  ["kunming", "昆明"],
-  ["kunming city", "昆明"],
-  ["sanya", "三亚"],
-  ["sanya city", "三亚"],
-  ["hong kong", "香港"],
-  ["hong kong city", "香港"],
-  ["macau", "澳门"],
-  ["macao", "澳门"],
-  ["new york", "New York"],
-  ["new york city", "New York"],
-  ["tokyo", "Tokyo"],
-  ["tokyo city", "Tokyo"],
-]);
 
 const directCityLookup = new Map<string, CityCenterRecord>(
   cityCenterRecords.map((record) => [record.cityName, record]),
 );
 
-function normalizeWhitespace(value: string) {
-  return value.trim().replace(/\s+/gu, " ");
-}
-
-function removeKnownChineseCitySuffix(city: string) {
-  if (!city.endsWith(chineseMunicipalitySuffix)) {
-    return null;
-  }
-
-  return city.slice(0, -1);
-}
-
-export function getInitialCityCenterDataset() {
+export function getInitialCityCenterDataset(): CityCenterRecord[] {
   return cityCenterRecords.map((record) => ({ ...record }));
-}
-
-export function normalizeCityName(city: string | null | undefined) {
-  if (!city) {
-    return null;
-  }
-
-  const trimmed = normalizeWhitespace(city);
-
-  if (!trimmed) {
-    return null;
-  }
-
-  const englishAlias = englishAliasMap.get(trimmed.toLowerCase());
-
-  if (englishAlias) {
-    return englishAlias;
-  }
-
-  if (directCityLookup.has(trimmed)) {
-    return trimmed;
-  }
-
-  const withoutChineseCitySuffix = removeKnownChineseCitySuffix(trimmed);
-
-  if (
-    withoutChineseCitySuffix &&
-    directCityLookup.has(withoutChineseCitySuffix)
-  ) {
-    return withoutChineseCitySuffix;
-  }
-
-  return null;
-}
-
-export function normalizeCityForComparison(city: string | null | undefined) {
-  if (!city) {
-    return null;
-  }
-
-  const trimmed = normalizeWhitespace(city);
-
-  if (!trimmed) {
-    return null;
-  }
-
-  return normalizeCityName(trimmed) ?? trimmed;
 }
 
 export function resolveApproximateCityCenter(
   city: string | null | undefined,
+  country?: string | null,
 ): ApproximateCityCenterLocation | null {
   const normalizedCityName = normalizeCityName(city);
 
   if (!normalizedCityName) {
+    return null;
+  }
+
+  const normalizedCountry = normalizeCountryName(country);
+  const knownCountry = getKnownCityCountry(city);
+
+  if (normalizedCountry && knownCountry && normalizedCountry !== knownCountry) {
     return null;
   }
 

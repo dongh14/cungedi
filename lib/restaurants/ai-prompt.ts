@@ -7,6 +7,8 @@ export const maxDeepSeekPromptCharacters = 6000;
 const compactFields: PlaceDraftField[] = [
   "name",
   "city",
+  "country",
+  "district",
   "category",
   "address",
   "phone",
@@ -17,6 +19,8 @@ const compactFields: PlaceDraftField[] = [
 const priorityMissingFields: PlaceDraftField[] = [
   "category",
   "city",
+  "country",
+  "district",
   "address",
   "phone",
   "notes",
@@ -27,6 +31,9 @@ const evidencePolicy = [
   "Extract missing fields only when explicitly supported by the evidence.",
   "Leave fields empty when the evidence does not contain the information.",
   "Never invent addresses, phone numbers, ratings, or opening hours.",
+  "Use canonical top-level categories: 美食、景点、住宿、购物、娱乐、其他.",
+  "酒吧 is a subcategory under 美食; return 酒吧 only when explicit bar evidence is provided.",
+  "Do not turn a generic nightclub, toolbar, sidebar, barbershop, salad bar, or noodle bar into 酒吧.",
 ];
 
 function trimText(value: string | null | undefined, maxLength: number) {
@@ -65,6 +72,9 @@ function getEvidenceSnapshot(result: AIEnrichmentRequest["extractedSourceData"][
       name: trimText(entry.name, 180),
       description: trimText(entry.description, 240),
       category: trimText(entry.category, 180),
+      city: trimText(entry.city, 120),
+      country: trimText(entry.country, 120),
+      district: trimText(entry.district, 120),
       address: trimText(entry.address, 240),
       phone: trimText(entry.phone, 80),
       websiteUrl: trimText(entry.websiteUrl, 240),
@@ -148,6 +158,9 @@ export function buildCompactAIContext(request: AIEnrichmentRequest) {
           types: entry.types,
           name: entry.name,
           category: entry.category,
+          city: entry.city,
+          country: entry.country,
+          district: entry.district,
           address: entry.address,
           phone: entry.phone,
         })),
@@ -187,6 +200,8 @@ export function buildCompactAIContext(request: AIEnrichmentRequest) {
           types: entry.types,
           name: trimText(entry.name, 120),
           category: trimText(entry.category, 120),
+          city: trimText(entry.city, 100),
+          country: trimText(entry.country, 100),
           address: trimText(entry.address, 160),
           phone: trimText(entry.phone, 80),
         })),

@@ -2,15 +2,21 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { MapCityFilter } from "@/components/map-city-filter";
+import { MapLocationFilter } from "@/components/map-location-filter";
 import { MapLibreFoundation } from "@/components/maplibre-foundation";
 import {
-  allCitiesFilterValue,
   emptyPlaceSearchQuery,
   createFilteredMapDisplay,
   filterPlacesForMap,
-  getMapCityOptions,
 } from "@/lib/map/place-filter";
+import {
+  allCountriesFilterValue,
+  allCitiesFilterValue,
+  formatHierarchyLocationLabel,
+  parseLocationFilterState,
+  serializeLocationFilterState,
+  type LocationHierarchyState,
+} from "@/lib/location-hierarchy";
 import { getMapPlaceUiState } from "@/lib/map/map-page-state";
 import {
   createMapSearchSelectablePlaces,
@@ -68,19 +74,26 @@ function MapStateCard({
 }
 
 export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
-  const [selectedCity, setSelectedCity] = useState(allCitiesFilterValue);
+  const [locationFilter, setLocationFilter] = useState<LocationHierarchyState>({
+    selectedCountry: allCountriesFilterValue,
+    selectedCity: allCitiesFilterValue,
+    selectedDistrict: "",
+  });
   const [searchQuery, setSearchQuery] = useState(emptyPlaceSearchQuery);
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
-  const cities = getMapCityOptions(places);
   const filteredPlaces = filterPlacesForMap({
     places,
     searchQuery,
-    selectedCity,
+    selectedCountry: locationFilter.selectedCountry,
+    selectedCity: locationFilter.selectedCity,
+    selectedDistrict: locationFilter.selectedDistrict,
   });
   const display = createFilteredMapDisplay({
     places,
     searchQuery,
-    selectedCity,
+    selectedCountry: locationFilter.selectedCountry,
+    selectedCity: locationFilter.selectedCity,
+    selectedDistrict: locationFilter.selectedDistrict,
   });
   const selectedPlaceCount = filteredPlaces.length;
   const searchResults = createMapSearchSelectablePlaces(display.markers);
@@ -91,6 +104,21 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
     selectedPlaces: selectedPlaceCount,
   });
   const hasActiveSearch = searchQuery.trim().length > 0;
+
+  useEffect(() => {
+    setLocationFilter(parseLocationFilterState(window.location.search));
+  }, []);
+
+  function handleLocationChange(nextValue: LocationHierarchyState) {
+    setLocationFilter(nextValue);
+    setActivePlaceId(null);
+    const query = serializeLocationFilterState(nextValue);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${query ? `?${query}` : ""}`,
+    );
+  }
 
   useEffect(() => {
     setActivePlaceId((currentActivePlaceId) =>
@@ -148,7 +176,7 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
                   setSearchQuery(event.target.value);
                   setActivePlaceId(null);
                 }}
-                placeholder="按名称、城市或分类搜索"
+            placeholder="按名称、国家、城市或分类搜索"
                 className="min-w-0 flex-1 rounded-xl bg-transparent px-1 py-2 text-sm font-semibold text-[var(--ink-strong)] outline-none placeholder:text-[var(--ink-soft)]"
                 aria-label="按名称、城市或分类搜索地图地点"
               />
@@ -165,18 +193,11 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
                 </button>
               ) : null}
             </label>
-            <MapCityFilter
-              cities={cities}
-              selectedCity={selectedCity}
-              onCityChange={(city) => {
-                setSelectedCity(city);
-                setActivePlaceId(null);
-              }}
-            />
+            <MapLocationFilter places={places} value={locationFilter} onChange={handleLocationChange} />
           </div>
           <p className="px-1 text-xs leading-5 text-[var(--ink-soft)]">
-            {selectedCity
-              ? `正在查看 ${selectedCity}`
+            {locationFilter.selectedCountry
+              ? `正在查看 ${formatHierarchyLocationLabel(locationFilter.selectedCountry, locationFilter.selectedCity, locationFilter.selectedDistrict)}`
               : hasActiveSearch
                 ? `共匹配 ${selectedPlaceCount} 条已收藏地点`
                 : `共 ${places.length} 条已收藏地点`}
@@ -213,7 +234,7 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
                     <div>
                       <p className="text-sm font-semibold text-[var(--ink-strong)]">{place.name}</p>
                       <p className="mt-1 text-xs leading-5 text-[var(--ink-soft)]">
-                        {place.city}
+                        {formatHierarchyLocationLabel(place.country, place.city, place.district)}
                         {place.category ? ` · ${getPlaceCategoryLabel(place.category)}` : ""}
                       </p>
                     </div>
@@ -232,23 +253,27 @@ export function MapBrowser({ places, placeLoadError = null }: MapBrowserProps) {
 
       {uiState === "city_empty" ? (
         <MapStateCard
-          title={selectedCity ? `${selectedCity} 暂时没有匹配地点` : "暂时没有匹配地点"}
+          title={locationFilter.selectedCountry ? `${formatHierarchyLocationLabel(locationFilter.selectedCountry, locationFilter.selectedCity, locationFilter.selectedDistrict)} 暂时没有匹配地点` : "暂时没有匹配地点"}
           description={
             hasActiveSearch
               ? "试试更短的关键词，或切换城市后继续查看你的已收藏地点。"
-              : "换一个城市，或切回全部城市继续查看你的已收藏地点。"
+              : "换一个国家或城市，或切回全部地点继续查看你的已收藏地点。"
           }
           action={
             <button
               type="button"
               onClick={() => {
-                setSelectedCity(allCitiesFilterValue);
+                handleLocationChange({
+                  selectedCountry: allCountriesFilterValue,
+                  selectedCity: allCitiesFilterValue,
+                  selectedDistrict: "",
+                });
                 setSearchQuery(emptyPlaceSearchQuery);
                 setActivePlaceId(null);
               }}
               className="rounded-full border border-[var(--border-soft)] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
             >
-              {hasActiveSearch ? "清除筛选条件" : "查看全部城市"}
+              {hasActiveSearch ? "清除筛选条件" : "查看全部地点"}
             </button>
           }
         />

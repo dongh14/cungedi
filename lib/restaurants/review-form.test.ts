@@ -18,6 +18,8 @@ test("builds a review draft from a source-only intake", () => {
   assert.deepEqual(values, {
     name: "",
     city: "",
+    country: "",
+    district: "",
     source_input: "https://example.com/restaurant",
     privacy: "private",
     category: "美食",
@@ -128,7 +130,7 @@ test("manual review data converts into a saved-place input", () => {
       privacy: "public",
       category: "美食",
       address: "静安区示例路 8 号",
-      cuisine: "咖啡",
+      cuisine: "咖啡馆",
       note: "早上去",
     },
     "https://example.com/blue-bottle",
@@ -137,11 +139,13 @@ test("manual review data converts into a saved-place input", () => {
   assert.deepEqual(draftInput, {
     name: "Blue Bottle",
     city: "上海",
+    country: "中国",
+    district: null,
     sourceUrl: "https://example.com/blue-bottle",
     privacy: "private",
     category: "美食",
     address: "静安区示例路 8 号",
-    cuisine: "咖啡",
+    cuisine: "咖啡馆",
     note: "早上去",
     returnTo: "review",
     reviewSourceUrl: "https://example.com/blue-bottle",
@@ -180,13 +184,13 @@ test("accepted AI values are the normal editable review defaults", () => {
     {
       source_url: "https://www.teamlab.art/",
       category: "景点",
-      cuisine: "Art Gallery",
+      cuisine: "美术馆",
       note: "An international art collective.",
     },
     "https://www.teamlab.art/",
   );
 
   assert.equal(values.category, "景点");
-  assert.equal(values.cuisine, "Art Gallery");
+  assert.equal(values.cuisine, "美术馆");
   assert.equal(values.note, "An international art collective.");
 });

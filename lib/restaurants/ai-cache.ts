@@ -84,6 +84,7 @@ function getExtractionContent(results: NormalizedExtractionResult[]) {
       name: result.name,
       category: result.category,
       city: result.city,
+      country: result.country,
       address: result.address,
       phone: result.phone,
       description: result.description,

@@ -4,11 +4,19 @@ import {
   detectSource,
   douyinExtractor,
   googleMapsExtractor,
+  mapGoogleMapsPlaceTypes,
   runExtractionPipeline,
   selectExtractor,
   websiteExtractor,
   xiaohongshuExtractor,
 } from "./extraction-architecture.ts";
+
+test("Google Maps place types map bars conservatively to 美食 · 酒吧", () => {
+  assert.deepEqual(mapGoogleMapsPlaceTypes(["bar"]), { category: "美食", cuisine: "酒吧" });
+  assert.deepEqual(mapGoogleMapsPlaceTypes(["pub"]), { category: "美食", cuisine: "酒吧" });
+  assert.deepEqual(mapGoogleMapsPlaceTypes(["night_club"]), { category: "娱乐", cuisine: null });
+  assert.deepEqual(mapGoogleMapsPlaceTypes(["night_club"], "Cocktail Bar"), { category: "美食", cuisine: "酒吧" });
+});
 
 test("detects supported source domains", () => {
   assert.equal(detectSource("https://maps.google.com/?cid=123").sourceType, "google_maps");
@@ -80,6 +88,16 @@ test("Google Maps extractor parses a search query and preserves the normalized r
   assert.equal(result.sourceType, "google_maps");
 });
 
+test("Google Maps URL type metadata preserves the bar subcategory", () => {
+  const result = googleMapsExtractor.extract(
+    "https://maps.google.com/?q=Moonrise&types=bar",
+  );
+
+  assert.equal(result.category, "美食");
+  assert.equal(result.cuisine, "酒吧");
+  assert.deepEqual(result.extractedFields, ["name", "category", "cuisine"]);
+});
+
 test("Google Maps extractor handles URL encoding in search paths and query parameters", () => {
   assert.equal(
     googleMapsExtractor.extract("https://www.google.com/maps/search/Caf%C3%A9%2BMaison").name,
@@ -112,8 +130,8 @@ test("Google Maps extractor accepts an explicitly encoded address without guessi
   assert.equal(result.name, "Restaurant");
   assert.equal(result.address, "Shanghai Road 88");
   assert.equal(result.category, null);
-  assert.equal(result.city, null);
-  assert.deepEqual(result.extractedFields, ["name", "address"]);
+  assert.equal(result.city, "上海");
+  assert.deepEqual(result.extractedFields, ["name", "address", "country", "city"]);
 });
 
 test("malformed or out-of-range Google Maps coordinates are ignored", () => {

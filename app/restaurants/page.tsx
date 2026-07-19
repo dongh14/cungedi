@@ -1,128 +1,48 @@
 import Link from "next/link";
+import { AppIcon } from "@/components/app-icon";
 import { AppShell } from "@/components/app-shell";
-import { PlaceholderCard } from "@/components/placeholder-card";
+import { PlaceLibraryFilters } from "@/components/place-library-filters";
 import { RestaurantList } from "@/components/restaurant-list";
-import { SurfaceCard } from "@/components/surface-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
+import {
+  filterPlacesForLibrary,
+  getPlaceLibraryFilterState,
+  serializePlaceLibraryFilterState,
+} from "@/lib/restaurants/place-library-filter";
 import { getCurrentUserRestaurants } from "@/lib/restaurants/queries";
-import { normalizePlaceCategory } from "@/lib/restaurants/constants";
 
 type RestaurantsPageProps = {
-  searchParams?: Promise<{
-    message?: string;
-    created?: string;
-    category?: string;
-  }>;
+  searchParams?: Promise<{ message?: string; created?: string; q?: string; search?: string; category?: string; country?: string; city?: string; district?: string }>;
 };
 
-export default async function RestaurantsPage({
-  searchParams,
-}: RestaurantsPageProps) {
+export default async function RestaurantsPage({ searchParams }: RestaurantsPageProps) {
   const user = await requireAuthenticatedUser();
   const params = (await searchParams) ?? {};
-  const selectedCategory = normalizePlaceCategory(params.category) ?? undefined;
-  const { restaurants, error } = await getCurrentUserRestaurants(selectedCategory);
+  const { restaurants, error } = await getCurrentUserRestaurants();
+  const filterState = getPlaceLibraryFilterState(params);
+  const visibleRestaurants = filterPlacesForLibrary(restaurants, filterState);
   const createdRestaurantId = params.created ? Number(params.created) : null;
+  const returnQuery = serializePlaceLibraryFilterState(filterState);
 
   return (
     <AppShell
       currentPath="/restaurants"
-      eyebrow="已收藏地点"
-      title={selectedCategory ? `${selectedCategory}地点` : "你收藏过的地点都在这里"}
-      description="这里会展示当前账号在现有 RLS 规则下可访问的全部地点记录。你可以快速确认刚保存的内容，也可以继续回看之前收藏过的地方。"
+      eyebrow=""
+      title="全部地点"
+      description=""
       userEmail={user.email}
       userId={user.userId}
       message={params.message}
-      actions={
-        <>
-          <Link
-            href="/restaurants/new"
-            className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
-          >
-            继续添加地点
-          </Link>
-          <Link
-            href="/map"
-            className="inline-flex rounded-full border border-[var(--border-soft)] bg-white px-5 py-3 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            去地图页
-          </Link>
-        </>
-      }
     >
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <div className="space-y-4">
-          <SurfaceCard className="p-5 sm:p-6">
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-                  Saved List
-                </p>
-                <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-                  已收藏地点列表
-                </h2>
-                <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-                  核心信息会优先展示出来。分类会和类型细分、地址、备注一起保留在列表里，方便你先做小范围归类，而不改动现有页面结构。
-                </p>
-                {selectedCategory ? (
-                  <Link
-                    href="/restaurants"
-                    className="mt-3 inline-flex text-sm font-semibold text-[var(--accent-deep)] underline underline-offset-4"
-                  >
-                    查看全部地点
-                  </Link>
-                ) : null}
-              </div>
-
-              {error ? (
-                <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm leading-7 text-rose-700">
-                  读取已收藏地点时出现问题：{error.message}
-                </div>
-              ) : null}
-
-              {!error && restaurants.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-[var(--border-soft)] bg-[var(--surface-muted)] p-5 text-sm leading-7 text-[var(--ink-soft)]">
-                  你还没有保存任何地点。先去“添加地点”录入两三条记录，再回到这里查看完整列表效果。
-                </div>
-              ) : null}
-            </div>
-          </SurfaceCard>
-
-          {!error && restaurants.length > 0 ? (
-            <RestaurantList
-              restaurants={restaurants}
-              createdRestaurantId={Number.isNaN(createdRestaurantId) ? null : createdRestaurantId}
-            />
-          ) : null}
-        </div>
-
-        <div className="space-y-4">
-          <PlaceholderCard
-            title="这一步现在已经是完整列表页"
-            description="列表页现在不仅能稳定展示已收藏地点，也可以作为进入 Step 9 编辑页的入口。"
-            items={[
-              "只显示当前登录用户在现有 RLS 下可访问的地点。",
-              "继续保留刚保存成功后的顶部提示和高亮状态。",
-              "当前已经支持编辑入口，但仍不会加入删除、地图或提取流程。",
-            ]}
-          />
-          <PlaceholderCard
-            title="建议你这样验证"
-            description="最适合的手动测试方式，是准备几条不同完整度的地点记录，再从移动端尺寸和桌面尺寸分别检查展示效果。"
-            items={[
-              "至少准备一条完整记录。",
-              "至少准备一条缺少地址、类型细分或备注的记录。",
-              "至少准备一条使用中文名称和中文备注的记录。",
-            ]}
-          />
-          <PlaceholderCard
-            title="继续添加地点"
-            description="如果你想马上验证列表变化，可以继续新增记录，然后返回这里确认排序和高亮效果。"
-            actionHref="/restaurants/new"
-            actionLabel="去添加地点"
-          />
-        </div>
-      </div>
+      {!error ? <PlaceLibraryFilters places={restaurants} value={filterState} /> : null}
+      {error ? <div className="inline-error mt-3">暂时无法读取地点，请稍后再试。</div> : null}
+      {!error && restaurants.length > 0 && visibleRestaurants.length === 0 ? (
+        <div className="empty-panel mt-4"><span className="empty-panel-icon"><AppIcon name="search" size={24} /></span><h2>没有符合条件的地点</h2><p>可以清除筛选，或修改城市、分类和搜索词。</p><Link href="/restaurants" className="secondary-button mt-2">清除筛选</Link></div>
+      ) : null}
+      {!error && restaurants.length === 0 ? (
+        <div className="empty-panel mt-4"><span className="empty-panel-icon"><AppIcon name="pin" size={24} /></span><h2>还没有保存地点</h2><p>从一个链接或手动填写开始吧。</p><Link href="/restaurants/new" className="primary-button mt-2">添加地点</Link></div>
+      ) : null}
+      {!error && visibleRestaurants.length > 0 ? <RestaurantList restaurants={visibleRestaurants} returnTo={returnQuery ? `/restaurants?${returnQuery}` : "/restaurants"} createdRestaurantId={Number.isNaN(createdRestaurantId) ? null : createdRestaurantId} /> : null}
     </AppShell>
   );
 }

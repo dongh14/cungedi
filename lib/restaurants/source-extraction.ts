@@ -1,7 +1,16 @@
 import { inferAccommodationSubtype, hasAccommodationStructuredType } from "./accommodation-inference";
+import { findKnownCityInText } from "../location.ts";
 import { inferAttractionSubtype, hasAttractionStructuredType } from "./attraction-inference";
-import { inferCuisineFromSourceContent } from "./cuisine-inference";
-import { defaultRestaurantCategory, type RestaurantCategory } from "./constants";
+import {
+  hasExplicitBarEvidence,
+  inferCuisineFromSourceContent,
+  normalizeBarCuisine,
+} from "./cuisine-inference";
+import {
+  defaultRestaurantCategory,
+  normalizePlaceSubtype,
+  type RestaurantCategory,
+} from "./constants";
 import {
   inferEntertainmentSubtype,
   hasEntertainmentStructuredType,
@@ -107,7 +116,7 @@ const restaurantStructuredTypes = new Set([
 ]);
 
 const restaurantKeywordPattern =
-  /(restaurant|bistro|cafe|café|coffee|brunch|dining|eatery|kitchen|bar|ramen|noodle|pizza|sushi|hot pot|steakhouse|omakase|chef|tasting|火锅|咖啡|餐厅|酒馆|面馆|寿司|烤肉|甜品)/i;
+  /(restaurant|bistro|cafe|café|coffee|brunch|dining|eatery|kitchen|ramen|noodle|pizza|sushi|hot pot|steakhouse|omakase|chef|tasting|火锅|咖啡|餐厅|酒馆|面馆|寿司|烤肉|甜品)/i;
 const genericFallbackNamePattern =
   /\b(locations?|menu|home|restaurants?|contact|about|order online|gift cards?|newsletter|careers|privacy)\b/i;
 const addressPattern =
@@ -140,33 +149,7 @@ const shoppingKeywordPattern =
 const entertainmentListPattern =
   /\b(events|event listings|upcoming events|calendar|showtimes|venues|things to do|our venues|schedule|lineup|all venues)\b/i;
 const entertainmentKeywordPattern =
-  /\b(cinema|movie theater|nightclub|club|bowling|amusement park|theme park|sports venue|stadium|arena|theater|theatre|event venue|karaoke|ktv|escape room|board game|exhibition|concert|live house|bar)\b/i;
-
-const knownCities = [
-  { city: "上海", patterns: ["上海", "上海市", "shanghai"] },
-  { city: "北京", patterns: ["北京", "北京市", "beijing"] },
-  { city: "广州", patterns: ["广州", "广州市", "guangzhou"] },
-  { city: "深圳", patterns: ["深圳", "深圳市", "shenzhen"] },
-  { city: "杭州", patterns: ["杭州", "杭州市", "hangzhou"] },
-  { city: "成都", patterns: ["成都", "成都市", "chengdu"] },
-  { city: "南京", patterns: ["南京", "南京市", "nanjing"] },
-  { city: "苏州", patterns: ["苏州", "苏州市", "suzhou"] },
-  { city: "重庆", patterns: ["重庆", "chongqing"] },
-  { city: "武汉", patterns: ["武汉", "武汉市", "wuhan"] },
-  { city: "西安", patterns: ["西安", "西安市", "xian", "xi'an"] },
-  { city: "长沙", patterns: ["长沙", "长沙市", "changsha"] },
-  { city: "青岛", patterns: ["青岛", "青岛市", "qingdao"] },
-  { city: "厦门", patterns: ["厦门", "厦门市", "xiamen"] },
-  { city: "香港", patterns: ["香港", "hong kong"] },
-  { city: "东京", patterns: ["东京", "tokyo"] },
-  { city: "首尔", patterns: ["首尔", "seoul"] },
-  { city: "曼谷", patterns: ["曼谷", "bangkok"] },
-  { city: "新加坡", patterns: ["新加坡", "singapore"] },
-  { city: "巴黎", patterns: ["巴黎", "paris"] },
-  { city: "伦敦", patterns: ["伦敦", "london"] },
-  { city: "纽约", patterns: ["纽约", "new york"] },
-  { city: "洛杉矶", patterns: ["洛杉矶", "los angeles"] },
-];
+  /\b(cinema|movie theater|nightclub|club|bowling|amusement park|theme park|sports venue|stadium|arena|theater|theatre|event venue|karaoke|ktv|escape room|board game|exhibition|concert|live house)\b/i;
 
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
@@ -236,12 +219,16 @@ function extractCity(value: string | null) {
     return null;
   }
 
-  const normalizedValue = value.toLowerCase();
+  const knownCity = findKnownCityInText(value);
 
-  for (const city of knownCities) {
-    if (city.patterns.some((pattern) => normalizedValue.includes(pattern.toLowerCase()))) {
-      return city.city;
+  if (knownCity) {
+    // Preserve the legacy Chinese extraction label while comparison and
+    // resolution use the shared canonical New York identity.
+    if (/\b(?:new york|nyc)\b/iu.test(value)) {
+      return "纽约";
     }
+
+    return knownCity;
   }
 
   const chineseCityMatch = value.match(/([\u4e00-\u9fa5]{2,8})市/);
@@ -439,6 +426,10 @@ function hasRestaurantCategorySignals(input: {
     .filter(Boolean)
     .join(" ");
 
+  if (hasExplicitBarEvidence(text)) {
+    return true;
+  }
+
   if (restaurantKeywordPattern.test(text)) {
     return true;
   }
@@ -465,6 +456,13 @@ function determineExtractionCategory(input: {
   const hasAttractionEvidence = hasStrongAttractionStructuredEvidence(input.nodes);
   const hasShoppingEvidence = hasStrongShoppingStructuredEvidence(input.nodes);
   const hasEntertainmentEvidence = hasStrongEntertainmentStructuredEvidence(input.nodes);
+  const headlineText = [input.ogTitle, input.title, input.ogDescription, input.description]
+    .filter(Boolean)
+    .join(" ");
+  const hasBarEvidence = hasExplicitBarEvidence(headlineText);
+  const entertainmentIsNightclubOnly = input.nodes
+    .filter((node) => hasEntertainmentStructuredType(node))
+    .every((node) => node.types.every((type) => type === "nightclub"));
   const hasRawGenericPlaceEvidence = hasRawGenericPlaceCategoryEvidence(input.nodes);
   const hasGenericPlaceEvidence =
     hasRawGenericPlaceEvidence &&
@@ -483,6 +481,10 @@ function determineExtractionCategory(input: {
     hasEntertainmentEvidence,
     hasRawGenericPlaceEvidence,
   ].filter(Boolean).length;
+
+  if (hasBarEvidence && (!hasEntertainmentEvidence || entertainmentIsNightclubOnly)) {
+    return "美食" as const;
+  }
 
   if (strongCategoryCount >= 2) {
     return "ambiguous" as const;
@@ -1162,23 +1164,21 @@ function findCuisineField(
 ) {
   const proposals: FieldProposal[] = [];
 
-  if (input.structuredNode?.servesCuisine.length) {
-    for (const cuisine of input.structuredNode.servesCuisine) {
-      proposals.push({
-        value: cuisine,
-        confidence: "high",
-        evidenceSource: "structured_data",
-      });
-    }
-  }
-
   const inference = inferCuisineFromSourceContent({
     title: input.ogTitle ?? input.title,
     description: input.ogDescription ?? input.description,
     visibleText: input.visibleTextSegments.slice(0, 12).join(" "),
   });
 
-  if (inference.cuisine) {
+  if (input.structuredNode?.types.includes("barorpub")) {
+    proposals.push({
+      value: "酒吧",
+      confidence: "high",
+      evidenceSource: "structured_data",
+    });
+  }
+
+  if (inference.cuisine === "酒吧") {
     const evidenceSource: RestaurantFieldEvidenceSource =
       input.ogDescription || input.description
         ? "meta_description"
@@ -1187,7 +1187,44 @@ function findCuisineField(
           : "visible_text";
 
     proposals.push({
-      value: inference.cuisine,
+      value: "酒吧",
+      confidence: inference.isConfident
+        ? evidenceSource === "visible_text"
+          ? "low"
+          : "medium"
+        : "low",
+      evidenceSource,
+    });
+  }
+
+  if (input.structuredNode?.servesCuisine.length) {
+    for (const cuisine of input.structuredNode.servesCuisine) {
+      const normalizedCuisine = normalizePlaceSubtype(cuisine) ?? normalizeBarCuisine(cuisine);
+
+      if (!normalizedCuisine) {
+        continue;
+      }
+
+      proposals.push({
+        value: normalizedCuisine,
+        confidence: "high",
+        evidenceSource: "structured_data",
+      });
+    }
+  }
+
+  const normalizedInferenceCuisine = normalizePlaceSubtype(inference.cuisine);
+
+  if (normalizedInferenceCuisine && normalizedInferenceCuisine !== "酒吧") {
+    const evidenceSource: RestaurantFieldEvidenceSource =
+      input.ogDescription || input.description
+        ? "meta_description"
+        : input.ogTitle || input.title
+          ? "page_title"
+          : "visible_text";
+
+    proposals.push({
+      value: normalizedInferenceCuisine,
       confidence: inference.isConfident
         ? evidenceSource === "visible_text"
           ? "low"

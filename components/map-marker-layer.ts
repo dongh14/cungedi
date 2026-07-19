@@ -27,7 +27,7 @@ function createPopupContent(marker: PlaceMarkerData) {
   details.className = "map-place-popup-details";
 
   const city = document.createElement("span");
-  city.textContent = viewModel.city;
+  city.textContent = viewModel.location;
   details.append(city);
 
   const locationBadge = document.createElement("span");

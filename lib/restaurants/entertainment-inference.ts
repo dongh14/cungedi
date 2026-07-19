@@ -3,6 +3,7 @@ import type {
   RestaurantFieldEvidenceSource,
   StructuredDataNode,
 } from "./extraction-types";
+import { hasExplicitBarEvidence } from "./cuisine-inference";
 
 export type EntertainmentSubtypeProposal = {
   value: string | null;
@@ -54,11 +55,13 @@ export function inferEntertainmentSubtype(input: {
   }
 
   if (hasType("nightclub")) {
-    proposals.push({
-      value: "酒吧",
-      confidence: "high",
-      evidenceSource: "structured_data",
-    });
+    if (hasExplicitBarEvidence(combinedText)) {
+      proposals.push({
+        value: "酒吧",
+        confidence: "medium",
+        evidenceSource: headlineText ? "page_title" : "meta_description",
+      });
+    }
   }
 
   if (hasType("bowlingalley")) {

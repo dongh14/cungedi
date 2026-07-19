@@ -10,6 +10,8 @@ const fieldLabels: Record<PlaceDraftField, string> = {
   category: "分类",
   cuisine: "子分类",
   city: "城市",
+  country: "国家/地区",
+  district: "区域 / 街区",
   address: "地址",
   phone: "电话",
   notes: "备注",
@@ -35,7 +37,7 @@ function sourceLabel(source: PlaceDraftSource) {
   }
 }
 
-function hasValue(value: string | number | null) {
+function hasValue(value: string | number | null | undefined) {
   return typeof value === "number" ? Number.isFinite(value) : Boolean(value?.trim());
 }
 
@@ -50,7 +52,7 @@ export function ReviewFinalPreviewCard({
   collectionOptions: CollectionOptionItem[];
   selectedCollectionIds: number[];
 }) {
-  const confirmedFields: PlaceDraftField[] = ["name", "category", "cuisine", "city", "address", "phone", "notes"];
+  const confirmedFields: PlaceDraftField[] = ["name", "category", "cuisine", "city", "country", "address", "phone", "notes"];
   const missingOptionalFields = ["address", "phone", "notes"].filter(
     (field) => !hasValue(draft[field as PlaceDraftField]),
   ) as PlaceDraftField[];
@@ -135,7 +137,7 @@ export function ReviewFinalPreviewCard({
 
         {missingOptionalFields.length > 0 ? (
           <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-800">
-            <p className="font-semibold">Optional information missing</p>
+            <p className="font-semibold">还有一些可选信息</p>
             <p className="mt-1">{missingOptionalFields.map((field) => fieldLabels[field]).join("、")} 未填写，可以保存后再补充。</p>
           </div>
         ) : null}

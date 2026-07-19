@@ -51,6 +51,7 @@ type DeepSeekWireResponse = {
     phone: string;
     city: string;
     country: string;
+    district: string;
   };
   understandingSuggestions: {
     category: string;
@@ -64,7 +65,7 @@ type DeepSeekWireResponse = {
 };
 
 const responseKeys = ["status", "factualSuggestions", "understandingSuggestions", "confidence", "reason"] as const;
-const factualKeys = ["address", "phone", "city", "country"] as const;
+const factualKeys = ["address", "phone", "city", "country", "district"] as const;
 const understandingKeys = ["category", "cuisine", "tags", "summary", "placeType"] as const;
 
 const inFlightRequests = new Map<string, Promise<AIEnrichmentResult>>();
@@ -205,6 +206,7 @@ function parseDeepSeekResponse(content: string): AIEnrichmentResult {
         phone: parsed.factualSuggestions.phone || null,
         city: parsed.factualSuggestions.city || null,
         country: parsed.factualSuggestions.country || null,
+        district: parsed.factualSuggestions.district || null,
       },
       understandingSuggestions: {
         category: parsed.understandingSuggestions.category || null,
@@ -400,11 +402,11 @@ export function createDeepSeekAIEnrichmentProvider(
                 {
                   role: "system",
                   content:
-                    "Return only one valid JSON object. Do not wrap JSON in markdown or code fences. Do not include explanations before or after JSON. Follow the provided schema exactly. Use only the allowed status and confidence strings. Never use numeric confidence. Do not return additional fields. Use only the provided evidence. Extract factual fields only when explicitly supported. Leave factual fields empty when evidence is absent. You may classify understanding fields from the provided name and description, but never invent addresses, phone numbers, ratings, or opening hours. Suggest only safe, explicit improvements.",
+                    "Return only one valid JSON object. Do not wrap JSON in markdown or code fences. Do not include explanations before or after JSON. Follow the provided schema exactly. Use only the allowed status and confidence strings. Never use numeric confidence. Do not return additional fields. Use only the provided evidence. Extract factual fields only when explicitly supported. Leave factual fields empty when evidence is absent. You may classify understanding fields from the provided name and description, but never invent addresses, phone numbers, ratings, or opening hours. Use only the canonical top-level categories 美食、景点、住宿、购物、娱乐、其他. 酒吧 is a subcategory under 美食; return it only when explicit bar evidence is present. Never infer 酒吧 from a generic nightclub or unrelated words such as toolbar, sidebar, barbershop, salad bar, or noodle bar. Suggest only safe, explicit improvements.",
                 },
                 {
                   role: "user",
-                  content: `${buildCompactAIContext(request)}\n\nReturn exactly this JSON shape and no other fields: {"status":"suggestions_available | no_changes | failed","factualSuggestions":{"address":"","phone":"","city":"","country":""},"understandingSuggestions":{"category":"","cuisine":"","tags":[],"summary":"","placeType":""},"confidence":"low | medium | high","reason":""}. Keep factualSuggestions evidence-only. Understanding suggestions may classify the provided name and description. Never return numeric confidence, markdown, or explanatory text.`,
+                  content: `${buildCompactAIContext(request)}\n\nReturn exactly this JSON shape and no other fields: {"status":"suggestions_available | no_changes | failed","factualSuggestions":{"address":"","phone":"","city":"","country":"","district":""},"understandingSuggestions":{"category":"","cuisine":"","tags":[],"summary":"","placeType":""},"confidence":"low | medium | high","reason":""}. Keep factualSuggestions evidence-only. Understanding suggestions may classify the provided name and description. Use cuisine="酒吧" only for explicit bar evidence, with category="美食". Never return numeric confidence, markdown, or explanatory text.`,
                 },
               ],
             }),

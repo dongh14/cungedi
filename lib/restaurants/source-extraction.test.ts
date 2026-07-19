@@ -17,6 +17,60 @@ function createHtmlResponse(html: string, url: string) {
   });
 }
 
+test("infers 酒吧 from explicit bar aliases without matching false-positive words", () => {
+  for (const text of ["Cocktail Bar", "鸡尾酒吧", "ワインバー"]) {
+    assert.equal(
+      inferCuisineFromSourceContent({ title: text, description: "" }).cuisine,
+      "酒吧",
+    );
+  }
+
+  assert.equal(
+    inferCuisineFromSourceContent({ title: "Toolbar", description: "" }).cuisine,
+    null,
+  );
+  assert.equal(
+    inferCuisineFromSourceContent({ title: "Noodle Bar", description: "Restaurant" }).cuisine,
+    "面馆",
+  );
+});
+
+test("automatically classifies explicit cocktail-bar source evidence as 美食 · 酒吧", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Devie Cocktail Bar</title>
+        <meta name="description" content="A cocktail bar in Paris with seasonal drinks." />
+        <script type="application/ld+json">
+          {
+            "@context": "https://schema.org",
+            "@type": "Restaurant",
+            "name": "Devie",
+            "servesCuisine": "French",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Rue Saint-Sauveur 1",
+              "addressLocality": "Paris"
+            }
+          }
+        </script>
+      </head>
+      <body><p>Seasonal cocktails and a compact neighborhood bar.</p></body>
+    </html>
+  `;
+  const result = await extractRestaurantDraftFromSource("https://example.com/devie", {
+    fetchImpl: async () => createHtmlResponse(html, "https://example.com/devie"),
+  });
+
+  assert.equal(result.status, "success");
+  if (result.status !== "success") {
+    return;
+  }
+
+  assert.equal(result.candidate.category, "美食");
+  assert.equal(result.candidate.fields.cuisine.value, "酒吧");
+});
+
 function renderDevFixtureHtml(input: {
   metadataTitle: string;
   metadataDescription: string;
@@ -130,7 +184,7 @@ test("extracts a single restaurant from JSON-LD Restaurant data", async () => {
   assert.equal(result.candidate.fields.name.value, "Alimentari Bistro");
   assert.equal(result.candidate.fields.address.value, "永嘉路 321 号, 上海");
   assert.equal(result.candidate.fields.city.value, "上海");
-  assert.equal(result.candidate.fields.cuisine.value, "Cafe");
+  assert.equal(result.candidate.fields.cuisine.value, "咖啡馆");
 });
 
 test("extracts a single restaurant from JSON-LD @graph data", async () => {
@@ -809,7 +863,7 @@ test("infers 电影院 from MovieTheater structured data", async () => {
   assert.equal(result.candidate.fields.cuisine.value, "电影院");
 });
 
-test("infers 酒吧 from NightClub structured data", async () => {
+test("does not infer 酒吧 from NightClub structured data without explicit bar wording", async () => {
   const html = `
     <html>
       <head>
@@ -844,7 +898,7 @@ test("infers 酒吧 from NightClub structured data", async () => {
   }
 
   assert.equal(result.candidate.category, "玩乐");
-  assert.equal(result.candidate.fields.cuisine.value, "酒吧");
+  assert.equal(result.candidate.fields.cuisine.value, null);
 });
 
 test("infers 保龄球馆 from BowlingAlley structured data", async () => {

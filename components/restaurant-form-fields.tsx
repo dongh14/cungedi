@@ -1,18 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  getSubtypeFieldConfig,
-  isRestaurantCategory,
-  isSubtypeSuggestionCompatible,
-  type RestaurantCategory,
-} from "@/lib/restaurants/constants";
-import { CategoryField } from "@/components/category-field";
-import { CuisineField } from "@/components/cuisine-field";
+import { CompactCategoryRow } from "@/components/compact-category-row";
+import { resolvePlaceArea } from "@/lib/location";
 
 export type RestaurantFormFieldValues = {
   name: string;
   city: string;
+  country?: string;
+  district: string;
   source_input: string;
   category: string;
   address: string;
@@ -42,14 +38,20 @@ export function RestaurantFormFields({
   sourceLabel = "来源链接或分享文案",
   sourceHint = "支持直接链接，也支持包含链接的整段分享文字。系统会自动提取并保存其中第一个有效的 http 或 https 链接。",
   persistToUrl = false,
+  compactReview = false,
 }: {
   values: RestaurantFormFieldValues;
   sourceLabel?: string;
   sourceHint?: string;
   persistToUrl?: boolean;
+  compactReview?: boolean;
 }) {
   const [selectedCategory, setSelectedCategory] = useState(values.category);
   const [subtypeValue, setSubtypeValue] = useState(values.cuisine);
+  const [countryCorrectionOpen, setCountryCorrectionOpen] = useState(false);
+  const [countryValue, setCountryValue] = useState(
+    values.country || resolvePlaceArea({ city: values.city }).country || "",
+  );
 
   function persistDraftField(field: string, value: string) {
     if (!persistToUrl || typeof window === "undefined") {
@@ -68,38 +70,41 @@ export function RestaurantFormFields({
   useEffect(() => {
     setSelectedCategory(values.category);
     setSubtypeValue(values.cuisine);
+    setCountryValue(values.country || resolvePlaceArea({ city: values.city }).country || "");
   }, [values.category, values.cuisine]);
 
-  function handleCategoryChange(nextCategory: string) {
-    const previousCategory = isRestaurantCategory(selectedCategory)
-      ? selectedCategory
-      : null;
+  const sourceField = (
+    <div className="space-y-2">
+      <FieldLabel htmlFor="source_url" label={sourceLabel} required />
+      <input
+        id="source_url"
+        name="source_url"
+        required
+        defaultValue={values.source_input}
+        onChange={(event) => persistDraftField("source_input", event.target.value)}
+        className="form-control w-full"
+        placeholder="可以直接粘贴链接，或粘贴一整段分享文案"
+      />
+      <p className="text-xs leading-6 text-[var(--ink-muted)]">{sourceHint}</p>
+    </div>
+  );
 
-    setSelectedCategory(nextCategory);
-    persistDraftField("category", nextCategory);
-
-    if (!previousCategory || previousCategory === nextCategory) {
-      return;
-    }
-
-    if (!isRestaurantCategory(nextCategory)) {
-      setSubtypeValue("");
-      persistDraftField("cuisine", "");
-      return;
-    }
-
-    if (!isSubtypeSuggestionCompatible(nextCategory, subtypeValue)) {
-      setSubtypeValue("");
-      persistDraftField("cuisine", "");
-    }
-  }
-
-  const subtypeConfig = isRestaurantCategory(selectedCategory)
-    ? getSubtypeFieldConfig(selectedCategory as RestaurantCategory)
-    : null;
+  const addressField = (
+    <div className="space-y-2">
+      <FieldLabel htmlFor="address" label="地址" />
+      <input
+        id="address"
+        name="address"
+        defaultValue={values.address}
+        onChange={(event) => persistDraftField("address", event.target.value)}
+        className="form-control w-full"
+        placeholder="例如：上海市黄浦区示例路 88 号"
+      />
+    </div>
+  );
 
   return (
-    <>
+    <div className={compactReview ? "review-form-fields review-form-fields-compact" : "review-form-fields"}>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <FieldLabel htmlFor="name" label="地点名称" required />
@@ -109,7 +114,7 @@ export function RestaurantFormFields({
             required
             defaultValue={values.name}
             onChange={(event) => persistDraftField("name", event.target.value)}
-            className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
+            className="form-control w-full"
             placeholder="例如：阿明海鲜酒家 / 某某书店 / 某某博物馆"
           />
         </div>
@@ -121,70 +126,75 @@ export function RestaurantFormFields({
             name="city"
             required
             defaultValue={values.city}
-            onChange={(event) => persistDraftField("city", event.target.value)}
-            className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
+            onChange={(event) => {
+              persistDraftField("city", event.target.value);
+              if (!countryCorrectionOpen) {
+                setCountryValue(resolvePlaceArea({ city: event.target.value }).country || "");
+              }
+            }}
+            className="form-control w-full"
             placeholder="例如：上海"
           />
         </div>
+
+        <div className="space-y-2">
+          <FieldLabel htmlFor="district" label="区域 / 街区（可选）" />
+          <input
+            id="district"
+            name="district"
+            defaultValue={values.district}
+            onChange={(event) => persistDraftField("district", event.target.value)}
+            className="form-control w-full"
+            placeholder="例如：静安区 / Shinjuku / Gangnam"
+          />
+        </div>
+
+        <div className="location-auto-field">
+          <div>
+            <span className="location-auto-label">国家/地区</span>
+            <strong>{countryValue || "待识别"}</strong>
+            <small>自动识别</small>
+          </div>
+          <button type="button" className="location-auto-action" onClick={() => setCountryCorrectionOpen((open) => !open)}>
+            {countryCorrectionOpen ? "收起修正" : "需要时修正"}
+          </button>
+          {countryCorrectionOpen ? (
+            <input
+              id="country"
+              name="country"
+              value={countryValue}
+              onChange={(event) => {
+                setCountryValue(event.target.value);
+                persistDraftField("country", event.target.value);
+              }}
+              className="form-control w-full location-auto-input"
+              placeholder="输入国家/地区"
+            />
+          ) : (
+            <input type="hidden" name="country" value={countryValue} readOnly />
+          )}
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <FieldLabel htmlFor="source_url" label={sourceLabel} required />
-        <input
-          id="source_url"
-          name="source_url"
-          required
-          defaultValue={values.source_input}
-          className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
-          placeholder="可以直接粘贴链接，或粘贴一整段小红书 / 抖音分享文案"
-        />
-        <p className="text-xs leading-6 text-[var(--ink-muted)]">{sourceHint}</p>
-      </div>
-
-      <div className="space-y-2">
-        <FieldLabel htmlFor="address" label="地址" />
-        <input
-          id="address"
-          name="address"
-          defaultValue={values.address}
-          onChange={(event) => persistDraftField("address", event.target.value)}
-          className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
-          placeholder="例如：上海市黄浦区示例路 88 号"
-        />
-      </div>
+      {compactReview ? (
+        <details className="review-more-details">
+          <summary>更多地点信息</summary>
+          <div className="review-more-details-content">
+            {sourceField}
+            {addressField}
+          </div>
+        </details>
+      ) : (
+        <>
+          {sourceField}
+          {addressField}
+        </>
+      )}
 
       <div className="space-y-3">
-        <p className="text-sm font-medium text-[var(--ink-strong)]">
-          分类<span className="ml-1 text-[var(--accent)]">*</span>
-        </p>
-        <CategoryField selectedValue={selectedCategory} onChange={handleCategoryChange}>
-          {subtypeConfig ? (
-            <div className="space-y-2 rounded-[24px] border border-[var(--border-soft)] bg-white/70 p-4">
-              <FieldLabel htmlFor="cuisine" label={subtypeConfig.label} />
-              <CuisineField
-                id="cuisine"
-                name="cuisine"
-                value={subtypeValue}
-                onChange={(value) => {
-                  setSubtypeValue(value);
-                  persistDraftField("cuisine", value);
-                }}
-                placeholder={subtypeConfig.placeholder}
-                options={subtypeConfig.suggestions}
-                openAriaLabel={subtypeConfig.pickerAriaLabel}
-              />
-              <p className="text-xs leading-6 text-[var(--ink-muted)]">
-                {subtypeConfig.hint}
-              </p>
-              <p className="text-xs leading-6 text-[var(--ink-muted)]">
-                切换分类时，如果当前子分类不兼容，会自动清空并请你重新确认。
-              </p>
-            </div>
-          ) : null}
-        </CategoryField>
-        <p className="text-xs leading-6 text-[var(--ink-muted)]">
-          当前先在现有地点收藏流程里补充分类字段，不改动现有路由和保存入口。
-        </p>
+        <CompactCategoryRow category={selectedCategory} cuisine={subtypeValue} />
+        <input type="hidden" name="category" value={selectedCategory} readOnly />
+        <input type="hidden" name="cuisine" value={subtypeValue} readOnly />
       </div>
 
       <div className="space-y-2">
@@ -195,10 +205,10 @@ export function RestaurantFormFields({
           rows={4}
           defaultValue={values.note}
           onChange={(event) => persistDraftField("note", event.target.value)}
-          className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
+          className="form-control w-full"
           placeholder="例如：想试招牌蟹粉拌面，或顺路逛一下这家书店。"
         />
       </div>
-    </>
+    </div>
   );
 }

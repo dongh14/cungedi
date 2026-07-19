@@ -1604,3 +1604,355 @@ Documented but not yet implemented in UI:
 - `npm run build` passed.
 - `npm test` passed with `285/285` tests.
 - Focused personal-only, workflow-diagnostics, save-boundary, review-form, details, collection, map, category, and RLS migration tests passed (`59` tests).
+
+## Validated Final Mobile UI Refinement Checkpoint
+
+### Dashboard And Navigation
+- `/dashboard` is now map-first and limited to the primary map, compact recent places, collection shortcuts, and six category shortcuts. Large metric cards, large counts, duplicated map teasers, and secondary dashboard modules were removed.
+- The dashboard map reuses the existing MapLibre marker, coordinate, approximate-location, popup, and clustering pipeline. `查看完整地图` continues to expose `/map`, while an empty map keeps its container and offers `添加地点`.
+- Recent places are limited to the three newest compact cards. Collection previews are limited to three shortcuts. Category shortcuts route directly to `/restaurants?category=...` and retain legacy `玩乐 -> 娱乐` compatibility.
+- Bottom navigation is now 首页、地点、添加、收藏、我的. The map tab was removed; the full map remains reachable from the dashboard and existing map links. A minimal authenticated `/account` destination supports 我的 and logout.
+
+### Interaction And Readability
+- Added a shared accessible bottom-sheet primitive with dialog semantics, Escape/close handling, focus restoration, safe-area spacing, keyboard-safe scrolling, and a focused collection-creation sheet.
+- Normal application text now targets 17px, with 15px reserved for genuinely secondary metadata. Bottom-navigation items use 48px minimum height and a 72px maximum slot while fitting narrow mobile widths.
+- Dashboard cards progressively disclose only image/placeholder, name, category/subcategory, and location. Map marker selection continues to use the existing compact popup preview and `查看详情` action.
+- The one-screen-one-job hierarchy is preserved: dashboard discovers, list browses, details views, forms edit, map browses geographically, and sheets handle one short selection or creation task.
+
+### Preserved Boundaries
+- Authentication, owner-scoped RLS, private-only behavior, Supabase schema, extraction, DeepSeek, AI cache/review persistence, category normalization, collections data model, details/edit routes, map rendering, clustering, search, and filters remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `293/293` tests.
+- Interactive authenticated viewport validation at 375px, 390px, and 430px was not run in this environment; automated validation created or saved no place.
+
+## Validated Step 9 Location Hierarchy UI Checkpoint
+
+### Country-City-Places Flow
+- Added a shared local location hierarchy layer for country identity, city identity, display labels, country/city options, filtering, URL state serialization, and location search terms.
+- The map now filters in the order country -> city -> places. Country aliases use the existing conservative normalization layer, and city aliases continue to collapse only where already known.
+- Map location filtering is a compact bottom-sheet flow: select a country, then select a city. Country search appears when the saved dataset is large. Country-only records remain selectable even when no city option exists.
+- The existing MapLibre marker generation, exact/approximate coordinate behavior, popup selection, clustering, and search-before-marker-rendering pipeline remain unchanged.
+
+### Saved Places And Compatibility
+- `/restaurants` now exposes country-first location browsing with nested city links and place counts. The selected country/city narrows the existing owner-scoped place list without changing the saved-place schema or query ownership boundary.
+- Search matches country, city, and country-plus-city terms such as `Japan`, `Osaka`, `Japan Osaka`, `中国`, and `中国 上海` before map marker resolution.
+- Records with `country = null` remain in an explicit `未标注国家` group and continue to display their saved city text alone. Existing saved country/city values are not rewritten.
+- Place list cards, collection cards, details, map popups, and dashboard cards now use country-first labels when both values exist, while falling back to city-only when country is unavailable.
+- Map country/city state is preserved in URL query parameters and restored on refresh. No schema, migration, coordinate, extraction, AI, or collection-model changes were introduced.
+
+### Validation
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `299/299` tests, including country filtering, nested city filtering, same-city cross-country separation, Japan/Osaka and China/Shanghai search, country-only records, legacy null-country records, and filter-state persistence.
+- Automated validation created or saved no place.
+
+## Validated Add Flow Simplification Checkpoint
+
+### Progressive Disclosure
+- `/restaurants/new` is now a focused landing screen with only two choices: `手动添加` and `粘贴链接`. It no longer renders a URL input, manual fields, extraction explanation, AI explanation, or multiple add-method cards at once.
+- Selecting `手动添加` navigates to `/restaurants/new/manual`, which presents only the existing manual form and continues into the existing review/save flow.
+- Selecting `粘贴链接` opens one focused source-selection bottom sheet with `小红书`, `官方网站`, and `其他网页`. Selecting a source navigates to `/restaurants/new/source?source_type=...` before any URL input is shown.
+- The source step presents only the source-specific URL intake and `开始分析` action. Invalid-link errors stay on that source step; they do not appear on the Add landing page.
+- Returning from a source step preserves the selected source in the URL and reopens the source-choice sheet. Invalid or refreshed source types safely fall back to `其他网页`.
+
+### Preserved Boundaries
+- Existing source parsing, extraction, Website/Google Maps behavior, DeepSeek enrichment, review state, collection selection, save actions, database schema, authentication, and collection behavior remain unchanged.
+- The change is presentation and routing only: manual and URL flows are separated, while both still converge on the existing review/save architecture.
+- The guided flow follows `添加地点 -> 选择方式 -> 手动填写或选择来源 -> 输入链接 -> Extraction/AI Review -> Edit -> Save`.
+
+### Validation
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `303/303` tests, including Add landing, source selection, focused route, invalid-state, and back-navigation coverage.
+- `git diff --check` passed.
+
+## Validated 全部地点 Browsing Filter Checkpoint
+
+### Personal Place Library
+- `/restaurants` is now the simple personal place library. It defaults to showing all owner-scoped saved places, with no statistics cards or required filter mode.
+- A compact search and filter bar sits above the place list. Search remains local and can match saved place names, locations, and categories.
+- The city filter uses a focused bottom sheet with a country -> city hierarchy. Only cities represented by saved places appear; country-only records remain in the dataset without becoming empty city options.
+- The category filter uses canonical user-facing groups: `美食`, `景点`, `住宿`, `购物`, `娱乐`, and `其他`. Legacy `玩乐` records continue to display and match as `娱乐` without rewriting saved values.
+
+### Filter Behavior
+- City and category are optional refinements. When both are selected, they combine with search using AND logic, such as Shanghai + 美食 + `coffee`.
+- Active location/category chips support individual removal. `清除筛选` appears only when a search or filter is active, and the no-match state offers a clear-filter action.
+- Filter state is represented in `/restaurants?q=...&country=...&city=...&category=...`. Opening a place from a filtered list preserves the return path so the same library view can be restored.
+
+### Unchanged Boundaries
+- Existing owner-scoped queries, authentication, private-only behavior, saved-place schema, save flow, extraction, AI enrichment, collections, map architecture, marker rendering, clustering, coordinates, and location normalization remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `310/310` tests, including library filtering, country/city grouping, international locations, legacy category compatibility, combined search, URL state, and clear-state coverage.
+
+## Validated Step 9 Location Simplification And Area-Based Map Model Checkpoint
+
+### Area-First Location Model
+- Added the nullable `restaurants.district` field through the additive migration `20260719100000_add_restaurant_district.sql`; no existing rows are rewritten and no saved city values are changed.
+- The effective location structure is now `country -> city -> district -> address`, with latitude/longitude retained as optional rendering coordinates. Exact street-level data remains optional for place memory.
+- Added a shared conservative resolver for known city-country aliases, district aliases, and explicit manual corrections. Osaka, Tokyo, Shanghai, Paris, and New York resolve to their known countries; unknown cities remain unchanged and unresolved.
+- District evidence is accepted from Google Maps URL address data, supported structured website address data, pasted visible text, and accepted AI factual suggestions. No unsupported district or country is guessed.
+
+### Map And Display Behavior
+- Map resolution keeps exact stored coordinates first, then uses known district centers, then known city centers. Unknown areas do not fall back to an unrelated location.
+- Exact marker behavior is unchanged. Approximate markers now preserve `district` precision and are labeled `区域位置`; city fallback remains labeled `大概位置`.
+- Place cards, read-only details, collection previews, list rows, search results, and map popups display non-empty `country · city · district` labels without duplicating values. Empty country/district fields remain hidden.
+- Map and saved-place filters now support country -> city -> district selection with URL-backed state. Existing city/category/search behavior, clustering, marker generation, and filtering-before-rendering remain unchanged.
+- Forms keep city as the user-entered location, add optional district, and present country as automatically identified with manual correction available when needed.
+
+### Preserved Boundaries
+- Supabase schema is unchanged except for the additive nullable district migration. Authentication, owner-scoped RLS, private-only behavior, saved place creation, collections, extraction, AI enrichment, and the existing coordinate pipeline remain intact.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `317/317` tests, including city-country resolution, district extraction, district fallback, approximate labels, unknown-location safety, hierarchy filters, and legacy records without district.
+
+## Validated V1 UX Refinements Checkpoint
+
+### Paste Flow
+- `/restaurants/new` now offers `手动添加` or `粘贴链接` only. Selecting `粘贴链接` opens `/restaurants/new/source` immediately; the user is no longer asked to choose 小红书、官方网站 or other web first.
+- The paste page uses the single prompt `粘贴链接` / `请粘贴地点链接`. Existing source detection still classifies submitted URLs internally, including 小红书、抖音、官方网站映射和普通网页 fallback, and the review page may show the detected source as information.
+- Existing extraction, review, AI, save, collection, authentication, and privacy behavior remains unchanged.
+
+### Location And Display
+- Country is no longer presented as a required standalone form field. Forms show a compact `国家/地区 · 自动识别` row, keep the resolver-provided value in the save payload, and expose correction input only when the user requests it.
+- City and optional district remain the normal user-entered location fields. Manual country correction remains supported without making country part of the primary task.
+- Details now show one compact `国家 · 城市 · 区域` location field. Place cards, collection cards, map popups, and search results continue using the shared hierarchy formatter and hide empty parts.
+
+### Dashboard Categories
+- 首页 `按类型浏览` now uses a 3-column by 2-row grid with larger icons, 76px minimum tiles, 17px labels, 44px touch targets, and an orange focus/hover accent.
+- All six canonical categories keep direct navigation to `/restaurants?category=...`; no counts, backend queries, category logic, or recommendation behavior changed.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `319/319` tests, including paste-flow source classification, compact location labels, auto-country correction behavior, and category grid navigation/layout contracts.
+
+## Validated Navigation Simplification Checkpoint
+
+### Compact App Navigation
+- Removed the persistent bottom navigation bar from the authenticated application shell. The dashboard now stays focused on discovery and no longer reserves screen space for repeated `首页 / 地点 / 添加 / 收藏 / 我的` navigation.
+- Added a compact top app bar with the `存个地` brand trigger on the left and an always-visible orange add button on the right. The add action continues directly to `/restaurants/new` and preserves the simplified add flow.
+- Tapping the brand trigger opens one focused navigation sheet containing only `地点` -> `/restaurants`, `收藏` -> `/collections`, `地图` -> `/map`, and `我的` -> `/account`. `首页` is intentionally omitted because the user is already in the app discovery surface.
+- The menu and add action retain at least 44px touch targets, 17px navigation labels, safe-area-aware top spacing, and mobile-friendly sheet behavior.
+
+### Unchanged Boundaries
+- Routes, authentication, owner-scoped data loading, saved-place and collection models, map behavior, AI, extraction, save flow, category grid, and private-only behavior remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `320/320` tests, including top-menu destinations, add-button routing, touch-target, and typography contracts.
+
+## Validated Auto-Filled Review Flow Checkpoint
+
+### Automatic Review Draft
+- URL review now follows `粘贴链接 -> 自动整理 -> 快速确认 -> 保存`. Deterministic extraction is merged first, then eligible validated AI results are applied into the same editable draft before the review screen is shown.
+- Automatic AI application is limited to persistable fields with non-low confidence. It fills empty fields only; deterministic values remain authoritative, unsupported factual suggestions are not applied, preview-only tags/place type remain absent from the saved draft, and manual URL/form edits always win.
+- `category`, `cuisine` as the temporary subcategory, `city`, `country`, `district`, explicit `address`, explicit `phone`, and `notes` remain attributable as `ai_suggestion` when applied. The editable form remains the final source of truth and saving still requires an explicit user action.
+- Per-field confidence is preserved in URL-backed AI snapshots so refresh, cache restoration, reanalysis, and collection-creation redirects do not promote low-confidence suggestions or require acceptance again.
+
+### Focused Review UI
+- The normal review page is now one compact flow: source status, editable place form, optional `更多地点信息`, collection selection, and one prominent `保存地点` action.
+- Large extraction, AI suggestion, duplicate preview, and acceptance panels were removed from the primary flow. `重新分析` remains available only under secondary `更多操作`.
+- Source status is concise, for example `已从 teamlab.art 自动整理` or `部分信息需补充`. Missing required fields are emphasized; optional fields do not block saving. Manual website-evidence recovery remains available when a source is blocked or has no usable metadata.
+- Location remains area-first: city and district are primary, country is shown as automatically resolved with correction available, and address/source details are collapsed under `更多地点信息`.
+- Collection creation synchronizes the current URL-backed draft and selected collection ids before redirecting back to review, preserving automatic values and manual edits.
+
+### Preserved Boundaries
+- Supabase schema, authentication, owner-scoped RLS, private-only saves, DeepSeek provider, durable cache, extraction architecture, canonical categories, collections architecture, map behavior, and save confirmation boundaries remain unchanged. AI never writes directly to Supabase.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `322/322` tests.
+- Automated validation created no place records. Interactive 390x844 manual validation was not run in this environment.
+
+## Validated Dedicated Navigation Subpage Checkpoint
+
+### Navigation Route
+- The `存个地` brand/logo in the shared top app bar now links to the dedicated authenticated `/menu` navigation page instead of opening a dropdown or BottomSheet overlay.
+- `/menu` uses normal document flow with a back button, the four existing destinations, full-row navigation targets, concise subtitles, icons, and chevrons. The destinations remain `/restaurants`, `/collections`, `/map`, and `/account`.
+- The back action uses browser history when available and falls back to `/dashboard`. The orange top-right quick add action remains globally available at `/restaurants/new`.
+
+### Scroll And Boundaries
+- Navigation no longer uses a backdrop, menu portal, fixed oversized sheet, stale modal state, or navigation-specific body scroll locking. Shared BottomSheet behavior remains available for unrelated collection and map filter interactions.
+- The menu page keeps safe-area-aware app-shell spacing and naturally scrolls at 375x812, 390x844, and 430x932. All navigation rows remained fully visible in the mobile validation pass.
+- Routes, authentication, saved data, collections, map behavior, AI, extraction, category behavior, and save flow remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `324/324` tests.
+- Browser validation confirmed normal body scrolling and complete menu rows at 375x812, 390x844, and 430x932; the temporary preview tab was closed without creating or modifying a place.
+
+## Validated Dashboard Discovery Restoration Checkpoint
+
+### Dashboard Responsibility
+- `/dashboard` remains the authenticated discovery homepage, not the navigation menu. It now presents the shared `存个地` navigation trigger and quick add action, followed by the live map preview, `按类型寻找` category grid, `最近添加`, and `我的收藏集` preview.
+- The six category shortcuts remain a touch-friendly 3-column by 2-row grid and link to the existing filtered place list. Recent place cards, collection previews, and map markers are derived from the same owner-scoped data flow; no recommendation or duplicate navigation system was added.
+- `/menu` remains the dedicated route-based navigation page for `地点`, `收藏`, `地图`, and `我的`; persistent bottom navigation and overlay navigation remain removed.
+
+### Query Compatibility And Data Flow
+- Added a narrow compatibility layer for the additive `country` and `district` projections. When an older remote `restaurants` schema explicitly reports one of those optional columns as missing, list, details, map, dashboard, and collection-preview reads retry the legacy projection and normalize only those fields to `null`.
+- Other query, permission, RLS, and network errors are not converted into empty data. Development diagnostics identify the legacy projection fallback, while successful dashboard data is rendered normally instead of being mistaken for an empty account.
+- Existing saved place rows, collections, marker generation, clustering, coordinate resolution, category logic, search, extraction, AI, authentication, and private-only behavior remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `325/325` tests, including query compatibility and the existing map, collection, navigation, extraction, AI, privacy, and save-boundary suites.
+- Browser validation at 390x844 confirmed the map canvas, 2 saved places, category grid, recent-place cards, collection preview, normal scrolling, and `/menu` destination links. No place was created or modified.
+
+## Validated Dashboard Regression Fix Checkpoint
+
+### Dashboard And Navigation
+- Restored `/dashboard` as the discovery homepage with the map, `按类型寻找`, `最近添加`, and `我的收藏集` sections. The dashboard remains separate from `/menu`.
+- The top navigation menu now contains only `地点`, `收藏`, and `我的`. `地图` remains available inside 首页 and through its existing internal `/map` route, but is no longer a primary menu destination.
+- Restored the six shared category icons with larger 28px SVGs, 17px labels, the 3-column by 2-row grid, and direct category-filter links.
+
+### Location Projection Migration
+- The remote database was verified to have `country` but not `district`; the existing additive district migration was applied without rewriting restaurant rows. `public.restaurants.district` is nullable and indexed.
+- Restaurant reads now use one migrated projection containing `country`, `city`, `district`, `address`, `latitude`, and `longitude`. The legacy projection fallback and its development warning were removed, so schema drift is no longer hidden by a compatibility retry.
+- Dashboard, place list, collection previews, and map reads now load through the same formal location shape. Existing map rendering, marker resolution, clustering, search, filtering, saved data, and RLS remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `325/325` tests.
+- Browser validation at 390x844 confirmed six category icons, 8 map markers, recent places, collection preview, working `/restaurants`, working MapLibre `/map`, and a three-item `/menu`. No place was created or modified.
+
+## Validated Final One-Screen Dashboard Restoration Checkpoint
+
+### 首页 Discovery Surface
+- `/dashboard` is now a focused one-screen discovery homepage: the shared top app bar, the saved-place map, `按类型寻找`, and compact `地点`/`收藏` shortcuts are the complete primary flow.
+- Recent-place previews, collection previews, large statistics, counts, and feed-like management sections were removed from 首页. Recent places remain available from `/restaurants`, and collections remain available from `/collections`.
+- The map remains the primary feature and uses the existing MapLibre marker, clustering, coordinate, and location behavior. The dashboard loads only the owner-scoped map-place query and does not load recent-place or collection-preview data.
+- When no places are available, the map uses the compact empty state `还没有地点` and `添加地点后会显示在地图上` rather than exposing technical query errors.
+
+### Fast Entry Points
+- `按类型寻找` is a 3-column by 2-row grid for `美食`, `景点`, `住宿`, `购物`, `娱乐`, and `其他`, with larger icons, 17px labels, touch-friendly cards, and direct `/restaurants?category=...` navigation.
+- The two compact shortcut cards are `地点` -> `/restaurants` and `收藏` -> `/collections`. They contain no large counts or statistics and keep the homepage focused on quick entry.
+- The existing top-left `存个地` route trigger -> `/menu`, top-right quick add action, dedicated navigation page, authentication, private-only behavior, extraction, AI, collections, and map architecture remain unchanged.
+
+### Mobile Layout
+- The dashboard source layout targets a 390x844 viewport with safe-area-aware top navigation, a 280px map surface, a 3x2 category grid, and two compact shortcuts without horizontal overflow.
+- The homepage intentionally avoids information overload: it answers where saved places are, provides direct category discovery, and routes deeper browsing to dedicated pages.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `325/325` tests, including dashboard structure, category grid, query compatibility, map, navigation, extraction, AI, privacy, and save-boundary coverage.
+- Browser validation at 390x844 confirmed the restored dashboard structure, six category icons, two quick-navigation cards, no recent or collection preview sections, and no horizontal overflow. No place was created or modified.
+
+## Validated V1 Email-Only Login UI Checkpoint
+
+### Authentication Surface
+- `/login` now uses a centered, mobile-first 存个地 visual system with the existing star-and-dot brand, `收藏你喜欢的地方`, a single rounded login card, and concise Chinese copy.
+- The card presents `欢迎回来`, `登录账号，继续收藏地点`, visible 邮箱 and 密码 labels, 17px inputs, 52px controls, the existing `/sign-up` route as `还没有账号？立即注册`, and one orange `登录` action.
+- Password visibility is an accessible interactive control with `显示密码` / `隐藏密码` labels. Submit state uses the existing server action with `登录中…` and duplicate-submit protection.
+- Login provider errors are sanitized in the UI to concise copy; local validation messages remain readable. No raw Supabase error details are exposed on the login page.
+
+### Explicitly Omitted
+- V1 authentication remains email/password only. Google login, Apple login, OAuth controls, social dividers, third-party placeholders, password reset links, and unsupported legal links are intentionally absent.
+- Supabase authentication logic, login server action, session handling, protected routes, redirect behavior, sign-up architecture, and password validation remain unchanged.
+- Successful login continues to redirect to `/dashboard?login_success=1`; the existing one-time `你已成功登录` toast consumes and removes the signal, then dismisses without a permanent dashboard banner.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `332/332` tests, including login UI, error-sanitization, password-control, and redirect contracts.
+- Automated checks confirmed the login source contains the branded email-only form and no Google/Apple/social controls. Interactive login-page validation was limited because the available browser session was already authenticated and redirected `/login` to `/dashboard`; no authentication state was changed.
+
+## Validated Step 9A Data Loading And Location Integrity Checkpoint
+
+### Route And Authentication QA
+- Audited the public and protected entry routes: `/`, `/login`, `/sign-up`, `/dashboard`, `/menu`, `/restaurants`, `/restaurants/[id]`, `/restaurants/[id]/edit`, `/collections`, `/map`, `/settings`, and the manual/source/review add routes.
+- Root and authentication-page redirects remain server-side and loop-free: logged-out users enter `/login`, authenticated users enter `/dashboard`, and protected place, collection, map, settings, and add routes use the shared authenticated-user guard.
+- The obsolete setup/marketing surface is not linked from normal authentication or app navigation.
+
+### Query And Error-State QA
+- All restaurant reads continue through the single migrated projection containing `country`, `city`, `district`, `address`, `latitude`, and `longitude`; no legacy city-only fallback was reintroduced.
+- Added sanitized restaurant query diagnostics for projection, collection, membership, map, list, dashboard, detail, and collection-preview failures. Diagnostics keep operation, safe error identity, bounded message, and safe code/details/hint fields without exposing raw credentials, URLs, or sensitive payloads.
+- Dashboard and map now distinguish a failed data query from an empty saved-place state. Collection and review surfaces likewise avoid presenting a query failure as an empty collection list.
+- The collection detail query now explicitly selects `created_at` before ordering by it, keeping the read contract internally consistent.
+
+### Remote Schema And RLS Verification
+- Read-only remote verification confirmed `public.restaurants`, `public.collections`, `public.restaurant_collections`, and `public.ai_enrichment_cache` exist with the expected additive location/cache/collection fields, RLS enabled, authenticated owner-scoped policies, and expected indexes/constraints.
+- Existing restaurant data fingerprint remains unchanged: 10 rows, IDs `[1, 2, 4, 5, 6, 7, 8, 9, 10, 11]`, ID sum `63`.
+- The district definitions were confirmed equivalent: local `20260719100000_add_restaurant_district.sql` adds only nullable `text` column `district` and `restaurants_district_idx`, matching the remote catalog. The stale remote history entry `20260719072843` was repaired to `reverted`, and the canonical local version `20260719100000` was repaired to `applied`; the remote schema and data were not changed.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `351/351` tests.
+- Focused query-diagnostics and map-state tests passed (`10/10`).
+- Remote migration listing completed read-only; no migration was applied during this QA checkpoint.
+
+## Resolved District Migration History Checkpoint
+
+- The remote district migration timestamp discrepancy was resolved through the supported Supabase migration repair workflow, without `db push`, `db reset`, ad hoc history SQL, schema changes, RLS changes, or data changes.
+- The repository retains one canonical district migration: `20260719100000_add_restaurant_district.sql`. Final migration listing shows local and remote versions aligned, with no duplicate district migration pending.
+- Remote verification still shows `public.restaurants.district` as nullable `text` with no default, no district constraint/comment/trigger, and the existing `restaurants_district_idx` index.
+- Restaurant fingerprint remains unchanged: 10 rows, IDs `[1, 2, 4, 5, 6, 7, 8, 9, 10, 11]`, ID sum `63`.
+
+## Validated Step 9B Mobile, PWA, And Production Hardening Checkpoint
+
+### Mobile And Keyboard Reliability
+- Added shared safe-area handling for the app shell, sticky top bar, authentication surface, bottom sheets, toast, and sticky review save action using the iOS inset environment variables.
+- Added keyboard-friendly `enterKeyHint` sequencing and scroll margins for form controls so focused fields and primary actions remain reachable without custom viewport locking or persistent body position hacks.
+- Bottom sheets now use bounded, independently scrolling mobile surfaces with touch scrolling, Escape support, focus trapping, correct trigger restoration, and cleanup of the body scroll-lock marker when closed or unmounted.
+
+### PWA And Runtime Boundaries
+- The generated manifest is installable in standalone mode with the approved `/icon.svg` star-and-dot icon, root scope, and auth-aware `/` start URL. Root routing continues to send logged-out users to `/login` and authenticated users to `/dashboard`.
+- No service worker or complex offline cache was added. The V1 PWA remains online-first so authenticated Supabase responses are not cached across users.
+- Added shared route-level recovery UI for dashboard, places/details/review, collections, map, and app-level failures. It exposes only retry and safe navigation actions; error details are logged only during development.
+
+### Performance, Privacy, And Release Safety
+- MapLibre cluster refreshes now happen on the map's zoom lifecycle without React zoom state re-renders, while resize and visual viewport changes call `map.resize()` and unmount cleanup removes the map/listeners.
+- Authentication provider errors are sanitized before redirect URLs. Existing session, RLS, private-only save, DeepSeek diagnostic redaction, cache behavior, and extraction behavior remain unchanged.
+- `.env.example` documents the optional `NEXT_PUBLIC_APP_URL` alongside the existing public Supabase/PMTiles variables and server-only DeepSeek variables. No credentials were added.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `359/359` tests, including the new PWA, safe-area, keyboard, sheet, route-error, auth-sanitization, and map-lifecycle contracts.
+- `npx --yes supabase@latest migration list` passed read-only; all eight local and remote migration versions align, and no migration was applied.
+- Interactive iPhone viewport and standalone-install QA could not be completed from this session because the available in-app browser could not connect to the local development server. No authentication state or saved data was changed.
+
+## Validated Saved-Place Edit And Location Editing Checkpoint
+
+- `/restaurants/[id]/edit` now uses a compact mobile edit form with a normal back header, `编辑地点` title, secondary delete action, continuous sections for basic information, category/subcategory, notes, location, and source, plus sticky `取消` / `保存更改` actions.
+- The old `STEP 9 编辑记录` developer-stage copy, duplicated read-only cards, automatic-recognition controls, oversized source URL, and implementation explanations were removed from the user-facing edit flow.
+- Name, city, district, country, address, latitude, longitude, category, subcategory, and notes are all editable. Known country/district aliases retain canonical storage behavior while unknown/manual values remain available; blank country, district, and coordinates remain valid.
+- Local-only location search uses the existing conservative city and district datasets. Selecting a candidate explicitly updates available area fields and coordinates; map taps and draggable-marker changes update coordinates without silently overwriting manually corrected text. No geocoding, external API, or map marker-pipeline change was added.
+- Update payloads now include the full editable location set and return successfully to the existing read-only place detail route. Delete requires an explicit confirmation and uses the existing authenticated owner-scoped RLS boundary.
+- Query failures now show `暂时无法读取地点，请稍后再试`; missing records show `找不到这个地点`; save failures are sanitized to `保存失败，请重试`.
+- Collections remain on the existing join-table architecture and are shown below the edit form without changing collection behavior.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Focused edit, location-search, payload, and compatibility tests passed (`17` tests).
+- Full `npm test` passed with `365/365` tests.
+- No database migration, `db push`, `db reset`, or destructive data operation was run.

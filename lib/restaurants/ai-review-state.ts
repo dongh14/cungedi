@@ -14,7 +14,7 @@ export type AIReviewDraftState = {
   rejectedGroups: AIProposedFieldGroup[];
 };
 
-const factualFields = new Set<AIProposedFieldName>(["address", "phone", "city", "country"]);
+const factualFields = new Set<AIProposedFieldName>(["address", "phone", "city", "country", "district"]);
 const understandingFields = new Set<AIProposedFieldName>([
   "category",
   "cuisine",
@@ -26,6 +26,8 @@ const persistableFields = new Set<AIProposedFieldName>([
   "address",
   "phone",
   "city",
+  "country",
+  "district",
   "category",
   "cuisine",
   "summary",
@@ -45,10 +47,11 @@ export function getAIReviewDraftState(
   }
 
   return {
-    snapshot: result.proposal.proposedFields.map(({ field, group, value }) => ({
+    snapshot: result.proposal.proposedFields.map(({ field, group, value, confidence }) => ({
       field,
       group,
       value,
+      confidence,
     })),
     confidence: result.proposal.confidence,
     reasoningSummary: result.proposal.reasoningSummary,
@@ -85,12 +88,16 @@ export function parseAIReviewDraftState(params: {
       }
 
       const fields = parsed.group === "factual" ? factualFields : understandingFields;
+      const confidence = parsed.confidence === "low" || parsed.confidence === "medium" || parsed.confidence === "high"
+        ? parsed.confidence
+        : undefined;
 
       return fields.has(parsed.field as AIProposedFieldName)
         ? [{
             field: parsed.field as AIProposedFieldName,
             group: parsed.group as AIProposedFieldGroup,
             value: parsed.value,
+            ...(confidence ? { confidence } : {}),
           }]
         : [];
     } catch {

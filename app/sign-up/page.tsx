@@ -1,7 +1,9 @@
 import { signUpAction } from "@/app/auth/actions";
+import { redirect } from "next/navigation";
 import { AuthCard } from "@/components/auth-card";
 import { PlaceholderCard } from "@/components/placeholder-card";
 import { PublicShell } from "@/components/public-shell";
+import { getAuthenticatedUser } from "@/lib/auth/require-user";
 
 type SignUpPageProps = {
   searchParams?: Promise<{
@@ -11,6 +13,12 @@ type SignUpPageProps = {
 };
 
 export default async function SignUpPage({ searchParams }: SignUpPageProps) {
+  const user = await getAuthenticatedUser();
+
+  if (user) {
+    redirect("/dashboard");
+  }
+
   const params = (await searchParams) ?? {};
 
   return (
@@ -19,14 +27,14 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
       title="先创建账号，再开始搭建你的地点收藏"
       description="注册页与登录页现在共享同一套移动端优先视觉风格。后续你可以在这个基础上继续保存美食、购物、娱乐、景点、住宿和其他地点。"
       aside={
-        <PlaceholderCard
-          title="注册后的下一站"
-          description="如果当前 Supabase 项目允许自动登录，你会直接进入受保护的总览页；如果开启了邮箱确认，就先完成邮箱确认再登录。"
-          items={[
-            "登录与注册页面都保持简体中文可见文案。",
-            "English 作为后续次级选项预留。",
-            "当前不加入额外翻译系统，避免超出 Step 6 范围。",
-          ]}
+          <PlaceholderCard
+            title="注册后的下一站"
+            description="创建个人账号后，你就可以开始保存和整理喜欢的地点。"
+            items={[
+              "使用邮箱和密码创建账号。",
+              "注册后即可开始添加地点。",
+              "邮箱确认仍按当前账号设置执行。",
+            ]}
         />
       }
     >

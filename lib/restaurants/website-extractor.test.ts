@@ -57,9 +57,30 @@ test("parses Restaurant JSON-LD fields safely", () => {
     "name",
     "category",
     "address",
+    "city",
     "phone",
     "websiteUrl",
   ]);
+});
+
+test("extracts a supported district from structured address data", () => {
+  const result = websiteExtractor.extract("https://example.com/restaurant", {
+    structuredData: {
+      "@type": "Restaurant",
+      name: "Shizuku",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "南京西路 1 号",
+        addressLocality: "上海",
+        addressRegion: "静安区",
+      },
+    },
+  });
+
+  assert.equal(result.city, "上海");
+  assert.equal(result.district, "静安区");
+  assert.equal(result.fieldOrigins?.district, "structured");
+  assert.equal(result.extractedFields.includes("district"), true);
 });
 
 test("parses LocalBusiness JSON-LD from HTML", () => {

@@ -7,19 +7,25 @@ import type {
   AIProposedField,
   AIProposedFieldGroup,
 } from "@/lib/restaurants/ai-enrichment";
-import { getPlaceCategoryLabel } from "@/lib/restaurants/constants";
+import { getPlaceCategoryLabel, getPlaceSubtypeLabel } from "@/lib/restaurants/constants";
 
 function getStatusLabel(status: AIEnrichmentResult["status"]) {
   switch (status) {
     case "suggestions_available":
-      return "AI improvement available";
+      return "有一些可以补充的内容";
     case "no_changes":
-      return "No AI changes needed";
+      return "暂时不需要额外补充";
     case "failed":
-      return "AI enrichment failed";
+      return "这次补充没有完成";
     default:
-      return "AI enrichment unavailable";
+      return "智能补充暂不可用";
   }
+}
+
+function getFriendlyMessage(message: string) {
+  if (message.includes("invalid JSON")) return "这次智能补充没有完成，你仍然可以手动填写。";
+  if (message.includes("not configured")) return "智能补充暂未配置，不影响手动保存。";
+  return message;
 }
 
 const fieldLabels: Record<string, string> = {
@@ -39,7 +45,7 @@ const groupLabels: Record<AIProposedFieldGroup, string> = {
   understanding: "AI understanding suggestions",
 };
 
-const persistedFields = new Set(["address", "phone", "city", "category", "cuisine", "summary"]);
+const persistedFields = new Set(["address", "phone", "city", "country", "category", "cuisine", "summary"]);
 
 export function AIEnrichmentCard({
   result,
@@ -146,7 +152,11 @@ export function AIEnrichmentCard({
                 >
                   <span className="font-semibold">{fieldLabels[field.field] ?? field.field}</span>
                   <span className="ml-2 break-words text-[var(--ink-soft)]">
-                    {field.field === "category" ? getPlaceCategoryLabel(field.value) : field.value}
+                    {field.field === "category"
+                      ? getPlaceCategoryLabel(field.value)
+                      : field.field === "cuisine"
+                        ? getPlaceSubtypeLabel(field.value)
+                        : field.value}
                   </span>
                   {accepted.has(field.field) ? (
                     <span className="ml-2 text-xs font-semibold text-emerald-700">已接受</span>
@@ -187,13 +197,10 @@ export function AIEnrichmentCard({
     <SurfaceCard className="p-5 sm:p-6">
       <div className="space-y-4">
         <div>
-          <span className="inline-flex rounded-full bg-[var(--surface-muted)] px-3 py-1 text-xs font-semibold tracking-[0.16em] text-[var(--ink-soft)] uppercase">
-            AI enrichment
-          </span>
-          <h2 className="mt-3 [font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-            可选的智能补充
+          <h2 className="[font-family:var(--font-display)] text-xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
+            可以参考的补充
           </h2>
-          <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
+          <p className="mt-2 text-xs leading-6 text-[var(--ink-soft)]">
             AI 只会提出建议，不会自动覆盖来源提取结果或手动编辑，也不会直接保存到地点记录。
           </p>
         </div>
@@ -204,17 +211,18 @@ export function AIEnrichmentCard({
               {getStatusLabel(result.status)}
             </p>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-              {result.status}
+              {getStatusLabel(result.status)}
             </span>
           </div>
-          <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">{result.message}</p>
+          <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">{getFriendlyMessage(result.message)}</p>
 
           {visibleFields.length ? (
             <>
-              <div className="mt-4 rounded-[18px] bg-white p-3 text-sm leading-7 text-[var(--ink-soft)]">
-                <p><span className="font-semibold text-[var(--ink-strong)]">置信度：</span>{result.proposal?.confidence ?? "-"}</p>
-                <p><span className="font-semibold text-[var(--ink-strong)]">原因：</span>{result.proposal?.reasoningSummary ?? "-"}</p>
-              </div>
+              <details className="mt-4 rounded-[18px] bg-white p-3 text-xs leading-6 text-[var(--ink-soft)]">
+                <summary className="cursor-pointer font-semibold text-[var(--ink-strong)]">查看判断依据</summary>
+                <p className="mt-2">置信度：{result.proposal?.confidence ?? "-"}</p>
+                <p>原因：{result.proposal?.reasoningSummary ?? "-"}</p>
+              </details>
               <div className="mt-4 space-y-3">{groups.map(renderGroup)}</div>
             </>
           ) : null}

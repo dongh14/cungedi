@@ -1,126 +1,45 @@
-import type { RestaurantListItem } from "@/lib/restaurants/types";
 import Link from "next/link";
+import { AppIcon } from "@/components/app-icon";
+import type { RestaurantListItem } from "@/lib/restaurants/types";
+import { getPlaceCategoryLabel, getPlaceSubtypeLabel } from "@/lib/restaurants/constants";
 import { cn } from "@/lib/utils";
-import { getPlaceCategoryLabel } from "@/lib/restaurants/constants";
+import { formatHierarchyLocationLabel } from "@/lib/location-hierarchy";
 
 type RestaurantListCardProps = {
   restaurant: RestaurantListItem;
   isNewlyCreated?: boolean;
+  returnTo?: string;
 };
 
-function formatSavedDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
-}
-
 function getSourceHostLabel(value: string) {
-  try {
-    return new URL(value).hostname.replace(/^www\./, "");
-  } catch {
-    return "原始来源";
-  }
+  try { return new URL(value).hostname.replace(/^www\./, ""); } catch { return "原始来源"; }
 }
 
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null;
-}) {
-  return (
-    <div className="rounded-[22px] bg-white/75 px-4 py-3">
-      <p className="text-xs font-medium tracking-[0.08em] text-[var(--ink-muted)] uppercase">
-        {label}
-      </p>
-      <p className="mt-2 text-sm leading-6 text-[var(--ink-strong)]">
-        {value ? value : "暂未填写"}
-      </p>
-    </div>
-  );
+function getReturnAwareHref(path: string, returnTo: string) {
+  return returnTo === "/restaurants" ? path : `${path}?return_to=${encodeURIComponent(returnTo)}`;
 }
 
-export function RestaurantListCard({
-  restaurant,
-  isNewlyCreated = false,
-}: RestaurantListCardProps) {
+export function RestaurantListCard({ restaurant, isNewlyCreated = false, returnTo = "/restaurants" }: RestaurantListCardProps) {
+  const detailHref = getReturnAwareHref(`/restaurants/${restaurant.id}`, returnTo);
+
   return (
-    <article
-      className={cn(
-        "rounded-[28px] border p-5 shadow-[0_18px_50px_rgba(145,72,30,0.08)] transition sm:p-6",
-        isNewlyCreated
-          ? "border-[var(--accent)] bg-[linear-gradient(180deg,rgba(255,91,0,0.12),rgba(255,255,255,0.95))]"
-          : "border-[var(--border-soft)] bg-[var(--surface-muted)]",
-      )}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              <Link
-                href={`/restaurants/${restaurant.id}`}
-                className="rounded-md underline-offset-4 hover:underline focus:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent-glow)]"
-              >
-                {restaurant.name}
-              </Link>
-            </h3>
-            {isNewlyCreated ? (
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[var(--accent-deep)]">
-                刚刚保存
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-            {restaurant.city}
-          </p>
+    <article className={cn("saved-place-row", isNewlyCreated && "saved-place-row-new")}>
+      <Link href={detailHref} className="saved-place-thumb" aria-label={`查看${restaurant.name}`}>
+        <span className="brand-mark-star">✦</span>
+      </Link>
+      <div className="saved-place-main">
+        <div className="saved-place-heading">
+          <div className="min-w-0"><h3 className="place-name-title"><Link href={detailHref}>{restaurant.name}</Link></h3><p className="place-card-metadata">{getPlaceCategoryLabel(restaurant.category)}{formatHierarchyLocationLabel(restaurant.country, restaurant.city, restaurant.district) ? ` · ${formatHierarchyLocationLabel(restaurant.country, restaurant.city, restaurant.district)}` : ""}</p></div>
+          {isNewlyCreated ? <span className="saved-place-new-label">刚刚保存</span> : <AppIcon name="chevron" size={16} className="shrink-0 text-[var(--ink-muted)]" />}
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-            分类：{getPlaceCategoryLabel(restaurant.category)}
-          </span>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-            保存于 {formatSavedDate(restaurant.created_at)}
-          </span>
+        <div className="saved-place-meta">
+          <span>{getPlaceSubtypeLabel(restaurant.cuisine, restaurant.category) || restaurant.address || "还可以继续补充"}</span>
+          <span>{getSourceHostLabel(restaurant.source_url)}</span>
         </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        <DetailItem label="分类" value={getPlaceCategoryLabel(restaurant.category)} />
-        <DetailItem label="子分类" value={restaurant.cuisine} />
-        <DetailItem label="地址" value={restaurant.address} />
-      </div>
-
-      <div className="mt-3 rounded-[22px] bg-white/75 px-4 py-3">
-        <p className="text-xs font-medium tracking-[0.08em] text-[var(--ink-muted)] uppercase">
-          备注
-        </p>
-        <p className="mt-2 text-sm leading-7 text-[var(--ink-strong)]">
-          {restaurant.note ? restaurant.note : "暂未填写"}
-        </p>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
-          来源：{getSourceHostLabel(restaurant.source_url)}
-        </span>
-        <a
-          href={restaurant.source_url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex rounded-full bg-[var(--ink-strong)] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--accent)]"
-        >
-          打开来源链接
-        </a>
-        <Link
-          href={`/restaurants/${restaurant.id}/edit`}
-          className="inline-flex rounded-full border border-[var(--border-soft)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-        >
-          编辑地点
-        </Link>
+        <div className="saved-place-actions">
+          <Link href={`/restaurants/${restaurant.id}/edit`}><AppIcon name="edit" size={14} />编辑</Link>
+          <a href={restaurant.source_url} target="_blank" rel="noreferrer"><AppIcon name="external" size={14} />来源</a>
+        </div>
       </div>
     </article>
   );

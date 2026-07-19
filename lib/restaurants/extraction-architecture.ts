@@ -1,3 +1,5 @@
+import { hasExplicitBarEvidence } from "./cuisine-inference.ts";
+
 export const sourceTypes = [
   "unknown",
   "website",
@@ -20,6 +22,8 @@ export const extractionFields = [
   "category",
   "cuisine",
   "city",
+  "country",
+  "district",
   "address",
   "phone",
   "latitude",
@@ -43,6 +47,8 @@ export type NormalizedExtractionResult = {
   category: string | null;
   cuisine?: string | null;
   city: string | null;
+  country?: string | null;
+  district?: string | null;
   address: string | null;
   phone: string | null;
   latitude: number | null;
@@ -77,6 +83,25 @@ export type Extractor = {
   canHandle: (sourceType: SourceType) => boolean;
   extract: (sourceUrl: string, input?: WebsiteExtractionInput) => NormalizedExtractionResult;
 };
+
+export function mapGoogleMapsPlaceTypes(types: string[], evidenceText = "") {
+  const normalizedTypes = types.map((type) => type.trim().toLocaleLowerCase().replace(/[\s-]+/g, "_"));
+  const hasBarType = normalizedTypes.some((type) => type === "bar" || type === "pub");
+  const hasRestaurantType = normalizedTypes.includes("restaurant");
+  const hasNightclubType = normalizedTypes.includes("night_club") || normalizedTypes.includes("nightclub");
+
+  if (hasBarType || (hasRestaurantType && hasExplicitBarEvidence(evidenceText))) {
+    return { category: "美食", cuisine: "酒吧" } as const;
+  }
+
+  if (hasNightclubType) {
+    return hasExplicitBarEvidence(evidenceText)
+      ? ({ category: "美食", cuisine: "酒吧" } as const)
+      : ({ category: "娱乐", cuisine: null } as const);
+  }
+
+  return { category: null, cuisine: null } as const;
+}
 
 function getHostname(sourceUrl: string) {
   try {
@@ -153,6 +178,8 @@ function buildEmptyResult(
     description: null,
     category: null,
     city: null,
+    country: null,
+    district: null,
     address: null,
     phone: null,
     latitude: null,
@@ -273,11 +300,30 @@ function extractGoogleMapsUrl(sourceUrl: string): NormalizedExtractionResult {
   }
 
   const address = parsedUrl?.searchParams.get("address")?.trim() || null;
+  const explicitCountry = parsedUrl?.searchParams.get("country")?.trim() || null;
+  const explicitPlaceTypes = ["type", "types", "place_type", "category"]
+    .flatMap((key) => parsedUrl?.searchParams.getAll(key) ?? [])
+    .flatMap((value) => value.split(/[|,\s]+/u))
+    .filter(Boolean);
+  const typeClassification = mapGoogleMapsPlaceTypes(explicitPlaceTypes, name ?? "");
+  const area = resolvePlaceArea({
+    address,
+    country: explicitCountry,
+    city: findKnownCityInText(address),
+  });
+  const city = area.city;
+  const country = area.country;
+  const district = area.district;
   const { latitude, longitude } = extractGoogleMapsCoordinates(sourceUrl);
   const hasCoordinates = latitude !== null && longitude !== null;
   const extractedFields = [
     ...(name ? (["name"] as const) : []),
+    ...(typeClassification.category ? (["category"] as const) : []),
+    ...(typeClassification.cuisine ? (["cuisine"] as const) : []),
     ...(address ? (["address"] as const) : []),
+    ...(country ? (["country"] as const) : []),
+    ...(district ? (["district"] as const) : []),
+    ...(city ? (["city"] as const) : []),
     ...(hasCoordinates ? (["latitude", "longitude"] as const) : []),
   ];
 
@@ -297,7 +343,12 @@ function extractGoogleMapsUrl(sourceUrl: string): NormalizedExtractionResult {
         "Only explicit information from the Google Maps URL was extracted; review the remaining fields.",
     }),
     name: name ?? null,
+    category: typeClassification.category,
+    cuisine: typeClassification.cuisine,
+    city,
     address,
+    country,
+    district,
     latitude,
     longitude,
     extractedFields: [...extractedFields],
@@ -430,6 +481,9 @@ function extractWebsiteUrl(
     parsedWebsite.metadata.description;
   const category = structured?.category ?? null;
   const address = structured?.address ?? null;
+  const city = structured?.city ?? null;
+  const country = structured?.country ?? null;
+  const district = structured?.district ?? null;
   const phone = structured?.phone ?? null;
   const websiteUrl = structured?.websiteUrl ?? null;
   const imageUrl = structured?.imageUrl ?? parsedWebsite.metadata.ogImage ?? null;
@@ -438,6 +492,9 @@ function extractWebsiteUrl(
     ...(description ? (["description"] as const) : []),
     ...(category ? (["category"] as const) : []),
     ...(address ? (["address"] as const) : []),
+    ...(city ? (["city"] as const) : []),
+    ...(country ? (["country"] as const) : []),
+    ...(district ? (["district"] as const) : []),
     ...(phone ? (["phone"] as const) : []),
     ...(websiteUrl ? (["websiteUrl"] as const) : []),
     ...(imageUrl ? (["imageUrl"] as const) : []),
@@ -452,7 +509,7 @@ function extractWebsiteUrl(
   }
 
   const hasStructuredName = Boolean(structured?.name);
-  const hasStructuredDetails = Boolean(category || address || phone || websiteUrl);
+  const hasStructuredDetails = Boolean(category || address || city || country || district || phone || websiteUrl);
   const confidence = hasStructuredName
     ? hasStructuredDetails
       ? "high"
@@ -470,6 +527,9 @@ function extractWebsiteUrl(
     name,
     description,
     category,
+    city,
+    country,
+    district,
     address,
     phone,
     websiteUrl,
@@ -488,7 +548,7 @@ function extractWebsiteUrl(
             : selectedName.source === "url"
               ? "url"
               : "metadata"
-          : ["category", "address", "phone", "websiteUrl"].includes(field)
+          : ["category", "address", "city", "country", "district", "phone", "websiteUrl"].includes(field)
             ? "structured"
             : field === "imageUrl" && structured?.imageUrl
               ? "structured"
@@ -574,6 +634,7 @@ import {
   type GoogleMapsUrlResolution,
   type GoogleMapsUrlResolverOptions,
 } from "./google-maps-url-resolver.ts";
+import { findKnownCityInText, resolvePlaceArea } from "../location.ts";
 
 export async function runExtractionPipelineWithWebsiteFetch(
   sourceUrl: string,

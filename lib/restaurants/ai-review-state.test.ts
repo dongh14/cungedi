@@ -11,7 +11,7 @@ const result: AIEnrichmentResult = {
   status: "suggestions_available",
   message: "AI improvement available.",
   proposal: {
-    factualSuggestions: { address: "静安区", phone: null, city: "上海", country: null },
+    factualSuggestions: { address: "静安区", phone: null, city: "上海", country: null, district: null },
     understandingSuggestions: {
       category: "美食",
       cuisine: "咖啡",

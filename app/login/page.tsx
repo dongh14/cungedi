@@ -1,7 +1,9 @@
 import { loginAction } from "@/app/auth/actions";
+import { redirect } from "next/navigation";
 import { AuthCard } from "@/components/auth-card";
-import { PlaceholderCard } from "@/components/placeholder-card";
-import { PublicShell } from "@/components/public-shell";
+import { SiteBrand } from "@/components/site-brand";
+import { getSafeLoginErrorMessage } from "@/lib/auth/login-ui";
+import { getAuthenticatedUser } from "@/lib/auth/require-user";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -11,37 +13,40 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const user = await getAuthenticatedUser();
+
+  if (user) {
+    redirect("/dashboard");
+  }
+
   const params = (await searchParams) ?? {};
 
   return (
-    <PublicShell
-      eyebrow="账号入口"
-      title="登录后继续进入你的地点收藏面板"
-      description="登录页现在已经纳入统一视觉风格。它会带你进入移动端优先的主导航外壳，并继续进入你的个人地点收藏流程。"
-      aside={
-        <>
-          <PlaceholderCard
-            title="登录后会看到什么"
-            description="登录成功后会进入主页面总览，并可以通过底部导航访问添加入口、已收藏与地图页占位。 "
-            items={[
-              "页面已经按 iPhone 竖屏节奏排版。",
-              "地点录入、列表和地图能力都已经接入当前主路径。",
-              "RLS 仍会继续保护你后续的数据访问。",
-            ]}
+    <main className="login-page">
+      <div className="login-page-content">
+        <div className="login-brand">
+          <SiteBrand
+            href="/login"
+            subtitle="收藏你喜欢的地方"
+            className="login-brand-link"
           />
-        </>
-      }
-    >
+        </div>
       <AuthCard
         formAction={loginAction}
-        title="邮箱登录"
-        description="使用 Supabase 邮箱密码登录。当前阶段重点是地点收藏主路径与导航体验。"
+        title="欢迎回来"
+        description="登录账号，继续收藏地点"
         submitLabel="登录"
-        accentLabel="第三步认证"
         alternateHref="/sign-up"
-        alternateLabel="没有账号？去注册"
-        searchParams={params}
+        alternateLabel="还没有账号？立即注册"
+        emailPlaceholder="请输入邮箱"
+        passwordPlaceholder="请输入密码"
+        searchParams={{
+          ...params,
+          error: getSafeLoginErrorMessage(params.error),
+        }}
+        variant="login"
       />
-    </PublicShell>
+      </div>
+    </main>
   );
 }

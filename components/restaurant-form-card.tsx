@@ -1,9 +1,12 @@
 import { startRestaurantReviewAction } from "@/app/restaurants/actions";
+import { AppIcon } from "@/components/app-icon";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import {
   RestaurantFormFields,
   type RestaurantFormFieldValues,
 } from "@/components/restaurant-form-fields";
 import { SurfaceCard } from "@/components/surface-card";
+import { resolvePlaceArea } from "@/lib/location";
 type RestaurantFormCardProps = {
   searchParams: Partial<RestaurantFormFieldValues> & {
     error?: string;
@@ -15,6 +18,8 @@ export function RestaurantFormCard({ searchParams }: RestaurantFormCardProps) {
   const values: RestaurantFormFieldValues = {
     name: searchParams.name ?? "",
     city: searchParams.city ?? "",
+    country: searchParams.country ?? resolvePlaceArea({ city: searchParams.city }).country ?? "",
+    district: searchParams.district ?? "",
     source_input: searchParams.source_input ?? "",
     category: searchParams.category ?? "",
     address: searchParams.address ?? "",
@@ -23,19 +28,12 @@ export function RestaurantFormCard({ searchParams }: RestaurantFormCardProps) {
   };
 
   return (
-    <SurfaceCard className="p-5 sm:p-6">
+    <SurfaceCard className="form-surface p-4 sm:p-5">
       <div className="space-y-5">
         <div className="space-y-3">
-          <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-            手动录入
-          </span>
           <div>
-            <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              手动填写后再确认保存
-            </h2>
-            <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这里保留纯手动录入兜底。你可以先填好地点信息，再进入下一步检查字段，确认后再真正保存。
-            </p>
+            <div className="form-card-title"><span className="form-card-icon form-card-icon-green"><AppIcon name="edit" size={17} /></span><h2>手动添加</h2></div>
+            <p className="form-card-subtitle">已有信息？直接填写，保存前还会有一次确认。</p>
           </div>
         </div>
 
@@ -52,14 +50,9 @@ export function RestaurantFormCard({ searchParams }: RestaurantFormCardProps) {
         ) : null}
 
         <form action={startRestaurantReviewAction} className="space-y-5">
-          <RestaurantFormFields values={values} />
+          <RestaurantFormFields values={values} persistToUrl />
 
-          <button
-            type="submit"
-            className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
-          >
-            进入保存前确认
-          </button>
+          <FormSubmitButton idleLabel="进入保存前确认" pendingLabel="处理中…" />
         </form>
       </div>
     </SurfaceCard>

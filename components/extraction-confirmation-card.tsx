@@ -1,132 +1,136 @@
 import { createRestaurantAction } from "@/app/restaurants/actions";
+import { ReviewSaveButton } from "@/components/review-save-button";
+import { AIRefreshControl } from "@/components/ai-refresh-control";
 import { RestaurantFormFields } from "@/components/restaurant-form-fields";
 import { SurfaceCard } from "@/components/surface-card";
+import type { AIEnrichmentStatus } from "@/lib/restaurants/ai-enrichment";
 import type { NormalizedExtractionResult } from "@/lib/restaurants/extraction-architecture";
-import type { AIProposedFieldName } from "@/lib/restaurants/ai-enrichment";
 import type { MergedPlaceDraft } from "@/lib/restaurants/place-draft-merge";
-import { buildSourceIntake } from "@/lib/restaurants/source-intake";
-import {
-  getInitialDraftFormValues,
-  getMissingDraftFields,
-  type ReviewSearchParams,
-} from "@/lib/restaurants/review-form";
+import { getInitialDraftFormValues, getMissingDraftFields, type ReviewSearchParams } from "@/lib/restaurants/review-form";
 
-type ExtractionConfirmationCardProps = {
-  sourceUrl: string;
-  searchParams: ReviewSearchParams;
-  extractionResult?: NormalizedExtractionResult;
-  mergedDraft?: MergedPlaceDraft;
-  sourceUrls?: string[];
-  acceptedAIFields?: AIProposedFieldName[];
-};
+function getSourceHost(sourceUrl: string) {
+  try {
+    return new URL(sourceUrl).hostname.replace(/^www\./, "");
+  } catch {
+    return "来源链接";
+  }
+}
+
+function getSourceLabel(result: NormalizedExtractionResult | undefined) {
+  switch (result?.sourceType) {
+    case "google_maps":
+      return "Google Maps";
+    case "xiaohongshu":
+      return "小红书链接";
+    case "douyin":
+      return "抖音链接";
+    default:
+      return "网页链接";
+  }
+}
+
+function getSourceStatus(
+  results: NormalizedExtractionResult[],
+  aiStatus: AIEnrichmentStatus,
+) {
+  const hasUsableExtraction = results.some(
+    (result) => result.extractionStatus === "success" || result.extractionStatus === "partial",
+  );
+
+  if (hasUsableExtraction || aiStatus === "suggestions_available") {
+    return "已整理";
+  }
+
+  if (aiStatus === "failed" || aiStatus === "unavailable") {
+    return "部分信息需补充";
+  }
+
+  return "链接无法读取";
+}
 
 export function ExtractionConfirmationCard({
   sourceUrl,
   searchParams,
-  extractionResult: providedExtractionResult,
   mergedDraft,
   sourceUrls,
-  acceptedAIFields = [],
-}: ExtractionConfirmationCardProps) {
-  const reviewDraft =
-    mergedDraft ?? providedExtractionResult ?? buildSourceIntake(sourceUrl).extractionResult;
-  const values = getInitialDraftFormValues(searchParams, sourceUrl, reviewDraft);
+  extractionResults = [],
+  aiStatus = "unavailable",
+  refreshParams = [],
+  hideSave = false,
+}: {
+  sourceUrl: string;
+  searchParams: ReviewSearchParams;
+  mergedDraft: MergedPlaceDraft;
+  sourceUrls?: string[];
+  extractionResults?: NormalizedExtractionResult[];
+  aiStatus?: AIEnrichmentStatus;
+  refreshParams?: Array<readonly [string, string]>;
+  hideSave?: boolean;
+}) {
+  const values = getInitialDraftFormValues(searchParams, sourceUrl, mergedDraft);
   const missingFields = getMissingDraftFields(values);
+  const requiredMissingFields = missingFields.filter((field) => field.required);
+  const sourceResult = extractionResults[0];
+  const sourceStatus = getSourceStatus(extractionResults, aiStatus);
+  const sourceLabel = getSourceLabel(sourceResult);
 
   return (
-    <SurfaceCard className="p-5 sm:p-6">
-      <div className="space-y-5">
-        <div className="space-y-3">
-          <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-            保存前确认
-          </span>
-          <div>
-            <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              检查字段，确认后再保存
-            </h2>
-            <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步不会自动创建任何记录。你可以继续修改名称、分类、城市、地址、来源链接和备注，只有点击保存后才会进入现有的服务端创建流程。
-            </p>
-          </div>
+    <SurfaceCard className="form-surface p-4 sm:p-5">
+      <div className="space-y-4">
+        <div className="review-source-status">
+          <span className="status-dot" aria-hidden="true" />
+          <span>已从 {getSourceHost(sourceUrl)} 自动整理</span>
+          <strong>{sourceStatus}</strong>
+          <small>{sourceLabel}</small>
         </div>
 
         {searchParams.message ? (
-          <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {searchParams.message}
-          </div>
+          <div className="review-inline-message review-inline-message-success">{searchParams.message}</div>
         ) : null}
-
         {searchParams.error ? (
-          <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {searchParams.error}
-          </div>
+          <div className="review-inline-message review-inline-message-error">{searchParams.error}</div>
         ) : null}
 
-        <div className="rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4">
-          <p className="text-xs font-semibold tracking-[0.16em] text-[var(--accent-deep)] uppercase">
-            当前保存边界
-          </p>
-          <ul className="mt-3 space-y-2 text-sm leading-7 text-[var(--ink-soft)]">
-            <li>- 网站来源只获取当前页面，解析结果不会自动保存任何草稿。</li>
-            <li>- `source_url` 会和这条地点记录一起保存。</li>
-            <li>- 你当前确认的值，就是最终写入的地点内容。</li>
-          </ul>
-        </div>
+        {requiredMissingFields.length > 0 ? (
+          <div className="review-missing-note">
+            <strong>还需要补充少量信息</strong>
+            <span>{requiredMissingFields.map((field) => field.label).join("、")}</span>
+          </div>
+        ) : missingFields.length > 0 ? (
+          <p className="review-optional-note">可选信息暂未填写，不影响保存。</p>
+        ) : null}
 
-        <div className="rounded-[24px] border border-dashed border-[var(--border-soft)] bg-white/70 p-4">
-          {acceptedAIFields.length > 0 ? (
-            <div className="mb-4 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-7 text-emerald-800">
-              AI 建议已填入下方表单。保存前可继续修改。
-            </div>
-          ) : null}
-          <p className="text-sm font-semibold text-[var(--ink-strong)]">仍需你检查的字段</p>
-          {missingFields.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {missingFields.map((field) => (
-                <span
-                  key={field.key}
-                  className="rounded-full border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-1 text-xs font-medium text-[var(--ink-soft)]"
-                >
-                  {field.label}
-                  {field.required ? " · 必填" : " · 可选"}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              当前必填字段都已经填写，你仍然可以继续修改名称、城市、地址、子分类和备注。
-            </p>
-          )}
-        </div>
-
-        <form id="review-save-form" action={createRestaurantAction} className="space-y-5">
+        <form id="review-save-form" action={createRestaurantAction} className="review-edit-form">
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="review_source_url" value={sourceUrl} />
           {searchParams.manual_evidence ? (
             <input type="hidden" name="manual_evidence" value={searchParams.manual_evidence} />
           ) : null}
           {sourceUrls?.slice(1).map((additionalSourceUrl) => (
-            <input
-              key={additionalSourceUrl}
-              type="hidden"
-              name="source_urls"
-              value={additionalSourceUrl}
-            />
+            <input key={additionalSourceUrl} type="hidden" name="source_urls" value={additionalSourceUrl} />
           ))}
           <RestaurantFormFields
-            values={values}
+            values={{ ...values, district: values.district ?? "" }}
             persistToUrl
+            compactReview
             sourceLabel="来源链接"
-            sourceHint="保存时仍会只写入第一个有效的 http 或 https 链接。你可以修改这条来源，但在点击保存前不会自动创建任何记录。"
+            sourceHint="来源仅作为外部参考保存，不会在你点击保存前创建地点记录。"
           />
-
-          <button
-            type="submit"
-            className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
-          >
-            确认并保存地点
-          </button>
+          {!hideSave ? (
+            <div className="review-final-action">
+              <p>确认无误后再保存，地点不会自动创建。</p>
+              <ReviewSaveButton />
+            </div>
+          ) : null}
         </form>
+        {refreshParams.length > 0 && (aiStatus === "suggestions_available" || aiStatus === "no_changes") ? (
+          <details className="review-more-details">
+            <summary>更多操作</summary>
+            <div className="review-more-details-content">
+              <AIRefreshControl params={refreshParams} />
+            </div>
+          </details>
+        ) : null}
       </div>
     </SurfaceCard>
   );

@@ -2,6 +2,7 @@ import {
   resolveApproximateCityCenter,
   type ApproximateCityCenterLocation,
 } from "./city-centers.ts";
+import { resolveApproximateAreaCenter, type AreaCenterLocation } from "./area-centers.ts";
 
 export const exactLocationPrecision = "exact" as const;
 export const storedCoordinatesSource = "stored_coordinates" as const;
@@ -23,12 +24,14 @@ export type UnresolvedPlaceLocation = {
 export type ResolvedPlaceLocation =
   | {
       status: "resolved";
-      location: ExactStoredLocation | ApproximateCityCenterLocation;
+      location: ExactStoredLocation | ApproximateCityCenterLocation | AreaCenterLocation;
     }
   | UnresolvedPlaceLocation;
 
 export type PlaceLocationInput = {
   city?: string | null;
+  country?: string | null;
+  district?: string | null;
   latitude?: number | null;
   longitude?: number | null;
 };
@@ -38,11 +41,11 @@ type PlaceLocationInputWithExactCoordinates = PlaceLocationInput & {
   longitude: number;
 };
 
-function isValidLatitude(latitude: number) {
+export function isValidLatitude(latitude: number) {
   return Number.isFinite(latitude) && latitude >= -90 && latitude <= 90;
 }
 
-function isValidLongitude(longitude: number) {
+export function isValidLongitude(longitude: number) {
   return Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
 }
 
@@ -64,7 +67,7 @@ export function resolvePlaceLocation(input: PlaceLocationInput): ResolvedPlaceLo
     return {
       status: "resolved",
       location: {
-        normalizedCityName: resolveApproximateCityCenter(input.city)?.normalizedCityName ?? null,
+        normalizedCityName: resolveApproximateCityCenter(input.city, input.country)?.normalizedCityName ?? null,
         latitude: input.latitude,
         longitude: input.longitude,
         precision: exactLocationPrecision,
@@ -78,7 +81,20 @@ export function resolvePlaceLocation(input: PlaceLocationInput): ResolvedPlaceLo
     typeof input.latitude === "number" || typeof input.longitude === "number";
 
   if (hasPartialCoordinate) {
-    const approximateCityCenter = resolveApproximateCityCenter(input.city);
+    const approximateAreaCenter = resolveApproximateAreaCenter(
+      input.district,
+      input.city,
+      input.country,
+    );
+
+    if (approximateAreaCenter) {
+      return {
+        status: "resolved",
+        location: approximateAreaCenter,
+      };
+    }
+
+    const approximateCityCenter = resolveApproximateCityCenter(input.city, input.country);
 
     if (approximateCityCenter) {
       return {
@@ -88,7 +104,19 @@ export function resolvePlaceLocation(input: PlaceLocationInput): ResolvedPlaceLo
     }
   }
 
-  const approximateCityCenter = resolveApproximateCityCenter(input.city);
+  const approximateCityCenter = resolveApproximateCityCenter(input.city, input.country);
+  const approximateAreaCenter = resolveApproximateAreaCenter(
+    input.district,
+    input.city,
+    input.country,
+  );
+
+  if (approximateAreaCenter) {
+    return {
+      status: "resolved",
+      location: approximateAreaCenter,
+    };
+  }
 
   if (approximateCityCenter) {
     return {

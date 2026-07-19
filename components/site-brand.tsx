@@ -4,39 +4,47 @@ import { cn } from "@/lib/utils";
 type SiteBrandProps = {
   href?: string;
   compact?: boolean;
+  subtitle?: string;
+  className?: string;
 };
 
 export function SiteBrand({
   href = "/",
   compact = false,
+  subtitle = "发现喜欢的地方，随时有个地。",
+  className,
 }: SiteBrandProps) {
   return (
     <Link
       href={href}
       className={cn(
+        "site-brand-link",
         "inline-flex items-center gap-3 text-left",
         compact ? "gap-2.5" : "gap-3.5",
+        className,
       )}
     >
       <span
         className={cn(
-          "inline-flex items-center justify-center rounded-[22px] bg-[var(--accent)] text-white shadow-[0_14px_30px_rgba(255,91,0,0.28)]",
-          compact ? "h-10 w-10 text-sm font-semibold" : "h-12 w-12 text-base font-semibold",
+          "brand-mark inline-flex items-center justify-center rounded-[20px] bg-[var(--accent)] text-white shadow-[0_14px_30px_rgba(255,91,0,0.24)]",
+          compact ? "h-10 w-10" : "h-12 w-12",
         )}
       >
-        RC
+        <span className="brand-mark-star" aria-hidden="true">✦</span>
+        <span className="brand-mark-dot" aria-hidden="true" />
       </span>
-      <span className="min-w-0">
+      <span className="site-brand-copy min-w-0">
         <span
           className={cn(
+            "site-brand-title",
             "block truncate [font-family:var(--font-display)] font-semibold tracking-[-0.03em] text-[var(--ink-strong)]",
             compact ? "text-base" : "text-lg",
           )}
         >
           存个地
         </span>
-        <span className="block truncate text-xs tracking-[0.22em] text-[var(--ink-muted)] uppercase">
-          Place Collector
+        <span className="site-brand-subtitle block truncate text-[11px] tracking-[0.08em] text-[var(--accent-deep)]">
+          {subtitle}
         </span>
       </span>
     </Link>

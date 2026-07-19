@@ -1,7 +1,10 @@
 import {
-  getInitialCityCenterDataset,
+  findKnownCityInText,
+  getKnownCityAliases,
   normalizeCityName,
-} from "../map/city-centers.ts";
+  normalizeCountryName,
+  findKnownDistrictInText,
+} from "../location.ts";
 import {
   categoryEvidenceTerms,
 } from "./constants.ts";
@@ -145,37 +148,14 @@ function extractAddress(lines: string[]) {
   ) ?? null;
 }
 
-const cityAliases: Record<string, string> = {
-  北京: "北京",
-  北京市: "北京",
-  beijing: "北京",
-  "beijing city": "北京",
-  上海: "上海",
-  上海市: "上海",
-  shanghai: "上海",
-  "shanghai city": "上海",
-  广州: "广州",
-  广州市: "广州",
-  guangzhou: "广州",
-  "guangzhou city": "广州",
-  成都: "成都",
-  成都市: "成都",
-  chengdu: "成都",
-  "chengdu city": "成都",
-  东京: "Tokyo",
-  tokyo: "Tokyo",
-  "tokyo city": "Tokyo",
-  "new york": "New York",
-  "new york city": "New York",
-};
-
 function extractCity(text: string) {
-  const candidates = Array.from(
-    new Set([
-      ...getInitialCityCenterDataset().flatMap((record) => [record.cityName, `${record.cityName}市`]),
-      ...Object.keys(cityAliases),
-    ]),
-  ).sort((left, right) => right.length - left.length);
+  const knownCity = findKnownCityInText(text);
+
+  if (knownCity) {
+    return knownCity;
+  }
+
+  const candidates = getKnownCityAliases().sort((left, right) => right.length - left.length);
 
   const match = candidates.find((candidate) =>
     new RegExp(
@@ -190,7 +170,28 @@ function extractCity(text: string) {
     return null;
   }
 
-  return normalizeCityName(cityAliases[match.toLocaleLowerCase()] ?? match);
+  return normalizeCityName(match) ?? match;
+}
+
+function extractCountry(lines: string[]) {
+  const labeledCountry = lines.find((line) =>
+    /^(?:国家|国家\/地区|地区|country|region)\s*[:：-]/iu.test(line),
+  );
+
+  if (!labeledCountry) {
+    return null;
+  }
+
+  const value = firstMatch(
+    labeledCountry,
+    /^(?:国家|国家\/地区|地区|country|region)\s*[:：-]\s*(.+)$/iu,
+  );
+
+  return value ? normalizeCountryName(value) ?? value : null;
+}
+
+function extractDistrict(text: string, city: string | null) {
+  return findKnownDistrictInText(text, city);
 }
 
 function includesTerm(text: string, term: string) {
@@ -224,6 +225,8 @@ export function extractManualEvidenceFields(text: string): ManualEvidenceFields 
   const fields: ManualEvidenceFields = {};
   const name = extractName(lines);
   const city = extractCity(text);
+  const district = extractDistrict(text, city);
+  const country = extractCountry(lines);
   const address = extractAddress(lines);
   const phone = extractPhone(text, lines);
   const category = extractCategory(text);
@@ -231,6 +234,8 @@ export function extractManualEvidenceFields(text: string): ManualEvidenceFields 
 
   if (name) fields.name = name;
   if (city) fields.city = city;
+  if (district) fields.district = district;
+  if (country) fields.country = country;
   if (address) fields.address = address;
   if (phone) fields.phone = phone;
   if (category) fields.category = category;
@@ -259,6 +264,8 @@ export function buildManualEvidenceExtractionResult(
     description: fields.description ?? null,
     category: fields.category ?? null,
     city: fields.city ?? null,
+    country: fields.country ?? null,
+    district: fields.district ?? null,
     address: fields.address ?? null,
     phone: fields.phone ?? null,
     latitude: null,

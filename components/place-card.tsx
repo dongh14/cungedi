@@ -1,14 +1,15 @@
 import Link from "next/link";
+import { AppIcon } from "@/components/app-icon";
 import type { PlaceCardInput } from "@/lib/restaurants/place-card";
 import { getPlaceCardDisplayData } from "@/lib/restaurants/place-card";
 
-export function PlaceCard({ place }: { place: PlaceCardInput }) {
+export function PlaceCard({ place, compact = false }: { place: PlaceCardInput; compact?: boolean }) {
   const card = getPlaceCardDisplayData(place);
 
   return (
-    <article className="overflow-hidden rounded-[28px] border border-[var(--border-soft)] bg-[var(--surface-muted)] shadow-[0_18px_50px_rgba(145,72,30,0.08)] transition hover:-translate-y-0.5 hover:border-[var(--accent)]/45">
+    <article className={`place-card${compact ? " place-card-compact" : ""}`}>
       <Link href={card.detailHref} className="group block focus:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent-glow)]">
-        <div className="aspect-[16/10] overflow-hidden bg-[linear-gradient(135deg,rgba(255,91,0,0.18),rgba(255,238,219,0.95))]">
+        <div className="place-card-media">
           {card.hasImage ? (
             <img
               src={card.imageUrl ?? undefined}
@@ -16,31 +17,34 @@ export function PlaceCard({ place }: { place: PlaceCardInput }) {
               className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
             />
           ) : (
-            <div className="flex h-full flex-col justify-between p-5 text-[var(--accent-deep)]">
-              <span className="text-xs font-semibold tracking-[0.18em] uppercase">Place Collector</span>
-              <span className="max-w-[12rem] [font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.04em]">
-                还没有图片
-              </span>
+            <div className="place-card-placeholder">
+              <span className="brand-mark-star" aria-hidden="true">✦</span>
+              <span>暂无图片</span>
             </div>
           )}
+          {card.collectionBadges.length > 0 ? (
+            <span className="place-card-bookmark" aria-label="已加入合集">
+              <AppIcon name="folder" size={14} />
+            </span>
+          ) : null}
         </div>
 
-        <div className="space-y-3 p-5">
-          <div>
-            <h3 className="truncate text-lg font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
+        <div className="place-card-body">
+          <div className="min-w-0">
+            <h3 className="place-name-title place-card-title">
               {card.name}
             </h3>
-            <p className="mt-1 text-sm text-[var(--ink-soft)]">
-              {card.city} · {card.category}
+            <p className="place-card-metadata place-card-location mt-1 truncate">
+              {card.category}{card.locationLabel ? ` · ${card.locationLabel}` : ""}
             </p>
           </div>
 
-          {card.collectionBadges.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
+          {!compact && card.collectionBadges.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
               {card.collectionBadges.map((collection) => (
                 <span
                   key={collection.id}
-                  className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-medium text-[var(--accent-deep)]"
+                  className="rounded-full bg-[var(--accent-soft)] px-2 py-1 text-[10px] font-bold text-[var(--accent-deep)]"
                 >
                   {collection.name}
                 </span>
@@ -48,10 +52,10 @@ export function PlaceCard({ place }: { place: PlaceCardInput }) {
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between gap-3 text-xs text-[var(--ink-muted)]">
-            <span>来源：{card.sourceHost}</span>
-            <span className="font-medium text-[var(--accent-deep)]">查看详情 →</span>
-          </div>
+          {!compact ? <div className="place-card-source flex items-center justify-between gap-3 text-xs text-[var(--ink-muted)]">
+            <span className="truncate">{card.sourceHost}</span>
+            <AppIcon name="chevron" size={14} className="shrink-0" />
+          </div> : null}
         </div>
       </Link>
     </article>

@@ -23,6 +23,9 @@ export type WebsiteStructuredData = {
   description: string | null;
   category: string | null;
   address: string | null;
+  city?: string | null;
+  country?: string | null;
+  district?: string | null;
   phone: string | null;
   websiteUrl: string | null;
   imageUrl: string | null;
@@ -32,6 +35,8 @@ export type ParsedWebsiteMetadata = {
   metadata: WebsiteMetadataFields;
   structuredData: WebsiteStructuredData[];
 };
+
+import { findKnownDistrictInText, normalizeDistrictName } from "../location.ts";
 
 const supportedSchemaTypes = new Set([
   "restaurant",
@@ -178,6 +183,28 @@ function getAddress(value: unknown) {
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
+function getAddressPart(value: unknown, key: "addressLocality" | "addressCountry") {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return normalizeString((value as Record<string, unknown>)[key]);
+}
+
+function getDistrictPart(value: unknown, city: string | null) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const region = normalizeString(record.addressRegion);
+  const locality = normalizeString(record.addressLocality);
+
+  return normalizeDistrictName(region)
+    ?? normalizeDistrictName(locality)
+    ?? findKnownDistrictInText([region, locality].filter(Boolean).join(" "), city);
+}
+
 function getImageUrl(value: unknown): string | null {
   const directValue = normalizeString(value);
 
@@ -237,6 +264,9 @@ function toSupportedStructuredData(value: unknown): WebsiteStructuredData[] {
 
     const category = normalizeString(record.category) ?? supportedTypes[0];
 
+    const city = getAddressPart(record.address, "addressLocality");
+    const district = getDistrictPart(record.address, city);
+
     return [
       {
         types: supportedTypes,
@@ -244,6 +274,9 @@ function toSupportedStructuredData(value: unknown): WebsiteStructuredData[] {
         description: normalizeString(record.description),
         category,
         address: getAddress(record.address),
+        city,
+        country: getAddressPart(record.address, "addressCountry"),
+        ...(district ? { district } : {}),
         phone: normalizeString(record.telephone),
         websiteUrl: normalizeString(record.url),
         imageUrl: getImageUrl(record.image),

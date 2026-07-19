@@ -1186,6 +1186,247 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Focused details, collection-card, saved-place-card, map-popup, location, and collection-membership tests passed (`25` tests).
 - Interactive authenticated mobile validation was not run in this environment; automated validation did not create or save a place.
 
+## Saved-Place Edit Architecture
+
+### Edit Surface
+- `app/restaurants/[id]/edit/page.tsx` is a normal authenticated edit route with a compact back header, `编辑地点` identity, confirmed delete action, and the existing collection-membership section. Query failures and missing records use separate safe UI states.
+- `components/restaurant-edit-form-card.tsx` owns one continuous controlled form. Visible values are submitted directly as the final edit payload, so manual name, city, district, country, address, category, subcategory, notes, and coordinates remain authoritative.
+- Source URLs are preserved unchanged in storage and presented only as a compact host/link row. No new source extraction behavior is coupled to editing.
+
+### Local Location Editing
+- `lib/map/location-search.ts` provides bounded local candidates from the shared city-center and district-center datasets plus the current saved place. It performs no network lookup and does not invent coordinates for unknown locations.
+- `components/maplibre-foundation.tsx` retains the existing marker/clustering pipeline and adds an opt-in editable mode only for the edit form: local candidate selection recenters the map, map taps set coordinates, and a draggable edit marker reports coordinate changes.
+- Coordinates are validated against the existing latitude/longitude ranges. Null coordinates remain allowed. Search selection may update available location context because it is explicit; map movement updates coordinates only, preventing silent loss of manual text corrections.
+- `lib/restaurants/record-payloads.ts` conditionally includes the full edit field set while preserving legacy callers and canonical known country/district normalization. No schema, RLS, authentication, extraction, AI, collections, or map-engine changes were required.
+
+### Persistence And Safety
+- `updateRestaurantAction` validates required name/city values and complete coordinate pairs, writes through the existing owner-scoped Supabase update path, and redirects to `/restaurants/[id]` after success.
+- `deleteRestaurantAction` requires the client confirmation dialog, rechecks authentication, scopes deletion by both record id and authenticated user id, and redirects to `/restaurants` after success. Existing RLS remains the database boundary.
+
+### Validation
+- `git diff --check`, `npm run lint`, and `npm run build` passed.
+- Full `npm test` passed with `365/365` tests, including edit-form contracts, local location search, full update payload coverage, existing map/location tests, and all prior extraction/AI/collections coverage.
+
+## Step 9A Data Loading And Location Integrity
+
+### Route Boundaries
+- `/` is a server redirect into `/login` or `/dashboard`; authenticated login/sign-up pages redirect to `/dashboard`, and protected application/add routes use `requireAuthenticatedUser`.
+- The normal user route set is `/dashboard`, `/menu`, `/restaurants`, `/collections`, `/map`, `/settings`, place detail/edit, and the focused manual/source/review add flow. No obsolete setup page is linked from the authentication or application surfaces.
+
+### Restaurant Read Contract
+- `lib/restaurants/query-compat.ts` owns the one restaurant projection: `id`, identity/source/privacy/category fields, `country`, `city`, `district`, `address`, `latitude`, `longitude`, and timestamps.
+- `selectRestaurantsWithLocation` does not retry a legacy projection. Query failures are returned as bounded structured errors and logged through `lib/restaurants/query-diagnostics.ts` with operation and sanitized diagnostics only.
+- List, details, map, dashboard, and collection-preview reads use the same projection. Collection and membership reads also emit safe diagnostics, and failed collection reads remain distinguishable from empty collections.
+- Dashboard/map UI preserves the existing map and marker pipeline while rendering a query-failure state instead of incorrectly showing “no places.” Empty states are reserved for successful zero-row results.
+
+### Remote Integrity Notes
+- The verified remote schema contains nullable `country` and `district` columns, collection and join tables, the durable AI cache, owner-scoped authenticated RLS policies, and expected indexes/constraints. Existing restaurant rows were not changed.
+- The local and remote district definitions were confirmed equivalent. The stale remote history entry `20260719072843` was repaired to `reverted`, and canonical local migration `20260719100000_add_restaurant_district.sql` was repaired to `applied`; this changed migration metadata only and left the remote schema/data unchanged.
+- RLS remains the access boundary for places, collections, memberships, and cache rows. Application queries remain authenticated and owner-scoped; no public discovery path was added.
+
+### QA Coverage
+- Tests cover the formal location projection, safe query-error normalization/redaction, thrown-query handling, error-versus-empty map state, route guards, location hierarchy/filtering, collections, map behavior, and existing extraction/AI/save boundaries.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `351/351` tests.
+- Remote migration listing was read-only and completed successfully; no migration or data mutation was performed in this checkpoint.
+
+## District Migration History Reconciliation
+
+### Canonical History
+- `supabase/migrations/20260719100000_add_restaurant_district.sql` is the repository’s canonical district migration. It is additive only: `add column if not exists district text` plus `create index if not exists restaurants_district_idx on public.restaurants (district)`.
+- The remote migration `20260719072843` was an exact equivalent under a different timestamp. Supabase’s supported `migration repair` workflow marked that stale version reverted and marked `20260719100000` applied. No migration SQL was executed against the already-correct schema.
+- Final `npx supabase migration list` has local and remote versions aligned through `20260719100000`; no duplicate district migration is pending.
+
+### Preserved Remote State
+- `public.restaurants.district` remains nullable `text`, with no default, constraint, comment, function, or trigger. `restaurants_district_idx` remains the only district-specific index.
+- Existing RLS, restaurant rows, and location projection behavior remain unchanged. Restaurant fingerprint remains 10 rows with IDs `[1, 2, 4, 5, 6, 7, 8, 9, 10, 11]` and ID sum `63`.
+
+## Dashboard Regression Fix
+
+### Discovery Composition
+- `app/dashboard/page.tsx` remains the homepage composition root: `DashboardMapPreview`, the shared six-category icon grid, recent saved places, and collection highlights are rendered in discovery order. The map remains an embedded homepage feature rather than a primary navigation item.
+- `homepageCategoryIcons` in `lib/restaurants/home-discovery.ts` is the shared icon contract for the canonical category list. The dashboard uses the existing `AppIcon` paths at a mobile-friendly size and retains direct `/restaurants?category=...` navigation.
+- `appMenuNavigation` now intentionally contains only `/restaurants`, `/collections`, and `/account`. `/map` remains an existing internal route and is still linked from the dashboard map section.
+
+### Migrated Location Read Contract
+- `lib/restaurants/query-compat.ts` now centralizes the formal `restaurantSelectWithLocation` projection and forwards every read to it without legacy fallback or warning logging. The projection includes `country`, `city`, `district`, `address`, `latitude`, and `longitude` alongside the existing saved fields.
+- `lib/restaurants/queries.ts` uses this projection for dashboard discovery, lists, details, map data, and collection place previews. This keeps location data consistent across all read surfaces and surfaces real query failures instead of converting schema errors to empty data.
+- The remote `public.restaurants` table was verified with nullable `country` and `district` columns; the additive district migration also created `restaurants_district_idx`. Existing RLS and restaurant rows were preserved.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `325/325` tests.
+- Authenticated browser validation at 390x844 confirmed homepage markers, category SVGs, recent and collection data, the three menu destinations, place-list loading, and the full MapLibre canvas.
+
+## Dashboard Discovery Restoration
+
+### Page Composition
+- `app/dashboard/page.tsx` is the discovery composition root. It renders `DashboardMapPreview` first, then the shared category shortcuts, recent saved places, and collection highlights. The dashboard does not own navigation destinations beyond its brand link to `/menu` and quick add link to `/restaurants/new`.
+- Map input is derived from the same discovery places returned by `getCurrentUserDiscoveryData`. The existing location resolver, exact/approximate marker metadata, marker generation, clustering, local filtering, and popup behavior are not duplicated or changed.
+
+### Remote Schema Compatibility
+- `lib/restaurants/query-compat.ts` provides a deliberately narrow read fallback for deployments where the local additive `country`/`district` migrations have not yet been applied remotely. It first uses the extended projection, retries only for explicit missing-column errors involving those optional fields, and normalizes legacy rows with `country: null` and `district: null`.
+- `lib/restaurants/queries.ts` applies this helper to the owner-scoped place list, dashboard discovery, place details, map data, and collection place previews. The fallback does not alter Supabase schema, saved values, RLS predicates, collection relationships, or write behavior. It does not catch or mask unrelated query failures.
+- The single-place query uses an array-shaped limited read so the compatibility layer has one stable result shape across extended and legacy projections. Collection summaries continue to use existing collection and join-table queries.
+
+### Navigation Boundary
+- The dashboard remains `/dashboard`; `/menu` remains a separate protected route with normal document scrolling and the four existing destinations. No persistent bottom navigation or navigation-specific modal state was restored.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `325/325` tests, including query compatibility, dashboard discovery, map rendering, collection previews, route navigation, and all existing regression suites.
+
+## V1 UX Refinements
+
+### Progressive Add Flow
+- `components/add-method-chooser.tsx` is now a two-choice landing page. The link path for paste intake is always `/restaurants/new/source`; the former source-selection bottom sheet and source-specific URL screens are removed from the user flow.
+- `components/source-intake-card.tsx` renders one generic URL intake. `startSourceIntakeAction` continues to pass the URL through the existing parser and review pipeline, where source detection remains internal and source attribution remains display-only.
+- `lib/restaurants/add-flow.ts` retains only internal source classification vocabulary and generic paste routing. No extraction interface or source parser was changed.
+
+### Automatic Location Presentation
+- `RestaurantFormFields` and `RestaurantEditFormCard` render country as a compact auto-identification row with an optional correction control. The hidden/default country value still travels through existing save actions, so resolver priority and manual override semantics are preserved.
+- Details replace separate country, city, and district blocks with the shared hierarchy label `country · city · district`. Existing `formatHierarchyLocationLabel` remains the single display formatter for cards, collections, list/search results, map popup, and details.
+
+### Dashboard Category Grid
+- The dashboard category section remains data-driven from `homepageCategories` and `getHomepageCategoryHref`. CSS now gives the six links a 3x2 layout, larger icon container, 76px minimum height, readable 17px labels, accessible focus styling, and one-hand touch spacing.
+- No new state manager, route, query, category model, or backend behavior was introduced.
+
+### Unchanged Boundaries
+- Database architecture, district migration, location resolver, AI enrichment, extraction pipeline, collections, map engine, marker rendering, clustering, authentication, owner-scoped RLS, saved-place creation, and private-only behavior remain unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `319/319` tests.
+
+## Step 9 Location Simplification And Area-Based Map Model
+
+### Data And Resolver Layer
+- `supabase/migrations/20260719100000_add_restaurant_district.sql` adds only nullable `restaurants.district` plus a lookup index. It contains no data rewrite, delete, truncate, drop, or table recreation.
+- `lib/location.ts` is the shared conservative comparison/resolution layer. It canonicalizes only the known city, country, and district dataset, preserves unknown text, and resolves country from a known city without changing the saved city string.
+- `resolvePlaceArea` combines explicit country/district, address evidence, and the local city-country/district dataset. It is used at save payload, extraction, manual evidence, and review-form boundaries. AI remains a later, explicitly accepted source rather than an automatic overwrite.
+- `lib/map/area-centers.ts` contains a deliberately small district center dataset. `lib/map/place-location.ts` keeps stored coordinates as the highest-priority location, then resolves a compatible district center, then a compatible city center, otherwise leaves the location unresolved.
+
+### Extraction And Review
+- Normalized extraction results and source merge drafts now carry optional `district`. Google Maps URL address parsing, structured website `PostalAddress` parsing, and pasted visible-text parsing expose district only when local evidence supports it.
+- Review and manual forms include an optional district field. Country is displayed as an auto-identified value with manual correction, while saved address text and city text remain user/source data rather than being rewritten by the resolver.
+- AI factual context and accepted-field attribution include district. The existing factual-evidence validation, manual approval, cache behavior, and preview-only understanding suggestions are unchanged.
+
+### UI And Map Composition
+- `lib/location-hierarchy.ts`, `components/map-location-filter.tsx`, and `components/place-library-filters.tsx` share country -> city -> district filtering and URL state. Older records with `country = null` or no district continue to appear under their existing city/unassigned location identity.
+- Place cards, details, collection cards, list rows, search results, and map popups use one hierarchy label formatter that omits empty or duplicated parts.
+- The MapLibre engine, marker data pipeline, clustering, exact marker style, search behavior, and city/category filtering remain unchanged. Area fallback only adds an approximate resolution tier and never changes exact coordinates.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `317/317` tests.
+
+## 全部地点 Library Filter Architecture
+
+### Shared Filter Layer
+- `lib/restaurants/place-library-filter.ts` is the pure adapter for the saved-place library. It composes the existing local search helper, shared country/city hierarchy filtering, and canonical category normalization without changing the map pipeline.
+- The filter state contains `q`, normalized country identity, normalized city identity, and canonical category. Empty state means all places; no separate browsing mode is introduced.
+- Filtering order is local search, country/city location matching, then category matching. The result is an AND intersection, so location, category, and search can narrow one another without remote lookups.
+
+### UI And URL State
+- `components/place-library-filters.tsx` provides the compact mobile filter bar and uses the shared `BottomSheet` primitive. City selection is one task grouped country -> city; category selection is a separate task with canonical labels and icons.
+- City options are derived only from the currently loaded owner-scoped saved places and omit countries with no city options. Existing country/city aliases are normalized for comparison while saved display values remain unchanged.
+- `/restaurants` serializes active state as URL parameters and keeps the default route unfiltered. Detail links include a validated `return_to` path so returning from a place restores the previous library filters.
+- The list keeps the place cards as the primary content. No duplicate map filtering logic or new state-management layer was added.
+
+### Compatibility Boundaries
+- The existing `getCurrentUserRestaurants()` owner-scoped query, saved-place schema, category model, `玩乐 -> 娱乐` compatibility, location normalization, map search, map filtering, marker generation, clustering, extraction, AI, collections, and authentication remain unchanged.
+- No database migration or saved-data rewrite was introduced for the library filters.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `310/310` tests, including default-all behavior, city/category filtering, country grouping, cross-country city separation, search composition, active-state URL handling, and clear-filter behavior.
+
+## Step 9 Location Hierarchy UI
+
+### Shared Location Layer
+- `lib/location-hierarchy.ts` is the UI comparison layer over the existing `restaurants.country` and `restaurants.city` values. It provides conservative country/city identities, country and city option trees, `country · city` display formatting, local filtering, search terms, and URL-safe state serialization.
+- It deliberately keeps `country = null` separate as `__unassigned_country__` / `未标注国家`; it never infers or writes a country for legacy records. Unknown country and city text remains available rather than being discarded.
+
+### Map Composition
+- `components/map-location-filter.tsx` composes the existing `BottomSheet` primitive into a two-step country then city selector. It supports country search for larger datasets, country-only states, all-country/all-city reset actions, and URL-backed state restoration.
+- `components/map-browser.tsx` passes the normalized location state into the existing local search and map filter layer. Filtering still completes before `createMapMarkerResolution`, marker rendering, popup selection, or clustering; no MapLibre or coordinate behavior was changed.
+- Search haystacks include raw and normalized country/city terms plus the combined country-city form, allowing queries such as `Japan Osaka` without remote lookups.
+
+### Saved-List Hierarchy
+- `components/location-hierarchy-browser.tsx` renders the authenticated `/restaurants` country -> city -> places navigation using links to the existing list route. The page applies the selected hierarchy locally after the existing RLS-scoped query; category filtering remains compatible.
+- Shared country-first labels are used by place cards, collection cards, read-only details, list rows, and map popup view models. When a record has no country, the original city is displayed alone.
+
+### Unchanged Boundaries
+- No Supabase schema or migration, saved data, country migration, coordinate resolver, extraction, AI enrichment, collections data model, MapLibre engine, marker generation, clustering, or save flow changed.
+
+### Validation
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `299/299` tests.
+
+## Add Flow Simplification
+
+### Route Structure
+- `/restaurants/new` is a method chooser only. `components/add-method-chooser.tsx` renders the two add methods and uses the shared `BottomSheet` for source selection without nesting sheets.
+- `/restaurants/new/manual` reuses `RestaurantFormCard` for the focused manual step. Existing form values, server action validation, review redirect, and save behavior are retained.
+- `/restaurants/new/source` normalizes `source_type` through `lib/restaurants/add-flow.ts`, renders source-specific copy through `SourceIntakeCard`, and keeps URL validation errors within the source step.
+- `lib/restaurants/add-flow.ts` is the pure flow vocabulary for add methods, source options, source URL routes, and safe fallback for invalid or refreshed source state.
+
+### Flow Boundaries
+- The flow is progressive disclosure: method choice first, source choice second for URL intake, URL input third, then the existing extraction/review/AI/edit/save pipeline.
+- `startSourceIntakeAction` still uses `parseSourceIntakeInput` and redirects to `/restaurants/review`; `startRestaurantReviewAction` and `createRestaurantAction` remain the existing manual review/save boundaries.
+- Back navigation from source input carries `source_type` back to `/restaurants/new`; the chooser reopens with that source selected. No new persistence or data model was introduced.
+
+### Unchanged Systems
+- Extraction architecture, Website and Google Maps extractors, DeepSeek provider/cache/review state, source merging, Supabase schema, collections, authentication, map, city/country hierarchy, and save behavior remain unchanged.
+
+### Validation
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `303/303` tests.
+- `git diff --check` passed.
+
+## Final Mobile UI Refinement
+
+### Dashboard Composition
+- The authenticated dashboard is a compact map-first composition. Server-side discovery data includes the existing saved-place coordinates, and `DashboardMapPreview` converts them through `createMapMarkerResolution` before handing markers to the shared `MapLibreFoundation`.
+- The dashboard renders only a three-place recent preview, up to three collection shortcuts, and six direct category links. It does not introduce a second map, search backend, recommendation layer, metric dashboard, or alternate data model.
+- Empty mapped data preserves the map frame and shows `添加地点`; marker selection continues through the existing MapLibre popup and detail route.
+
+### Navigation And Sheets
+- `components/navigation.ts` is the single bottom-navigation definition: 首页 `/dashboard`, 地点 `/restaurants`, 添加 `/restaurants/new`, 收藏 `/collections`, and 我的 `/account`. The full `/map` route remains a normal internal destination rather than a bottom-nav item.
+- `components/bottom-sheet.tsx` is the shared dialog primitive. It provides one focused task per sheet, shared overlay/radius/spacing, close and Escape actions, focus return, body scroll protection, and safe-area-aware layout. `CreateCollectionSheet` reuses the existing `createCollectionAction`; collection persistence and RLS are unchanged.
+- `/account` is a minimal authenticated account destination for the new 我的 slot and does not add social, public, or collaboration behavior.
+
+### Typography And Mobile Constraints
+- `app/globals.css` defines the final mobile hierarchy: map height is constrained to approximately 260–300px, dashboard sections use compact spacing, recent cards omit nonessential metadata, and collection/category previews avoid large counts.
+- Body/application normal text targets 17px; shared form controls, buttons, navigation labels, map preview copy, and category labels use the same readable scale. Secondary metadata may use 15px, while titles remain larger.
+- Bottom navigation uses five balanced slots with 48px minimum touch height, a 72px maximum regular slot, safe-area padding, and a narrow-viewport fallback to avoid horizontal overflow. Sheets use a maximum 90% viewport height and internal scrolling for keyboard-safe interaction.
+
+### Unchanged Boundaries
+- No changes were made to Supabase schema, authentication, RLS, private-only behavior, extraction, DeepSeek, AI caching/review state, category normalization, collection relationships, detail/edit routes, coordinate resolution, marker generation, clustering, map search, or city filters.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `293/293` tests, including dashboard preview and bottom-navigation regression coverage.
+- Browser viewport and keyboard/focus manual validation remains a follow-up because no authenticated interactive browser session was run during this checkpoint.
+
 ## Step 14 Personal-Only Product Mode
 
 ### Privacy Boundary
@@ -1233,6 +1474,136 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - `npm run build` passed.
 - `npm test` passed with `285/285` tests.
 - Focused personal-only, workflow-diagnostics, save-boundary, review-form, details, collection, map, category, and RLS migration tests passed (`59` tests).
+
+## Navigation Simplification
+
+### App Shell Navigation
+- `components/app-shell.tsx` no longer renders a persistent bottom navigation bar. It provides the shared top app bar while preserving the existing route and server-side shell contract.
+- `components/app-navigation-menu.tsx` is the client-side interaction layer for the brand-triggered destination sheet. It uses the existing `BottomSheet` focus and dismissal behavior and closes after a destination is selected.
+- `components/navigation.ts` keeps the four app destinations in `appMenuNavigation`: `/restaurants`, `/collections`, `/map`, and `/account`. The add action is deliberately separate at `/restaurants/new`, and `/dashboard` is not duplicated in the menu.
+- The top bar is safe-area-aware and exposes 44px-or-larger interactive targets. Navigation labels use the app's 17px reading scale; the dashboard category grid remains the existing 3-by-2 discovery surface.
+
+### Preserved Boundaries
+- This is a presentation and navigation-surface change only. Routes, authentication, owner-scoped queries, database schema, collections, map engine and clustering, extraction, AI enrichment, category behavior, and save flow are unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `320/320` tests.
+
+## Dedicated Navigation Subpage
+
+### Route-Based Navigation
+- `components/app-navigation-menu.tsx` is now a server-safe brand link to `/menu`; it no longer owns open state or renders a navigation BottomSheet.
+- `app/menu/page.tsx` is a protected normal route built on `AppShell`. It renders a vertically stacked, Notion-style navigation list for `/restaurants`, `/collections`, `/map`, and `/account`, with full-row touch targets and normal document scrolling.
+- `AppShell` supports a back-style top bar variant for the menu page. `components/menu-back-button.tsx` uses router history when safe and falls back to `/dashboard`. The shared top-right `/restaurants/new` add action remains present.
+
+### Scroll Safety
+- Navigation-specific overlay, backdrop, portal, absolute positioning, and body scroll-lock state were removed. The shared `BottomSheet` component and `body[data-sheet-open]` rule remain only for unrelated sheets such as filters and collection creation.
+- The menu page uses safe-area-aware app-shell spacing and a minimum 72px navigation row. It does not trap scrolling or leave modal state behind during route changes.
+
+### Unchanged Boundaries
+- Existing routes, authenticated owner-scoped access, database schema, collections, map engine and clustering, extraction, AI enrichment, category behavior, privacy rules, and save flow are unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `324/324` tests, including dedicated navigation route, destination, fallback-back, scroll, and mobile layout contracts.
+
+## Final One-Screen Dashboard
+
+### Dashboard Composition
+- `app/dashboard/page.tsx` is the discovery homepage, separate from `app/menu/page.tsx`. It loads only `getCurrentUserRestaurantsForMap()` and maps the formal `country`, `city`, `district`, `address`, `latitude`, and `longitude` projection into the existing `DashboardMapPreview` pipeline.
+- The dashboard composition is intentionally limited to the app bar, map, category discovery grid, and two quick-navigation shortcuts. It does not query or render recent-place cards, collection previews, statistics, recommendation content, or duplicate navigation.
+- `components/dashboard-map-preview.tsx` keeps the existing MapLibre implementation and marker pipeline while presenting a compact 280px dashboard surface. The no-data state is user-facing and local: `还没有地点` / `添加地点后会显示在地图上`.
+
+### Discovery Navigation
+- `lib/restaurants/home-discovery.ts` owns the pure homepage configuration for the six canonical category links, category icon mapping, 3x2 grid contract, map height, and `地点`/`收藏` quick links.
+- Category links navigate directly to `/restaurants?category={category}`. Quick links navigate to `/restaurants` and `/collections`; they do not duplicate data loading or introduce a second filtering architecture.
+- The shared top-left brand trigger continues to navigate to the dedicated `/menu` route, and the top-right add action remains globally available. Persistent bottom navigation remains removed.
+
+### Boundaries
+- The map remains a primary discovery feature rather than a primary navigation destination. MapLibre rendering, marker generation, clustering, coordinate handling, location resolution, city/country/district behavior, search, collections, extraction, AI enrichment, authentication, private-only saves, and Supabase schema remain unchanged.
+- Recent places are deeper library content at `/restaurants`, and collection content remains at `/collections`; 首页 is intentionally not a management page.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `325/325` tests.
+- 390x844 browser validation confirmed the app bar, map, six category tiles, two shortcut cards, no recent/collection preview sections, and no horizontal overflow.
+
+## V1 Email-Only Login Architecture
+
+### Login Composition
+- `app/login/page.tsx` is a dedicated authentication surface rather than an `AppShell` dashboard page. It renders the existing `SiteBrand`, a narrow centered `AuthCard`, and no dashboard navigation or technical side panel.
+- `components/auth-card.tsx` remains shared with sign-up but supports the login variant, concise error/status semantics, 17px labeled fields, and the existing alternate route. `components/password-field.tsx` owns local visibility state and accessible toggle naming; `components/auth-submit-button.tsx` uses `useFormStatus` for the existing server-action pending state.
+- `components/site-brand.tsx` accepts a page-specific subtitle while preserving the same star-and-dot identity everywhere else.
+
+### Safety And Boundaries
+- `lib/auth/login-ui.ts` sanitizes provider-facing login errors for display without changing the Supabase action or session flow. Local form validation copy remains available.
+- Login redirects still originate in `app/auth/actions.ts` and use the one-time `login_success=1` signal consumed by `LoginSuccessToast`. The signal is removed with `history.replaceState`; it is not stored in the database, localStorage, or persistent dashboard state.
+- No OAuth provider, external authentication API, schema change, map change, collection change, or sign-up flow redesign was added.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `332/332` tests.
+- Source-level login contracts cover brand/name, email/password fields, accessible password toggling, pending submission, safe errors, omitted social controls, and the preserved success redirect. Browser layout validation was blocked by the already-authenticated shared session redirecting `/login` to `/dashboard`; no session state was modified.
+
+## Step 9B Mobile, PWA, Keyboard, And Production Hardening
+
+### Mobile Shell And Forms
+- `app/globals.css` centralizes safe-area-aware spacing for the app shell, sticky app bar, auth pages, bottom sheets, toast, and sticky review actions. Normal text and controls remain at readable mobile sizes rather than being compressed to fit.
+- Form controls expose mobile keyboard intent through `enterKeyHint`, use scroll margins for keyboard visibility, and continue using normal document flow. No global `visualViewport` position hack or persistent body lock was introduced.
+- `components/bottom-sheet.tsx` owns the interaction contract for all short-choice sheets: a single dialog task, bounded independent scrolling, Escape/backdrop close behavior, focus trap, focus restoration to the opening trigger, and body scroll cleanup on close/unmount.
+
+### PWA Boundary
+- `app/manifest.ts` defines the installable shell: `name`/`short_name` `存个地`, `display: standalone`, `start_url: /`, `scope: /`, accent/background colors, and the approved `public/icon.svg` icon. `app/layout.tsx` also exposes the icon and iOS web-app metadata.
+- The root start URL is intentional: the existing server-side auth routing decides whether standalone launch continues to `/dashboard` or `/login`. No fake install prompt or unsupported splash-screen behavior was added.
+- There is no application service worker. V1 stays online-first and avoids caching authenticated API responses, session responses, or user-specific Supabase data. Full offline mode remains deferred.
+
+### Map And Error Recovery
+- `components/maplibre-foundation.tsx` creates one MapLibre instance per mounted component, refreshes marker clusters from MapLibre zoom events without React zoom-state rerenders, resizes on window/visual-viewport changes, and removes markers, listeners, and the map on unmount.
+- `components/route-error-state.tsx` is the shared safe recovery surface used by route-level `error.tsx` boundaries for dashboard, places/details/review, collections, map, and the app shell. Production users see concise retry/home actions; raw error details are development-only.
+
+### Production Privacy And Configuration
+- `app/auth/actions.ts` now places sanitized login/sign-up messages in redirect state instead of raw Supabase provider errors. Existing authentication/session logic and one-time login toast behavior are unchanged.
+- DeepSeek diagnostics remain environment-gated and redacted: production keeps only actionable sanitized failures, development events use host-only source context and short cache-key prefixes, and raw response logging remains explicitly opt-in and disabled by default.
+- `.env.example` documents public Supabase/PMTiles configuration, optional `NEXT_PUBLIC_APP_URL`, and server-only DeepSeek configuration without credentials. RLS, owner-scoped queries, private saves, collections, extraction, and cache behavior are unchanged.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `359/359` tests.
+- Read-only `npx --yes supabase@latest migration list` confirmed all eight local and remote migration versions align; no database mutation was performed.
+- Browser-driven 375/390/393/430 viewport and standalone-install checks remain manual follow-up because this session's in-app browser could not connect to the local dev server.
+
+## Auto-Filled Review Architecture
+
+### Draft Assembly
+- `app/restaurants/review/page.tsx` still runs the existing source detector, extraction pipeline, source merge, eligibility check, cache/provider flow, and URL-backed review state. After normalization, it derives safe auto-applied AI fields and reuses the existing editable `MergedPlaceDraft` path.
+- `lib/restaurants/ai-enrichment-merge.ts` exposes `getAutoAppliedAIFields` and `applyAutoAIEnrichment`. These helpers allow only persistable, non-preview fields with medium/high confidence to fill empty fields. Manual sources and existing deterministic values are never replaced; accepted/automatic AI attribution remains `ai_suggestion`.
+- `lib/restaurants/ai-review-state.ts` and `lib/restaurants/ai-enrichment.ts` preserve optional per-field confidence in snapshots. This keeps low-confidence decisions stable across refresh, cache restoration, reanalysis, and redirect cycles.
+
+### Review Surface
+- `components/extraction-confirmation-card.tsx` is the primary review surface. It combines host/source status, required-field messaging, compact location/form editing, optional details, and the existing save action form.
+- `components/restaurant-form-fields.tsx` supports `compactReview`, which places source URL and street address under `更多地点信息` while retaining persisted fields and direct editing. `components/review-save-button.tsx` provides a single explicit, duplicate-resistant save action.
+- `components/review-collection-selector.tsx` synchronizes URL-backed draft values and checked collection ids before collection creation, so the existing join-table flow returns to the same editable draft.
+- The prior AI acceptance card and final preview card remain available as modules for compatibility but are not rendered in the standard review flow. Reanalysis is secondary under `更多操作`; preview-only AI fields are not exposed as save controls.
+
+### Safety Boundaries
+- Automatic application is suggestion-only at the draft layer. Deterministic extraction precedes AI, manual edits take priority, low-confidence factual data remains empty, and no AI path writes directly to Supabase. The final server action still validates the visible form values and enforces private save behavior.
+
+### Validation
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm test` passed with `322/322` tests.
 
 ## Step 6 Generalized Place Category Architecture
 

@@ -57,6 +57,7 @@ test("extracts only obvious phone, address, known city, category, and labeled de
   assert.deepEqual(fields, {
     name: "City Art Gallery",
     city: "上海",
+    district: "静安区",
     address: "上海市静安区愚园路 88 号",
     phone: "021-5555-6666",
     category: "景点",

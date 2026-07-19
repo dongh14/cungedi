@@ -5,6 +5,27 @@ import {
 } from "./constants.ts";
 
 export const homepageCategories = canonicalPlaceCategories;
+export const homepageCategoryIcons = {
+  美食: "food",
+  景点: "attraction",
+  住宿: "lodging",
+  购物: "shopping",
+  娱乐: "entertainment",
+  其他: "other",
+} as const;
+export const homepageQuickLinks = [
+  { href: "/restaurants", label: "地点", description: "查看全部保存地点", icon: "pin" },
+  { href: "/collections", label: "收藏", description: "查看收藏集", icon: "folder" },
+] as const;
+export const homepageSections = ["map", "categories", "shortcuts"] as const;
+export const homepageCategoryGrid = {
+  columns: 3,
+  rows: 2,
+  minHeight: 76,
+  touchTarget: 44,
+  labelFontSize: 17,
+} as const;
+export const homepageMapHeight = 280;
 
 export const homepagePrimaryActionHref = "/restaurants/new";
 export const homepageEmptyPlacesTitle = "还没有收藏地点";
@@ -20,7 +41,7 @@ type HomepagePlace = {
 
 export function getHomepageRecentPlaces<T extends { created_at: string }>(
   places: T[],
-  limit = 4,
+  limit = 3,
 ) {
   return [...places]
     .sort((left, right) => right.created_at.localeCompare(left.created_at))

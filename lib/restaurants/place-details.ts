@@ -1,5 +1,6 @@
 import { resolvePlaceLocation } from "../map/place-location.ts";
-import { getPlaceCategoryLabel } from "./constants.ts";
+import { getPlaceCategoryLabel, getPlaceSubtypeLabel } from "./constants.ts";
+import { formatHierarchyLocationLabel } from "../location-hierarchy.ts";
 import type { RestaurantCollectionBadge, RestaurantEditItem } from "./types.ts";
 
 export type PlaceDetailsInput = RestaurantEditItem & {
@@ -13,6 +14,9 @@ export type PlaceDetailsDisplayData = {
   category: string;
   subcategory: string | null;
   city: string | null;
+  country: string | null;
+  district: string | null;
+  locationLabel: string;
   address: string | null;
   notes: string | null;
   createdAtLabel: string;
@@ -81,9 +85,13 @@ export function getPlaceDetailsDisplayData(
           latitude: location.location.latitude,
           longitude: location.location.longitude,
           approximate: location.location.approximate,
-          label: location.location.approximate ? "近似位置" : "精确位置",
+          label: location.location.approximate
+            ? location.location.precision === "district" ? "区域位置" : "大概位置"
+            : "精确位置",
           description: location.location.approximate
-            ? "根据已保存城市显示本地城市中心，仅作为参考。"
+            ? location.location.precision === "district"
+              ? "根据已保存区域显示区域中心，仅作为回忆范围参考。"
+              : "根据已保存城市显示本地城市中心，仅作为参考。"
             : "使用已保存的精确坐标显示。",
         }
       : {
@@ -97,8 +105,11 @@ export function getPlaceDetailsDisplayData(
     editHref: `/restaurants/${place.id}/edit`,
     name: place.name,
     category: getPlaceCategoryLabel(place.category),
-    subcategory: optionalText(place.cuisine),
+    subcategory: getPlaceSubtypeLabel(place.cuisine, place.category) || null,
     city: optionalText(place.city),
+    country: optionalText(place.country),
+    district: optionalText(place.district),
+    locationLabel: formatHierarchyLocationLabel(place.country, place.city, place.district),
     address: optionalText(place.address),
     notes: optionalText(place.note),
     createdAtLabel: formatCreatedAt(place.created_at),

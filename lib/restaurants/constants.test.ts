@@ -8,6 +8,7 @@ import {
   normalizeAIPlaceUnderstanding,
   normalizePlaceCategory,
   getPlaceCategoryLabel,
+  getPlaceSubtypeLabel,
   isRestaurantCategory,
   isSubtypeSuggestionCompatible,
 } from "./constants.ts";
@@ -67,42 +68,77 @@ test("checks subtype compatibility against the selected category suggestions", (
   assert.equal(isSubtypeSuggestionCompatible("住宿", "民宿"), true);
   assert.equal(isSubtypeSuggestionCompatible("其他", "自定义"), false);
   assert.equal(isSubtypeSuggestionCompatible("其他", ""), true);
-  assert.equal(getSubtypeFieldConfig("景点").suggestions.includes("Art Gallery"), true);
-  assert.equal(getSubtypeFieldConfig("美食").suggestions.includes("Cafe"), true);
-  assert.equal(getSubtypeFieldConfig("住宿").suggestions.includes("Hotel"), true);
+  assert.equal(getSubtypeFieldConfig("景点").suggestions.includes("美术馆"), true);
+  assert.equal(getSubtypeFieldConfig("美食").suggestions.includes("咖啡馆"), true);
+  assert.equal(getSubtypeFieldConfig("住宿").suggestions.includes("酒店"), true);
 });
 
 test("normalizes general AI place understanding into category and subcategory", () => {
   assert.deepEqual(normalizeAIPlaceUnderstanding("Art Gallery", null, null), {
     category: "景点",
-    cuisine: "Art Gallery",
+    cuisine: "美术馆",
   });
   assert.deepEqual(normalizeAIPlaceUnderstanding("Attraction", null, null), {
     category: "景点",
-    cuisine: "Art Gallery",
+    cuisine: null,
   });
   assert.deepEqual(normalizeAIPlaceUnderstanding("Cafe", null, null), {
     category: "美食",
-    cuisine: "Cafe",
+    cuisine: "咖啡馆",
   });
   assert.deepEqual(normalizeAIPlaceUnderstanding("Bakery", null, null), {
     category: "美食",
-    cuisine: "Bakery",
+    cuisine: "面包店",
   });
   assert.deepEqual(normalizeAIPlaceUnderstanding("Hotel", null, null), {
     category: "住宿",
-    cuisine: "Hotel",
+    cuisine: "酒店",
   });
   assert.deepEqual(normalizeAIPlaceUnderstanding("Store", null, null), {
     category: "购物",
-    cuisine: "Store",
+    cuisine: "其他",
   });
   assert.deepEqual(normalizeAIPlaceUnderstanding("Cinema", null, null), {
     category: "娱乐",
-    cuisine: "Cinema",
+    cuisine: "电影院",
   });
   assert.deepEqual(normalizeAIPlaceUnderstanding("Unsupported type", null, null), {
     category: null,
     cuisine: null,
   });
+});
+
+test("normalizes bar aliases into the food subcategory", () => {
+  assert.deepEqual(normalizeAIPlaceUnderstanding("美食", "cocktail bar", null), {
+    category: "美食",
+    cuisine: "酒吧",
+  });
+  assert.deepEqual(normalizeAIPlaceUnderstanding("bar", null, null), {
+    category: "美食",
+    cuisine: "酒吧",
+  });
+});
+
+test("normalizes legacy category and subtype aliases to Chinese labels", () => {
+  assert.equal(normalizePlaceCategory("restaurant"), "美食");
+  assert.equal(normalizePlaceCategory("leisure"), "娱乐");
+  assert.equal(getPlaceSubtypeLabel("bar"), "酒吧");
+  assert.equal(getPlaceSubtypeLabel("cafe"), "咖啡馆");
+  assert.equal(getPlaceSubtypeLabel("museum"), "博物馆");
+  assert.equal(getPlaceSubtypeLabel("hotel"), "酒店");
+  assert.equal(getPlaceSubtypeLabel("unsupported English value"), "其他");
+});
+
+test("visible subtype suggestions do not expose legacy English labels", () => {
+  const forbidden = new Set(["Restaurant", "Cafe", "Bar", "Art Gallery", "Museum", "Landmark", "Hotel", "Resort"]);
+  const visibleSuggestions = [
+    ...getSubtypeFieldConfig("美食").suggestions,
+    ...getSubtypeFieldConfig("景点").suggestions,
+    ...getSubtypeFieldConfig("住宿").suggestions,
+    ...getSubtypeFieldConfig("购物").suggestions,
+    ...getSubtypeFieldConfig("娱乐").suggestions,
+    ...getSubtypeFieldConfig("其他").suggestions,
+  ];
+
+  assert.equal(visibleSuggestions.some((value) => forbidden.has(value)), false);
 });

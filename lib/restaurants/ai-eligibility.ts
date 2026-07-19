@@ -4,6 +4,8 @@ import type { MergedPlaceDraft, PlaceDraftField } from "./place-draft-merge.ts";
 export const aiMeaningfulFields: PlaceDraftField[] = [
   "name",
   "city",
+  "country",
+  "district",
   "category",
   "address",
   "phone",

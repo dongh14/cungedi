@@ -1,10 +1,12 @@
-import { getCanonicalPlaceCategory } from "./constants.ts";
+import { getPlaceCategoryLabel, getPlaceSubtypeLabel } from "./constants.ts";
+import { formatHierarchyLocationLabel } from "../location-hierarchy.ts";
 import type { DiscoveryPlaceItem, RestaurantCollectionBadge } from "./types";
 
 export type PlaceCardInput = Pick<
   DiscoveryPlaceItem,
-  "id" | "name" | "city" | "category" | "source_url"
+  "id" | "name" | "city" | "country" | "district" | "category" | "source_url"
 > & {
+  cuisine?: string | null;
   imageUrl?: string | null;
   collections?: RestaurantCollectionBadge[];
 };
@@ -13,6 +15,8 @@ export type PlaceCardDisplayData = {
   detailHref: string;
   name: string;
   city: string;
+  country: string | null;
+  locationLabel: string;
   category: string;
   imageUrl: string | null;
   hasImage: boolean;
@@ -52,7 +56,9 @@ export function getPlaceCardDisplayData(place: PlaceCardInput): PlaceCardDisplay
     detailHref: `/restaurants/${place.id}`,
     name: place.name,
     city: place.city,
-    category: getCanonicalPlaceCategory(place.category) ?? place.category,
+    country: place.country ?? null,
+    locationLabel: formatHierarchyLocationLabel(place.country, place.city, place.district),
+    category: `${getPlaceCategoryLabel(place.category)}${place.cuisine ? ` · ${getPlaceSubtypeLabel(place.cuisine, place.category)}` : ""}`,
     imageUrl,
     hasImage: Boolean(imageUrl),
     collectionBadges,

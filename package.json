@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "node --import ./scripts/register-test-loader.mjs --test lib/auth/*.test.ts lib/restaurants/*.test.ts lib/map/*.test.js supabase/migrations/*.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

@@ -56,7 +56,7 @@ test("merges Google Maps and Website results using field priority", () => {
 
   assert.equal(merged.name, "Structured Place Name");
   assert.equal(merged.address, "Structured address");
-  assert.equal(merged.category, "Restaurant");
+  assert.equal(merged.category, "美食");
   assert.equal(merged.description, "Official description");
   assert.equal(merged.phone, "021-5555-6666");
   assert.equal(merged.latitude, 31.23);

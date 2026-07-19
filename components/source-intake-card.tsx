@@ -1,4 +1,5 @@
 import { startSourceIntakeAction } from "@/app/restaurants/actions";
+import { AppIcon } from "@/components/app-icon";
 import { SurfaceCard } from "@/components/surface-card";
 
 type SourceIntakeCardProps = {
@@ -8,22 +9,14 @@ type SourceIntakeCardProps = {
     intake_input?: string;
   };
 };
-
 export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
+
   return (
-    <SurfaceCard className="p-5 sm:p-6">
+    <SurfaceCard className="form-surface p-4 sm:p-5">
       <div className="space-y-5">
         <div className="space-y-3">
-          <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-            来源入口
-          </span>
           <div>
-            <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              先粘贴来源链接
-            </h2>
-            <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步会先识别并标准化其中的链接，再进入保存前确认。你也可以随时使用右侧的手动录入作为兜底，不会影响现有保存行为。
-            </p>
+            <div className="form-card-title"><span className="form-card-icon"><AppIcon name="link" size={17} /></span><h2>粘贴链接</h2></div>
           </div>
         </div>
 
@@ -43,9 +36,9 @@ export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
           <div className="space-y-2">
             <label
               htmlFor="source_input"
-              className="text-sm font-medium text-[var(--ink-strong)]"
+              className="form-label"
             >
-              来源链接或分享文案
+              请粘贴地点链接
               <span className="ml-1 text-[var(--accent)]">*</span>
             </label>
             <textarea
@@ -54,19 +47,16 @@ export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
               rows={5}
               required
               defaultValue={searchParams.intake_input ?? ""}
-              className="w-full rounded-[22px] border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3.5 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
-              placeholder="可以直接粘贴 Google Maps 或公开网页链接，也可以粘贴一整段小红书 / 抖音分享文案"
+              className="form-control w-full"
+              placeholder="支持小红书、抖音、官方网站或其他网页"
             />
-            <p className="text-xs leading-6 text-[var(--ink-muted)]">
-              当前只会提取并记录其中第一个有效的 http 或 https 链接，然后进入人工确认；还不会抓取页面内容或自动解析来源。
-            </p>
           </div>
 
           <button
             type="submit"
-            className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
+            className="primary-button w-full"
           >
-            进入保存前确认
+            开始分析
           </button>
         </form>
       </div>

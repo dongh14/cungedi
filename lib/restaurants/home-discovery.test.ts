@@ -7,6 +7,10 @@ import {
   getHomepageMapHref,
   getHomepageRecentPlaces,
   homepageCategories,
+  homepageMapHeight,
+  homepageQuickLinks,
+  homepageSections,
+  homepageCategoryGrid,
   homepageEmptyPlacesDescription,
   homepageEmptyPlacesTitle,
   homepagePrimaryActionHref,
@@ -55,6 +59,18 @@ test("homepage shortcuts reuse the saved-list and map routes", () => {
   assert.equal(getHomepageMapHref(), "/map");
 });
 
+test("homepage keeps only map, categories, and quick navigation sections", () => {
+  assert.deepEqual(homepageSections, ["map", "categories", "shortcuts"]);
+  assert.equal(homepageMapHeight, 280);
+  assert.deepEqual(
+    homepageQuickLinks.map(({ href, label, description }) => ({ href, label, description })),
+    [
+      { href: "/restaurants", label: "地点", description: "查看全部保存地点" },
+      { href: "/collections", label: "收藏", description: "查看收藏集" },
+    ],
+  );
+});
+
 test("homepage collection summaries link to the existing collection page", () => {
   assert.deepEqual(
     getHomepageCollectionSummary({ id: 8, name: "Tokyo Trip", place_count: 3 }),
@@ -69,4 +85,18 @@ test("homepage collection summaries link to the existing collection page", () =>
 test("homepage category shortcuts use generalized labels only", () => {
   assert.deepEqual(homepageCategories, ["美食", "景点", "住宿", "购物", "娱乐", "其他"]);
   assert.equal(homepageCategories.includes("餐厅" as never), false);
+});
+
+test("homepage category shortcuts use a two-row touch-friendly grid and direct routes", () => {
+  assert.deepEqual(homepageCategoryGrid, {
+    columns: 3,
+    rows: 2,
+    minHeight: 76,
+    touchTarget: 44,
+    labelFontSize: 17,
+  });
+  assert.deepEqual(
+    homepageCategories.map(getHomepageCategoryHref),
+    homepageCategories.map((category) => `/restaurants?category=${encodeURIComponent(category)}`),
+  );
 });

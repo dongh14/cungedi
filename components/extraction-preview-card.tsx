@@ -1,6 +1,10 @@
 import Link from "next/link";
 import type { RestaurantExtractionResult } from "@/lib/restaurants/extraction-types";
-import { getPlaceCategoryLabel, getSubtypeFieldConfig } from "@/lib/restaurants/constants";
+import {
+  getPlaceCategoryLabel,
+  getPlaceSubtypeLabel,
+  getSubtypeFieldConfig,
+} from "@/lib/restaurants/constants";
 import { SurfaceCard } from "@/components/surface-card";
 
 type ExtractionPreviewCardProps = {
@@ -85,7 +89,7 @@ export function ExtractionPreviewCard({ result }: ExtractionPreviewCardProps) {
           : extractedCategory
             ? getSubtypeFieldConfig(extractedCategory).label
             : "类型细分",
-      value: cuisineField.value,
+      value: getPlaceSubtypeLabel(cuisineField.value, extractedCategory),
       evidence: cuisineField.evidenceSource ?? "未记录",
     });
   }

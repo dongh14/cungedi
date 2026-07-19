@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { buildSourceIntake } from "@/lib/restaurants/source-intake";
 import { SurfaceCard } from "@/components/surface-card";
-import { getPlaceCategoryLabel } from "@/lib/restaurants/constants";
+import { getPlaceCategoryLabel, getPlaceSubtypeLabel } from "@/lib/restaurants/constants";
 import type {
   NormalizedExtractionResult,
 } from "@/lib/restaurants/extraction-architecture";
@@ -44,7 +44,9 @@ const reviewFieldLabels: Record<PlaceDraftField, string> = {
   description: "描述",
   category: "分类",
   cuisine: "子分类",
-  city: "城市",
+    city: "城市",
+    country: "国家/地区",
+    district: "区域 / 街区",
   address: "地址",
   phone: "电话",
   latitude: "纬度",
@@ -65,6 +67,15 @@ function getConfidenceLabel(confidence: ReturnType<typeof buildSourceIntake>["ex
   }
 }
 
+function getFriendlyExtractionMessage(message: string | null) {
+  if (!message) return null;
+  if (message.includes("Extraction completed successfully")) return "已找到可用信息";
+  if (message.includes("Website blocked the request")) return "网页暂时无法读取，请手动补充";
+  if (message.includes("Website unavailable")) return "网页暂时不可用，请手动补充";
+  if (message.includes("no extractable metadata")) return "网页没有可直接读取的信息";
+  return message.replaceAll("玩乐", "娱乐");
+}
+
 export function SourceReviewCard({
   sourceUrl,
   extractionResult,
@@ -80,16 +91,17 @@ export function SourceReviewCard({
     results.length > 1
       ? `${results.length} 个来源已合并`
       : results[0].extractionStatus === "success"
-        ? "提取可用"
+        ? "信息完整"
         : results[0].extractionStatus === "partial"
-          ? "部分提取"
-          : "提取不可用";
+          ? "部分信息"
+          : "需要补充";
   const reviewDisplayFields: PlaceDraftField[] = [
     "name",
     "address",
     "phone",
     "description",
     "city",
+    "country",
     "category",
     "notes",
   ];
@@ -98,6 +110,7 @@ export function SourceReviewCard({
     "address",
     "phone",
     "city",
+    "country",
     "category",
     "notes",
   ];
@@ -110,8 +123,11 @@ export function SourceReviewCard({
   const foundFields = reviewDisplayFields.filter(hasDraftValue);
   const fieldsNeedingReview = reviewFields.filter((field) => !hasDraftValue(field));
   const extractionMessages = Array.from(
-    new Set(results.map((result) => result.message?.replaceAll("玩乐", "娱乐")).filter(Boolean)),
+    new Set(results.map((result) => getFriendlyExtractionMessage(result.message)).filter(Boolean)),
   );
+  const sourceHosts = Array.from(new Set(sourceList.map((value) => {
+    try { return new URL(value).hostname.replace(/^www\./, ""); } catch { return "未知来源"; }
+  })));
   const getFieldSourceLabel = (source: PlaceDraftSource | undefined) => {
     if (source === "manual") {
       return "手动编辑";
@@ -132,16 +148,9 @@ export function SourceReviewCard({
     <SurfaceCard className="p-5 sm:p-6">
       <div className="space-y-5">
         <div className="space-y-3">
-          <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[var(--accent-deep)] uppercase">
-            Step 11 来源检查
-          </span>
           <div>
-            <h2 className="[font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
-              来源链接已经进入保存前确认
-            </h2>
-            <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              这一步会识别来源域名，并对网站来源获取当前页面的 HTML。解析结果只会作为可编辑草稿，仍需你确认和补全。
-            </p>
+            <div className="form-card-title"><span className="form-card-icon"><span className="status-dot" /></span><h2>来源摘要</h2></div>
+            <p className="form-card-subtitle">找到的信息会先放进下面的可编辑表单。</p>
           </div>
         </div>
 
@@ -150,7 +159,7 @@ export function SourceReviewCard({
             提取质量
           </p>
           <p className="mt-3 text-sm leading-7 text-[var(--ink-soft)]">
-            {extractionMessages.join(" · ")} · {getConfidenceLabel(
+            {extractionLabel} · {extractionMessages.join(" · ")} · {getConfidenceLabel(
               results.some((result) => result.confidence === "high")
                 ? "high"
                 : results.some((result) => result.confidence === "medium")
@@ -169,7 +178,9 @@ export function SourceReviewCard({
                       <span className="ml-2 text-emerald-700/75">
                         {field === "category"
                           ? getPlaceCategoryLabel(String(merged[field]))
-                          : String(merged[field])} · {getFieldSourceLabel(merged.fieldSources[field])}
+                          : field === "cuisine"
+                            ? getPlaceSubtypeLabel(String(merged[field]), merged.category)
+                            : String(merged[field])} · {getFieldSourceLabel(merged.fieldSources[field])}
                       </span>
                     </li>
                   ))}
@@ -202,8 +213,8 @@ export function SourceReviewCard({
           <p className="text-xs font-semibold tracking-[0.16em] text-[var(--accent-deep)] uppercase">
             已识别来源
           </p>
-          <p className="mt-3 break-all text-sm leading-7 text-[var(--ink-strong)]">
-            {sourceList.join("\n")}
+          <p className="mt-3 text-sm leading-7 text-[var(--ink-strong)]">
+            {sourceHosts.join("、")}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
@@ -263,7 +274,7 @@ export function SourceReviewCard({
               当前这个入口会做什么
             </p>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              识别来源域名，选择对应的提取器，并把字段带入下一步确认表单。网站来源只处理当前页面一次。
+              已识别来源，并把安全字段带入确认表单。官网只读取当前页面。
             </p>
           </div>
           <div className="rounded-[24px] bg-[var(--surface-muted)] p-4">
@@ -271,14 +282,14 @@ export function SourceReviewCard({
               当前这个入口不会做什么
             </p>
             <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
-              不会爬取其他链接、调用外部 API、执行脚本或使用 AI 解析。
+              不会爬取其他链接、执行脚本或公开你的地点。
             </p>
           </div>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <Link
-            href={`/restaurants/new?source_input=${encodeURIComponent(sourceUrl)}&message=${encodeURIComponent("已带入来源链接，你可以先继续手动补全并保存。")}`}
+            href={`/restaurants/new/manual?source_input=${encodeURIComponent(sourceUrl)}&message=${encodeURIComponent("已带入来源链接，你可以先继续手动补全并保存。")}`}
             className="inline-flex justify-center rounded-full bg-[var(--accent)] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
           >
             返回编辑来源

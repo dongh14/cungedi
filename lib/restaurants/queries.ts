@@ -10,6 +10,14 @@ import type {
   RestaurantListItem,
   RestaurantMapItem,
 } from "@/lib/restaurants/types";
+import { selectRestaurantsWithLocation } from "./query-compat.ts";
+import { logRestaurantQueryError } from "./query-diagnostics.ts";
+
+function reportQueryError(operation: string, error: unknown) {
+  if (error) {
+    logRestaurantQueryError(operation, error);
+  }
+}
 
 function buildCollectionPlaceCounts(
   memberships: Array<{ restaurant_id: number; collection_id: number }>,
@@ -28,20 +36,20 @@ function buildCollectionPlaceCounts(
 
 export async function getCurrentUserRestaurants(category?: RestaurantCategory) {
   const supabase = await createServerSupabaseClient();
-  let query = supabase
-    .from("restaurants")
-    .select(
-      "id, name, city, source_url, privacy, category, address, cuisine, note, created_at",
-    )
-    .order("created_at", { ascending: false });
+  const { data, error } = await selectRestaurantsWithLocation(
+    (select) => {
+      let query = supabase.from("restaurants").select(select).order("created_at", { ascending: false });
 
-  if (category === "娱乐") {
-    query = query.in("category", ["娱乐", "玩乐"]);
-  } else if (category) {
-    query = query.eq("category", category);
-  }
+      if (category === "娱乐") {
+        query = query.in("category", ["娱乐", "玩乐"]);
+      } else if (category) {
+        query = query.eq("category", category);
+      }
 
-  const { data, error } = await query;
+      return query;
+    },
+    "restaurant list",
+  );
 
   return {
     restaurants: (data ?? []) as RestaurantListItem[],
@@ -51,12 +59,10 @@ export async function getCurrentUserRestaurants(category?: RestaurantCategory) {
 
 export async function getCurrentUserDiscoveryData() {
   const supabase = await createServerSupabaseClient();
-  const { data: restaurantData, error: restaurantError } = await supabase
-    .from("restaurants")
-    .select(
-      "id, name, city, source_url, privacy, category, address, cuisine, note, created_at",
-    )
-    .order("created_at", { ascending: false });
+  const { data: restaurantData, error: restaurantError } = await selectRestaurantsWithLocation(
+    (select) => supabase.from("restaurants").select(select).order("created_at", { ascending: false }),
+    "dashboard places",
+  );
 
   if (restaurantError) {
     return {
@@ -73,6 +79,8 @@ export async function getCurrentUserDiscoveryData() {
   const { data: membershipData, error: membershipError } = await supabase
     .from("restaurant_collections")
     .select("restaurant_id, collection_id");
+  reportQueryError("dashboard collections", collectionError);
+  reportQueryError("dashboard collection memberships", membershipError);
   const memberships = (membershipData ?? []) as Array<{
     restaurant_id: number;
     collection_id: number;
@@ -115,16 +123,13 @@ export async function getCurrentUserDiscoveryData() {
 
 export async function getCurrentUserRestaurantById(id: number) {
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from("restaurants")
-    .select(
-      "id, name, city, source_url, privacy, category, address, cuisine, note, latitude, longitude, created_at",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await selectRestaurantsWithLocation(
+    (select) => supabase.from("restaurants").select(select).eq("id", id).limit(1),
+    "place details",
+  );
 
   return {
-    restaurant: (data ?? null) as RestaurantEditItem | null,
+    restaurant: ((((data as unknown[]) ?? [])[0] ?? null) as RestaurantEditItem | null),
     error,
   };
 }
@@ -137,6 +142,7 @@ export async function getCurrentUserCollectionsForRestaurant(restaurantId: numbe
     .eq("restaurant_id", restaurantId);
 
   if (membershipError) {
+    reportQueryError("place collection memberships", membershipError);
     return {
       collections: [] as RestaurantCollectionBadge[],
       error: membershipError,
@@ -156,9 +162,10 @@ export async function getCurrentUserCollectionsForRestaurant(restaurantId: numbe
 
   const { data: collectionData, error: collectionError } = await supabase
     .from("collections")
-    .select("id, name")
+    .select("id, name, created_at")
     .in("id", collectionIds)
     .order("created_at", { ascending: false });
+  reportQueryError("place collections", collectionError);
 
   return {
     collections: (collectionData ?? []) as RestaurantCollectionBadge[],
@@ -168,10 +175,10 @@ export async function getCurrentUserCollectionsForRestaurant(restaurantId: numbe
 
 export async function getCurrentUserRestaurantsForMap() {
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from("restaurants")
-    .select("id, name, city, category, address, cuisine, note, latitude, longitude")
-    .order("created_at", { ascending: false });
+  const { data, error } = await selectRestaurantsWithLocation(
+    (select) => supabase.from("restaurants").select(select).order("created_at", { ascending: false }),
+    "map places",
+  );
 
   return {
     restaurants: (data ?? []) as RestaurantMapItem[],
@@ -187,6 +194,7 @@ export async function getCurrentUserCollections() {
     .order("created_at", { ascending: false });
 
   if (error) {
+    reportQueryError("collections", error);
     return {
       collections: [] as CollectionListItem[],
       error,
@@ -198,6 +206,7 @@ export async function getCurrentUserCollections() {
     .select("restaurant_id, collection_id");
 
   if (membershipError) {
+    reportQueryError("collection memberships", membershipError);
     return {
       collections: [] as CollectionListItem[],
       error: membershipError,
@@ -210,10 +219,14 @@ export async function getCurrentUserCollections() {
   );
 
   const { data: restaurantData, error: restaurantError } = restaurantIds.length
-    ? await supabase.from("restaurants").select("id, name, city, category").in("id", restaurantIds)
+    ? await selectRestaurantsWithLocation(
+      (select) => supabase.from("restaurants").select(select).in("id", restaurantIds),
+      "collection places",
+    )
     : { data: [], error: null };
 
   if (restaurantError) {
+    reportQueryError("collection places", restaurantError);
     return {
       collections: [] as CollectionListItem[],
       error: restaurantError,
@@ -221,7 +234,10 @@ export async function getCurrentUserCollections() {
   }
 
   const restaurantsById = new Map(
-    (restaurantData ?? []).map((restaurant) => [restaurant.id, restaurant]),
+    (restaurantData as Array<CollectionPlacePreview> | undefined ?? []).map((restaurant) => [
+      restaurant.id,
+      restaurant,
+    ]),
   );
 
   (membershipData ?? []).forEach((membership) => {
@@ -236,7 +252,7 @@ export async function getCurrentUserCollections() {
         place_count: placeCountByCollectionId.get(collection.id) ?? 0,
         places: (membershipData ?? [])
           .filter((membership) => membership.collection_id === collection.id)
-          .map((membership) => restaurantsById.get(membership.restaurant_id as number))
+          .map((membership): CollectionPlacePreview | undefined => restaurantsById.get(membership.restaurant_id as number))
           .filter((place): place is CollectionPlacePreview => Boolean(place)),
       }),
     ),
@@ -248,8 +264,9 @@ export async function getCurrentUserCollectionOptions() {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("collections")
-    .select("id, name")
+    .select("id, name, created_at")
     .order("created_at", { ascending: false });
+  reportQueryError("collection options", error);
 
   return {
     collections: (data ?? []) as CollectionOptionItem[],
@@ -263,6 +280,7 @@ export async function getCurrentUserCollectionIdsForRestaurant(restaurantId: num
     .from("restaurant_collections")
     .select("collection_id")
     .eq("restaurant_id", restaurantId);
+  reportQueryError("place collection memberships", error);
 
   return {
     collectionIds: (data ?? []).map((membership) => membership.collection_id as number),

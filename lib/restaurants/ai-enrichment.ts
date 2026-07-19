@@ -18,7 +18,7 @@ export type AIEnrichmentStatus = (typeof aiEnrichmentStatuses)[number];
 export type AIEnrichmentConfidence = "high" | "medium" | "low";
 export type AIEnrichmentCacheStatus = "hit" | "miss" | "bypass";
 
-export type AIFactualFieldName = "address" | "phone" | "city" | "country";
+export type AIFactualFieldName = "address" | "phone" | "city" | "country" | "district";
 export type AIUnderstandingFieldName =
   | "category"
   | "cuisine"
@@ -42,6 +42,7 @@ export type AIEnrichmentProposal = {
     phone: string | null;
     city: string | null;
     country: string | null;
+    district: string | null;
   };
   understandingSuggestions: {
     category: string | null;
@@ -78,6 +79,7 @@ export type AIEnrichmentSnapshotField = {
   field: AIProposedFieldName;
   group: AIProposedFieldGroup;
   value: string;
+  confidence?: AIEnrichmentConfidence;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -88,7 +90,7 @@ function isConfidence(value: unknown): value is AIEnrichmentConfidence {
   return value === "low" || value === "medium" || value === "high";
 }
 
-const factualFieldNames = new Set<AIFactualFieldName>(["address", "phone", "city", "country"]);
+const factualFieldNames = new Set<AIFactualFieldName>(["address", "phone", "city", "country", "district"]);
 const understandingFieldNames = new Set<AIUnderstandingFieldName>([
   "category",
   "cuisine",
@@ -125,7 +127,7 @@ export function isValidCachedAIEnrichmentResult(value: unknown): value is AIEnri
   }
 
   if (
-    !["address", "phone", "city", "country"].every((field) =>
+    !["address", "phone", "city", "country", "district"].every((field) =>
       typeof factual[field] === "string" || factual[field] === null,
     ) ||
     typeof understanding.category !== "string" && understanding.category !== null ||
@@ -235,6 +237,7 @@ export function buildAIEnrichmentResultFromSnapshot(
     phone: null,
     city: null,
     country: null,
+    district: null,
   };
   const understandingSuggestions: AIUnderstandingSuggestions = {
     category: null,
@@ -252,7 +255,7 @@ export function buildAIEnrichmentResultFromSnapshot(
 
     if (item.group === "factual" && item.field in factualSuggestions) {
       factualSuggestions[item.field as keyof AIFactualSuggestions] = item.value;
-      proposedFields.push({ ...item, confidence });
+      proposedFields.push({ ...item, confidence: item.confidence ?? confidence });
       continue;
     }
 
@@ -265,7 +268,7 @@ export function buildAIEnrichmentResultFromSnapshot(
         continue;
       }
 
-      proposedFields.push({ ...item, confidence });
+      proposedFields.push({ ...item, confidence: item.confidence ?? confidence });
     }
   }
 
@@ -293,7 +296,7 @@ export type AIEnrichmentProvider = {
   enrich: (request: AIEnrichmentRequest) => Promise<AIEnrichmentResult>;
 };
 
-const factualSuggestionFields = ["address", "phone", "city", "country"] as const;
+const factualSuggestionFields = ["address", "phone", "city", "country", "district"] as const;
 
 function normalizeEvidenceValue(value: string, field: (typeof factualSuggestionFields)[number]) {
   const normalized = value.trim().toLocaleLowerCase();
@@ -309,6 +312,8 @@ function getFactualEvidenceValues(result: NormalizedExtractionResult) {
     result.description,
     result.category,
     result.city,
+    result.country,
+    result.district,
     result.address,
     result.phone,
     ...(result.evidence?.metadata ? Object.values(result.evidence.metadata) : []),
@@ -316,6 +321,9 @@ function getFactualEvidenceValues(result: NormalizedExtractionResult) {
       entry.name,
       entry.description,
       entry.category,
+      entry.city,
+      entry.country,
+      entry.district,
       entry.address,
       entry.phone,
       entry.websiteUrl,
@@ -398,7 +406,7 @@ export const placeholderAIEnrichmentProvider: AIEnrichmentProvider = {
 
 export function getMissingAIReviewFields(draft: MergedPlaceDraft): PlaceDraftField[] {
   const reviewFields = placeDraftFields.filter((field) =>
-    ["name", "city", "category", "address", "phone", "notes"].includes(field),
+    ["name", "city", "country", "category", "address", "phone", "notes"].includes(field),
   );
 
   return reviewFields.filter((field) => {

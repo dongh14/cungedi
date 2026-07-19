@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getSafeLoginErrorMessage, getSafeSignUpErrorMessage } from "@/lib/auth/login-ui";
 
 function buildRedirect(pathname: string, params: Record<string, string>) {
   const searchParams = new URLSearchParams(params);
@@ -33,11 +34,11 @@ export async function signUpAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(buildRedirect("/sign-up", { error: error.message }));
+    redirect(buildRedirect("/sign-up", { error: getSafeSignUpErrorMessage(error.message) ?? "注册失败，请检查信息后重试。" }));
   }
 
   if (data.session) {
-    redirect(buildRedirect("/dashboard", { message: "注册成功，已自动登录。" }));
+    redirect(buildRedirect("/dashboard", { login_success: "1" }));
   }
 
   redirect(
@@ -62,10 +63,10 @@ export async function loginAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(buildRedirect("/login", { error: error.message }));
+    redirect(buildRedirect("/login", { error: getSafeLoginErrorMessage(error.message) ?? "邮箱或密码错误，请检查后重试。" }));
   }
 
-  redirect(buildRedirect("/dashboard", { message: "登录成功。" }));
+  redirect(buildRedirect("/dashboard", { login_success: "1" }));
 }
 
 export async function logoutAction() {

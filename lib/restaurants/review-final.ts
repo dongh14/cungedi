@@ -5,6 +5,7 @@ const reviewComparisonFields: PlaceDraftField[] = [
   "name",
   "category",
   "city",
+  "country",
   "address",
   "phone",
   "notes",

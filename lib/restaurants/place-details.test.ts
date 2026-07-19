@@ -29,7 +29,7 @@ test("details projection includes saved fields and safe source presentation", ()
   assert.equal(details.detailHref, "/restaurants/12");
   assert.equal(details.editHref, "/restaurants/12/edit");
   assert.equal(details.category, "景点");
-  assert.equal(details.subcategory, "Art Gallery");
+  assert.equal(details.subcategory, "美术馆");
   assert.equal(details.address, "浦东新区示例路 1 号");
   assert.equal(details.notes, "夜间更适合参观");
   assert.equal(details.sourceLabel, "example.com");
@@ -82,7 +82,7 @@ test("known city values retain the existing approximate location behavior", () =
   assert.equal(details.location.status, "resolved");
   if (details.location.status === "resolved") {
     assert.equal(details.location.approximate, true);
-    assert.equal(details.location.label, "近似位置");
+    assert.equal(details.location.label, "大概位置");
   }
 });
 

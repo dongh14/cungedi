@@ -1,3 +1,6 @@
+"use client";
+
+import type { FormEvent } from "react";
 import { createCollectionAction } from "@/app/restaurants/actions";
 import { SurfaceCard } from "@/components/surface-card";
 import type { AIReviewDraftState } from "@/lib/restaurants/ai-review-state";
@@ -5,6 +8,7 @@ import type { CollectionOptionItem } from "@/lib/restaurants/types";
 
 export function ReviewCollectionSelector({
   collectionOptions,
+  collectionOptionsError = false,
   selectedCollectionIds,
   sourceUrl,
   message,
@@ -14,6 +18,7 @@ export function ReviewCollectionSelector({
   manualEvidence,
 }: {
   collectionOptions: CollectionOptionItem[];
+  collectionOptionsError?: boolean;
   selectedCollectionIds: number[];
   sourceUrl: string;
   message?: string;
@@ -22,6 +27,8 @@ export function ReviewCollectionSelector({
   draftValues?: Partial<{
     name: string;
     city: string;
+    country: string;
+    district: string;
     address: string;
     category: string;
     cuisine: string;
@@ -29,6 +36,30 @@ export function ReviewCollectionSelector({
   }>;
   manualEvidence?: string;
 }) {
+  function syncCurrentDraft(event: FormEvent<HTMLFormElement>) {
+    const form = event.currentTarget;
+    const params = new URLSearchParams(window.location.search);
+    const draftFields = ["name", "city", "country", "district", "address", "category", "cuisine", "note"];
+
+    for (const field of draftFields) {
+      const value = params.get(field);
+      const input = form.querySelector<HTMLInputElement>(`input[name="review_${field}"]`);
+
+      if (value !== null && input) {
+        input.value = value;
+      }
+    }
+
+    form.querySelectorAll<HTMLInputElement>("input[name=collection_ids]").forEach((input) => input.remove());
+    document.querySelectorAll<HTMLInputElement>("input[name=collection_ids]:checked").forEach((input) => {
+      const hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = "collection_ids";
+      hidden.value = input.value;
+      form.appendChild(hidden);
+    });
+  }
+
   function renderAIDraftStateInputs() {
     if (!aiDraftState) {
       return null;
@@ -60,16 +91,13 @@ export function ReviewCollectionSelector({
   }
 
   return (
-    <SurfaceCard className="p-5 sm:p-6">
+    <SurfaceCard className="form-surface p-4 sm:p-5">
       <div className="space-y-4">
         <div>
-          <p className="text-xs font-semibold tracking-[0.16em] text-[var(--accent-deep)] uppercase">
-            组织保存
-          </p>
-          <h2 className="mt-2 [font-family:var(--font-display)] text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
+          <h2 className="[font-family:var(--font-display)] text-xl font-semibold tracking-[-0.03em] text-[var(--ink-strong)]">
             选择合集
           </h2>
-          <p className="mt-2 text-sm leading-7 text-[var(--ink-soft)]">
+          <p className="mt-1 text-xs leading-6 text-[var(--ink-soft)]">
             可以选择一个或多个已有合集；不选择也可以直接保存。
           </p>
         </div>
@@ -80,10 +108,14 @@ export function ReviewCollectionSelector({
           </div>
         ) : null}
 
-        {collectionOptions.length > 0 ? (
+        {collectionOptionsError ? (
+          <p className="rounded-[20px] border border-rose-200 bg-rose-50 p-4 text-sm leading-7 text-rose-700">
+            暂时无法读取合集，请稍后再试。
+          </p>
+        ) : collectionOptions.length > 0 ? (
           <div className="grid gap-3">
             {collectionOptions.map((collection) => (
-              <label key={collection.id} className="flex cursor-pointer items-center gap-3 rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4 transition hover:border-[var(--accent)]/45">
+              <label key={collection.id} className="review-collection-option">
                 <input
                   type="checkbox"
                   name="collection_ids"
@@ -102,9 +134,12 @@ export function ReviewCollectionSelector({
           </p>
         )}
 
-        <form action={createCollectionAction} className="flex flex-col gap-3 sm:flex-row">
+        <form action={createCollectionAction} onSubmit={syncCurrentDraft} className="flex flex-col gap-3 sm:flex-row">
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="source_url" value={sourceUrl} />
+          {selectedCollectionIds.map((id) => (
+            <input key={`selected-collection-${id}`} type="hidden" name="collection_ids" value={id} />
+          ))}
           {renderAIDraftStateInputs()}
           {Object.entries(draftValues ?? {}).map(([field, value]) => (
             <input key={`review-${field}`} type="hidden" name={`review_${field}`} value={value} />
@@ -115,10 +150,10 @@ export function ReviewCollectionSelector({
           <input
             name="name"
             required
-            className="min-w-0 flex-1 rounded-full border border-[var(--border-soft)] bg-white px-4 py-3 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-glow)]"
+            className="form-control min-w-0 flex-1"
             placeholder="新合集名称"
           />
-          <button type="submit" className="rounded-full border border-[var(--border-soft)] bg-white px-5 py-3 text-sm font-semibold text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]">
+          <button type="submit" className="secondary-button">
             创建合集
           </button>
         </form>

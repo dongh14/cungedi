@@ -2,7 +2,7 @@ import type { PlaceMarkerData } from "./place-markers.ts";
 
 export type MapSearchSelectablePlace = Pick<
   PlaceMarkerData,
-  "id" | "name" | "city" | "category" | "approximate"
+  "id" | "name" | "city" | "country" | "district" | "category" | "approximate"
 >;
 
 export function createMapSearchSelectablePlaces(
@@ -12,6 +12,8 @@ export function createMapSearchSelectablePlaces(
     id: marker.id,
     name: marker.name,
     city: marker.city,
+    ...(marker.country ? { country: marker.country } : {}),
+    ...(marker.district ? { district: marker.district } : {}),
     category: marker.category,
     approximate: marker.approximate,
   }));

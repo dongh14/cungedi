@@ -1,14 +1,10 @@
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
-import { AIEnrichmentCard } from "@/components/ai-enrichment-card";
 import { AppShell } from "@/components/app-shell";
 import { ExtractionConfirmationCard } from "@/components/extraction-confirmation-card";
 import { ManualEvidenceRecoveryCard } from "@/components/manual-evidence-recovery-card";
-import { PlaceholderCard } from "@/components/placeholder-card";
-import { ReviewFinalPreviewCard } from "@/components/review-final-preview-card";
 import { ReviewCollectionSelector } from "@/components/review-collection-selector";
-import { SourceReviewCard } from "@/components/source-review-card";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
 import {
   buildAIEnrichmentResultFromSnapshot,
@@ -17,7 +13,10 @@ import {
   runAIEnrichment,
   type AIProposedFieldName,
 } from "@/lib/restaurants/ai-enrichment";
-import { applyAcceptedAIEnrichment } from "@/lib/restaurants/ai-enrichment-merge";
+import {
+  applyAcceptedAIEnrichment,
+  getAutoAppliedAIFields,
+} from "@/lib/restaurants/ai-enrichment-merge";
 import {
   appendAIReviewDraftState,
   clearAIReviewDraftState,
@@ -35,6 +34,7 @@ import {
 import { getCurrentUserCollectionOptions } from "@/lib/restaurants/queries";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 import { getReviewCollectionIds, type ReviewSearchParams } from "@/lib/restaurants/review-form";
+import { logWorkflowDiagnostic } from "@/lib/restaurants/workflow-diagnostics";
 
 type RestaurantReviewPageProps = {
   searchParams?: Promise<ReviewSearchParams & {
@@ -66,8 +66,10 @@ function getAcceptedAIFields(
   );
   const allowed = new Set<AIProposedFieldName>([
     "address",
+    "country",
     "phone",
     "city",
+    "district",
     "category",
     "cuisine",
     "summary",
@@ -106,22 +108,37 @@ export default async function RestaurantReviewPage({
   noStore();
   const user = await requireAuthenticatedUser();
   const params = (await searchParams) ?? {};
-  const { collections: collectionOptions } = await getCurrentUserCollectionOptions();
+  const { collections: collectionOptions, error: collectionOptionsError } = await getCurrentUserCollectionOptions();
   const selectedCollectionIds = getReviewCollectionIds(params.collection_ids);
   const sourceUrls = getReviewSourceUrls(params);
   const normalizedSourceUrl = sourceUrls[0] ?? null;
 
   if (!normalizedSourceUrl) {
     redirect(
-      `/restaurants/new?source_error=${encodeURIComponent(
+      `/restaurants/new/source?source_error=${encodeURIComponent(
         "请先粘贴有效的来源链接或分享文案。",
       )}`,
     );
   }
 
+  const extractionStartedAt = Date.now();
   const extractionPipelines = await Promise.all(
     sourceUrls.map((sourceUrl) => runExtractionPipelineWithWebsiteFetch(sourceUrl)),
   );
+  for (const pipeline of extractionPipelines) {
+    logWorkflowDiagnostic({
+      event: "source_detected",
+      sourceUrls: [pipeline.detection.sourceUrl ?? normalizedSourceUrl],
+      sourceType: pipeline.detection.sourceType,
+    });
+    logWorkflowDiagnostic({
+      event: "extraction_completed",
+      sourceUrls: [pipeline.detection.sourceUrl ?? normalizedSourceUrl],
+      sourceType: pipeline.detection.sourceType,
+      extractionStatus: pipeline.result.extractionStatus,
+      durationMs: Date.now() - extractionStartedAt,
+    });
+  }
   const manualEvidenceAttempted = params.manual_evidence !== undefined;
   const normalizedManualEvidence = manualEvidenceAttempted
     ? normalizeManualEvidenceText(params.manual_evidence)
@@ -148,6 +165,8 @@ export default async function RestaurantReviewPage({
   const mergedDraft = mergePlaceDraftSources(extractionResults, {
     ...(params.name !== undefined ? { name: params.name } : {}),
     ...(params.city !== undefined ? { city: params.city } : {}),
+    ...(params.country !== undefined ? { country: params.country } : {}),
+    ...(params.district !== undefined ? { district: params.district } : {}),
     ...(params.category !== undefined ? { category: params.category } : {}),
     ...(params.address !== undefined ? { address: params.address } : {}),
     ...(params.cuisine !== undefined ? { cuisine: params.cuisine } : {}),
@@ -155,7 +174,7 @@ export default async function RestaurantReviewPage({
   });
   const isForcedReanalysis = params.ai_refresh === "1";
   const storedAIState = isForcedReanalysis ? null : parseAIReviewDraftState(params);
-  const acceptedAIFields = isForcedReanalysis
+  const requestedAcceptedAIFields = isForcedReanalysis
     ? []
     : storedAIState?.acceptedFields ?? getAcceptedAIFields(
     params.ai_accept,
@@ -204,6 +223,19 @@ export default async function RestaurantReviewPage({
         deepSeekAIEnrichmentProvider,
       );
   const aiEnrichment = normalizeAIEnrichmentResult(rawAIEnrichment);
+  const autoAcceptedAIFields = getAutoAppliedAIFields(
+    mergedDraft,
+    aiEnrichment,
+    rejectedAIGroups,
+  );
+  const acceptedAIFields = Array.from(
+    new Set([...requestedAcceptedAIFields, ...autoAcceptedAIFields]),
+  );
+  logWorkflowDiagnostic({
+    event: "ai_completed",
+    sourceUrls,
+    aiStatus: aiEnrichment.status,
+  });
   const aiDraftState = getAIReviewDraftState(
     aiEnrichment,
     acceptedAIFields,
@@ -264,6 +296,18 @@ export default async function RestaurantReviewPage({
     aiEnrichment,
     acceptedAIFields,
   );
+  if (acceptedAIFields.length > 0) {
+    logWorkflowDiagnostic({
+      event: "suggestion_applied",
+      sourceUrls,
+      suggestionCount: acceptedAIFields.length,
+    });
+  }
+  logWorkflowDiagnostic({
+    event: "review_ready",
+    sourceUrls,
+    aiStatus: aiEnrichment.status,
+  });
   const websiteRecoveryPipelines = extractionPipelines.filter(
     (pipeline) => isWebsiteRecoveryRequired({
       sourceType: pipeline.detection.sourceType,
@@ -273,6 +317,16 @@ export default async function RestaurantReviewPage({
   );
   const showManualEvidenceRecovery = websiteRecoveryPipelines.length > 0 || Boolean(manualEvidenceAttempted);
   const recoveryMessage = manualEvidenceError ?? undefined;
+  const reviewDraftValues = {
+    name: reviewDraft.name ?? "",
+    city: reviewDraft.city ?? "",
+    country: reviewDraft.country ?? "",
+    district: reviewDraft.district ?? "",
+    address: reviewDraft.address ?? "",
+    category: reviewDraft.category ?? "",
+    cuisine: reviewDraft.cuisine ?? "",
+    note: reviewDraft.notes ?? "",
+  };
   const refreshParams = Object.entries(params).flatMap(([key, value]) =>
     Array.isArray(value)
       ? value.map((entry) => [key, entry] as const)
@@ -286,112 +340,24 @@ export default async function RestaurantReviewPage({
     <AppShell
       currentPath="/restaurants/new"
       eyebrow="保存前确认"
-      title="先检查地点字段，再决定是否保存"
-      description="当前 V1 会把多个来源统一到同一个确认页。各来源先分别解析，再按字段优先级合并成可编辑草稿。"
+      title="确认地点信息并保存"
+      description="信息已自动整理到可编辑表单。检查后再保存，不会自动创建记录。"
       userEmail={user.email}
       userId={user.userId}
-      actions={
-        <>
-          <Link
-            href="/restaurants/new"
-            className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(255,91,0,0.28)] transition hover:bg-[var(--accent-deep)]"
-          >
-            返回来源入口
-          </Link>
-          <Link
-            href="/restaurants"
-            className="inline-flex rounded-full border border-[var(--border-soft)] bg-white px-5 py-3 text-sm font-medium text-[var(--ink-strong)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            回到已收藏
-          </Link>
-        </>
-      }
+      actions={<Link href="/restaurants/new" className="app-text-link">返回添加入口</Link>}
     >
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <div className="space-y-4">
-          <SourceReviewCard
-            sourceUrl={normalizedSourceUrl}
-            extractionResults={extractionResults}
-            mergedDraft={mergedDraft}
-            sourceUrls={sourceUrls}
-          />
-          <ReviewFinalPreviewCard
-            draft={reviewDraft}
-            extractionResults={extractionResults}
-            collectionOptions={collectionOptions}
-            selectedCollectionIds={selectedCollectionIds}
-          />
-          <ReviewCollectionSelector
-            collectionOptions={collectionOptions}
-            selectedCollectionIds={selectedCollectionIds}
-            sourceUrl={normalizedSourceUrl}
-            message={params.collection_message ?? params.collection_error}
-            aiDraftState={aiDraftState}
-            draftValues={{
-              ...(params.name !== undefined ? { name: params.name } : {}),
-              ...(params.city !== undefined ? { city: params.city } : {}),
-              ...(params.address !== undefined ? { address: params.address } : {}),
-              ...(params.category !== undefined ? { category: params.category } : {}),
-              ...(params.cuisine !== undefined ? { cuisine: params.cuisine } : {}),
-              ...(params.note !== undefined ? { note: params.note } : {}),
-            }}
-            manualEvidence={manualEvidenceText ?? undefined}
-          />
-          <ExtractionConfirmationCard
-            sourceUrl={normalizedSourceUrl}
-            searchParams={params}
-            mergedDraft={reviewDraft}
-            sourceUrls={sourceUrls}
-            acceptedAIFields={acceptedAIFields}
-          />
-        </div>
-
-        <div className="space-y-4">
-          {showManualEvidenceRecovery ? (
-            <ManualEvidenceRecoveryCard
-              sourceUrl={normalizedSourceUrl}
-              sourceUrls={sourceUrls}
-              value={manualEvidenceText ?? ""}
-              error={recoveryMessage ?? websiteRecoveryPipelines[0]?.result.message}
-              aiDraftState={aiDraftState}
-              selectedCollectionIds={selectedCollectionIds}
-              draftValues={{
-                ...(params.name !== undefined ? { name: params.name } : {}),
-                ...(params.city !== undefined ? { city: params.city } : {}),
-                ...(params.address !== undefined ? { address: params.address } : {}),
-                ...(params.category !== undefined ? { category: params.category } : {}),
-                ...(params.cuisine !== undefined ? { cuisine: params.cuisine } : {}),
-                ...(params.note !== undefined ? { note: params.note } : {}),
-              }}
-            />
-          ) : null}
-          <AIEnrichmentCard
-            result={aiEnrichment}
-            sourceUrl={normalizedSourceUrl}
-            sourceUrls={sourceUrls}
-            rejectedGroups={rejectedAIGroups}
-            acceptedFields={acceptedAIFields}
-            refreshParams={refreshParams}
-          />
-          <PlaceholderCard
-            title="这一步现在重点做什么"
-            description="这个入口现在把来源入口、单页获取、字段解析、来源合并、手动复核和最终保存拆成清晰的边界。"
-            items={[
-              "网站来源只获取当前 URL 的单页 HTML，不会跟随页面链接。",
-              "确认页只负责显示和编辑准备保存的字段。",
-              "点击保存前不会写入任何地点记录。",
-            ]}
-          />
-          <PlaceholderCard
-            title="为后续提取预留边界"
-            description="网站获取失败时仍会保留确认页和手动录入，不会影响其他来源的现有行为。"
-            items={[
-              "当前不会做 Xiaohongshu、Douyin 或其他来源抓取。",
-              "不会做图片提取、AI parsing、地理编码或坐标补全。",
-              "不会影响现有地图、城市过滤和已保存地点行为。",
-            ]}
-          />
-        </div>
+      <div className="review-layout">
+        <ExtractionConfirmationCard
+          sourceUrl={normalizedSourceUrl}
+          searchParams={params}
+          mergedDraft={reviewDraft}
+          sourceUrls={sourceUrls}
+          extractionResults={extractionResults}
+          aiStatus={aiEnrichment.status}
+          refreshParams={refreshParams}
+        />
+        {showManualEvidenceRecovery ? <ManualEvidenceRecoveryCard sourceUrl={normalizedSourceUrl} sourceUrls={sourceUrls} value={manualEvidenceText ?? ""} error={recoveryMessage ?? websiteRecoveryPipelines[0]?.result.message} aiDraftState={aiDraftState} selectedCollectionIds={selectedCollectionIds} draftValues={reviewDraftValues} /> : null}
+        <ReviewCollectionSelector collectionOptions={collectionOptions} collectionOptionsError={Boolean(collectionOptionsError)} selectedCollectionIds={selectedCollectionIds} sourceUrl={normalizedSourceUrl} message={params.collection_message ?? params.collection_error} aiDraftState={aiDraftState} draftValues={reviewDraftValues} manualEvidence={manualEvidenceText ?? undefined} />
       </div>
     </AppShell>
   );

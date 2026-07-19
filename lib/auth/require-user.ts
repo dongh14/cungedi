@@ -6,13 +6,13 @@ export type AuthenticatedUser = {
   email: string | null;
 };
 
-export async function requireAuthenticatedUser(): Promise<AuthenticatedUser> {
+export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> {
   const supabase = await createServerSupabaseClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
 
   if (!userId) {
-    redirect("/login?error=请先登录后再访问该页面。");
+    return null;
   }
 
   const {
@@ -23,4 +23,14 @@ export async function requireAuthenticatedUser(): Promise<AuthenticatedUser> {
     userId,
     email: user?.email ?? null,
   };
+}
+
+export async function requireAuthenticatedUser(): Promise<AuthenticatedUser> {
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
+    redirect("/login?error=请先登录后再访问该页面。");
+  }
+
+  return user;
 }

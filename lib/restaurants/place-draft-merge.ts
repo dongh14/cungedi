@@ -3,12 +3,15 @@ import type {
   NormalizedExtractionResult,
   SourceType,
 } from "./extraction-architecture.ts";
+import { normalizePlaceCategory, normalizePlaceSubtype } from "./constants.ts";
 
 export const placeDraftFields = [
   "name",
   "category",
   "cuisine",
   "city",
+  "country",
+  "district",
   "address",
   "latitude",
   "longitude",
@@ -35,6 +38,8 @@ export type MergedPlaceDraft = {
   category: string | null;
   cuisine: string | null;
   city: string | null;
+  country?: string | null;
+  district?: string | null;
   address: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -128,6 +133,22 @@ function getAutomaticRank(
         : source === "website" || source === "google_maps"
           ? 100
           : 0;
+    case "country":
+      return source === "manual_evidence"
+        ? 150
+        : structured && source === "website"
+          ? 200
+          : source === "website" || source === "google_maps"
+            ? 100
+            : 0;
+    case "district":
+      return source === "manual_evidence"
+        ? 150
+        : structured && source === "website"
+          ? 200
+          : source === "website" || source === "google_maps"
+            ? 100
+            : 0;
     case "phone":
     case "websiteUrl":
       return source === "manual_evidence"
@@ -199,9 +220,17 @@ export function mergePlaceDraftSources(
 
   for (const field of placeDraftFields) {
     const selected = chooseField(field, results, manual);
-    merged[field] = selected.value as never;
+    const normalizedValue = field === "category"
+      ? normalizePlaceCategory(typeof selected.value === "string" ? selected.value : null)
+      : field === "cuisine"
+        ? normalizePlaceSubtype(
+            typeof selected.value === "string" ? selected.value : null,
+            typeof merged.category === "string" ? merged.category : null,
+          )
+        : selected.value;
+    merged[field] = normalizedValue as never;
 
-    if (selected.source) {
+    if (selected.source && (normalizedValue !== null && normalizedValue !== undefined || selected.source === "manual")) {
       fieldSources[field] = selected.source;
     }
   }

@@ -1,10 +1,12 @@
 import { resolvePlaceLocation } from "./place-location.ts";
-import { getPlaceCategoryLabel } from "../restaurants/constants.ts";
+import { getPlaceCategoryLabel, getPlaceSubtypeLabel } from "../restaurants/constants.ts";
 
 export type PlaceMarkerInput = {
   id: number;
   name: string;
   city: string;
+  country?: string | null;
+  district?: string | null;
   category?: string | null;
   address?: string | null;
   cuisine?: string | null;
@@ -17,11 +19,14 @@ export type PlaceMarkerData = {
   id: number;
   name: string;
   city: string;
+  country?: string | null;
+  district?: string | null;
   category: string | null;
+  cuisine?: string | null;
   address: string | null;
   latitude: number;
   longitude: number;
-  precision: "exact" | "city";
+  precision: "exact" | "city" | "district";
   approximate: boolean;
 };
 
@@ -63,7 +68,10 @@ export function createMapMarkerResolution(places: PlaceMarkerInput[]): MapMarker
       id: place.id,
       name: place.name,
       city: place.city,
+      ...(place.country?.trim() ? { country: place.country.trim() } : {}),
+      ...(place.district?.trim() ? { district: place.district.trim() } : {}),
       category: place.category ? getPlaceCategoryLabel(place.category) : null,
+      ...(place.cuisine ? { cuisine: getPlaceSubtypeLabel(place.cuisine, place.category) } : {}),
       address: place.address ?? null,
       latitude: resolvedLocation.location.latitude,
       longitude: resolvedLocation.location.longitude,

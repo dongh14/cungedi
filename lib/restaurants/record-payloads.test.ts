@@ -42,6 +42,37 @@ test("edit payload includes category changes and always remains private", () => 
   });
 });
 
+test("edit payload includes the full editable location fields", () => {
+  const payload = buildRestaurantUpdatePayload({
+    id: 8,
+    name: "大阪城公園",
+    city: "Osaka",
+    country: "日本",
+    district: "Chuo Ward",
+    privacy: "private",
+    category: "景点",
+    address: "1-1 Osaka Castle",
+    latitude: 34.6873,
+    longitude: 135.5262,
+    cuisine: null,
+    note: "春天再去一次",
+  });
+
+  assert.deepEqual(payload, {
+    name: "大阪城公園",
+    city: "Osaka",
+    country: "日本",
+    district: "Chuo Ward",
+    category: "景点",
+    address: "1-1 Osaka Castle",
+    latitude: 34.6873,
+    longitude: 135.5262,
+    cuisine: null,
+    note: "春天再去一次",
+    privacy: "private",
+  });
+});
+
 test("new and edited payloads normalize legacy 玩乐 to 娱乐", () => {
   const insertPayload = buildRestaurantInsertPayload("user-1", {
     name: "旧娱乐地点",

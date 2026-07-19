@@ -3,6 +3,29 @@ type CuisineRule = {
   keywords: string[];
 };
 
+const explicitBarPatterns = [
+  /\b(?:cocktail|wine|beer|whisky|whiskey|lounge|sake)\s+bar\b/i,
+  /\b(?:pub|taproom)\b/i,
+  /\bbar\b/i,
+  /酒吧|鸡尾酒吧|葡萄酒吧|啤酒吧|威士忌酒吧|清吧/u,
+  /(?:バー|ワインバー|ビアバー)/u,
+];
+const excludedBarPatterns = /\b(?:toolbar|sidebar|barbershop|salad\s+bar|noodle\s+bar|ramen\s+bar)\b/i;
+
+export function hasExplicitBarEvidence(value: string | null | undefined) {
+  const text = value?.trim() ?? "";
+
+  if (!text || excludedBarPatterns.test(text)) {
+    return false;
+  }
+
+  return explicitBarPatterns.some((pattern) => pattern.test(text));
+}
+
+export function normalizeBarCuisine(value: string | null | undefined) {
+  return normalizePlaceSubtype(value, "美食") === "酒吧" ? "酒吧" : null;
+}
+
 const cuisineRules: CuisineRule[] = [
   { cuisine: "川菜", keywords: ["川菜", "四川菜", "sichuan", "chengdu spicy"] },
   { cuisine: "粤菜", keywords: ["粤菜", "广东菜", "cantonese", "dim sum"] },
@@ -22,7 +45,7 @@ const cuisineRules: CuisineRule[] = [
   { cuisine: "西餐", keywords: ["西餐", "western", "bistro", "steakhouse"] },
   { cuisine: "海鲜", keywords: ["海鲜", "seafood", "oyster"] },
   { cuisine: "牛排", keywords: ["牛排", "steak"] },
-  { cuisine: "酒吧小食", keywords: ["酒吧", "bar bites", "small plates", "tapas"] },
+  { cuisine: "酒吧", keywords: ["酒吧", "cocktail bar", "wine bar", "beer bar", "pub", "taproom", "bar bites", "small plates", "tapas"] },
 ];
 
 function countKeywordOccurrences(text: string, keyword: string) {
@@ -58,6 +81,16 @@ export function inferCuisineFromSourceContent(input: {
     { value: description, weight: 3 },
     { value: visibleText, weight: 1 },
   ];
+
+  const explicitBarSource = weightedText.find((source) => hasExplicitBarEvidence(source.value));
+
+  if (explicitBarSource) {
+    return {
+      cuisine: "酒吧",
+      evidence: ["bar"],
+      isConfident: explicitBarSource.weight >= 3,
+    };
+  }
 
   const scores = cuisineRules
     .map((rule) => {
@@ -108,3 +141,4 @@ export function inferCuisineFromSourceContent(input: {
     isConfident,
   };
 }
+import { normalizePlaceSubtype } from "./constants.ts";

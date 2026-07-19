@@ -39,6 +39,7 @@ function createResult(
     description: null,
     category: null,
     city: "Shanghai",
+    district: null,
     address: null,
     phone: null,
     latitude: null,
@@ -109,6 +110,7 @@ function validFactualSuggestions(overrides: Record<string, unknown> = {}) {
     phone: "",
     city: "Shanghai",
     country: "",
+    district: "",
     ...overrides,
   };
 }
