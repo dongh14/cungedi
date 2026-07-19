@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { PlaceholderCard } from "@/components/placeholder-card";
 import { PublicShell } from "@/components/public-shell";
 import { SurfaceCard } from "@/components/surface-card";
@@ -17,6 +18,10 @@ const steps = [
 ];
 
 export default async function SetupPage() {
+  if (process.env.NODE_ENV === "production") {
+    notFound();
+  }
+
   const status = await getSupabaseSetupStatus();
 
   return (

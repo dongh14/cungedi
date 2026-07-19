@@ -37,3 +37,21 @@ test("protected place routes keep the shared authentication guard", () => {
     assert.match(read(route), /requireAuthenticatedUser/u, route);
   }
 });
+
+test("setup diagnostics are not exposed in production", () => {
+  const setupPage = read("app/setup/page.tsx");
+
+  assert.match(setupPage, /import \{ notFound \} from "next\/navigation"/u);
+  assert.match(setupPage, /process\.env\.NODE_ENV === "production"/u);
+  assert.match(setupPage, /notFound\(\)/u);
+});
+
+test("production config fails clearly when required Supabase variables are missing", () => {
+  const nextConfig = read("next.config.ts");
+
+  assert.match(nextConfig, /process\.env\.NODE_ENV === "production"/u);
+  assert.match(nextConfig, /NEXT_PUBLIC_SUPABASE_URL/u);
+  assert.match(nextConfig, /NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/u);
+  assert.match(nextConfig, /NEXT_PUBLIC_PMTILES_URL/u);
+  assert.match(nextConfig, /Missing required production environment variables/u);
+});
