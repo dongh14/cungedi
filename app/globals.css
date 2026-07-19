@@ -2598,3 +2598,109 @@ select {
     height: 260px;
   }
 }
+
+/* 首页 is a fixed portrait dashboard; other routes keep normal document scrolling. */
+.app-shell-dashboard {
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding-bottom: 0;
+  overscroll-behavior: none;
+}
+
+.app-canvas-dashboard {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.app-shell-dashboard .app-topbar {
+  flex: 0 0 auto;
+}
+
+.app-shell-dashboard .app-page-home {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+.app-shell-dashboard .dashboard-home {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.app-shell-dashboard .dashboard-page-heading,
+.app-shell-dashboard .dashboard-location-filter,
+.app-shell-dashboard .dashboard-section,
+.app-shell-dashboard .dashboard-quick-links {
+  flex: 0 0 auto;
+}
+
+.app-shell-dashboard .dashboard-location-map-section {
+  display: flex;
+  min-height: 160px;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-shell-dashboard .dashboard-map-preview,
+.app-shell-dashboard .dashboard-map-frame {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.app-shell-dashboard .dashboard-map-preview {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell-dashboard .dashboard-map-frame {
+  height: auto;
+}
+
+html.dashboard-fixed,
+body.dashboard-fixed {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.app-shell-dashboard .maplibregl-canvas-container,
+.app-shell-dashboard .maplibregl-canvas {
+  touch-action: none;
+}
+
+/* In short landscape viewports, allow the dashboard itself to scroll rather than clip content. */
+@media (orientation: landscape) and (max-height: 600px) {
+  .app-shell-dashboard {
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
+    overflow: auto;
+  }
+
+  .app-shell-dashboard .app-page-home,
+  .app-shell-dashboard .dashboard-home {
+    overflow: visible;
+  }
+
+  .app-shell-dashboard .dashboard-location-map-section {
+    min-height: 0;
+    flex: 0 0 auto;
+  }
+
+  .app-shell-dashboard .dashboard-map-frame {
+    height: 220px;
+    min-height: 220px;
+  }
+}

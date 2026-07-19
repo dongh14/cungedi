@@ -100,3 +100,28 @@ test("PMTiles registration is global and not removed during map cleanup", () => 
   assert.match(protocol, /registered: boolean/u);
   assert.doesNotMatch(protocol, /removeProtocol/u);
 });
+
+test("dashboard uses a fixed viewport shell without locking other routes", () => {
+  const shell = read("components/app-shell.tsx");
+  const lock = read("components/dashboard-fixed-viewport.tsx");
+  const css = read("app/globals.css");
+
+  assert.match(shell, /app-shell-dashboard/u);
+  assert.match(shell, /app-canvas-dashboard/u);
+  assert.match(shell, /DashboardFixedViewport/u);
+  assert.match(lock, /dashboard-fixed/u);
+  assert.match(lock, /previousHtmlClass/u);
+  assert.match(lock, /previousBodyClass/u);
+  assert.match(lock, /html\.className = previousHtmlClass/u);
+  assert.match(lock, /body\.className = previousBodyClass/u);
+  assert.match(lock, /orientation: portrait/u);
+  assert.match(css, /\.app-shell-dashboard[\s\S]*height: 100dvh/u);
+  assert.match(css, /\.app-shell-dashboard[\s\S]*overflow: hidden/u);
+  assert.match(css, /html\.dashboard-fixed[\s\S]*body\.dashboard-fixed[\s\S]*overflow: hidden/u);
+  assert.match(css, /\.app-shell-dashboard \.dashboard-map-frame[\s\S]*height: auto/u);
+  assert.match(css, /\.app-shell-dashboard \.dashboard-location-map-section[\s\S]*flex: 1 1 auto/u);
+  assert.match(css, /\.app-shell-dashboard \.maplibregl-canvas[\s\S]*touch-action: none/u);
+  assert.match(css, /\.bottom-sheet[\s\S]*overflow: auto/u);
+  assert.match(css, /orientation: landscape/u);
+  assert.doesNotMatch(css, /body\s*\{[^}]*overflow:\s*hidden/u);
+});

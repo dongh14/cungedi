@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { AppIcon } from "@/components/app-icon";
 import { AppNavigationMenu } from "@/components/app-navigation-menu";
+import { DashboardFixedViewport } from "@/components/dashboard-fixed-viewport";
 import { MenuBackButton } from "@/components/menu-back-button";
 import { cn } from "@/lib/utils";
 
@@ -35,8 +36,9 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <main className="app-shell">
-      <div className="app-canvas">
+    <main className={cn("app-shell", currentPath === "/dashboard" && "app-shell-dashboard")}>
+      {currentPath === "/dashboard" ? <DashboardFixedViewport /> : null}
+      <div className={cn("app-canvas", currentPath === "/dashboard" && "app-canvas-dashboard")}>
         <header className={cn("app-topbar", topbarVariant === "back" && "app-topbar-back")}>
           <div className="app-topbar-leading">
             {topbarVariant === "back" ? <MenuBackButton /> : <AppNavigationMenu />}
