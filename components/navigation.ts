@@ -24,6 +24,13 @@ export const appMenuNavigation: AppNavigationItem[] = [
     icon: "pin",
   },
   {
+    href: "/source-posts",
+    label: "待整理",
+    shortLabel: "待整理",
+    description: "稍后整理保存的分享内容",
+    icon: "link",
+  },
+  {
     href: "/collections",
     label: "合集",
     shortLabel: "合集",

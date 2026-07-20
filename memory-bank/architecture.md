@@ -1186,6 +1186,16 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Focused details, collection-card, saved-place-card, map-popup, location, and collection-membership tests passed (`25` tests).
 - Interactive authenticated mobile validation was not run in this environment; automated validation did not create or save a place.
 
+## V1.1 Saved Source-Post Persistence
+
+- `public.saved_source_posts` is a private, owner-scoped evidence inbox separate from `public.restaurants`. It preserves copied Xiaohongshu, Douyin, or web share content before a place exists.
+- `public.saved_source_post_places` is the many-to-many join between a saved source post and an existing owner-scoped restaurant. The existing restaurant primary key is bigint, so the join references `restaurants.id` as bigint without changing the place schema.
+- Source-post rows keep `original_url` and `resolved_url` separate. The original pasted URL/text remains user evidence, while a successfully resolved short-link destination is optional metadata.
+- `detected_candidates` is an empty JSON array in this milestone. `source_image_path` is reserved for the future image-upload milestone; no Storage bucket or upload flow was added.
+- Both tables have authenticated grants and explicit owner-scoped RLS. Join policies require ownership of both the source post and restaurant; anonymous/public access is not granted.
+- Status transitions are explicit: save-for-later creates `needs_review`; linking at least one place moves a post to `saved`; unlinking the last place returns it to `needs_review`. `captured`, `processing`, and `failed` are reserved for later processing work.
+- The existing review/save flow remains unchanged for restaurant creation. The new `先保存帖子，稍后整理` action writes only a source-post row and redirects to the private `/source-posts` inbox.
+
 ## V1.1 Milestone 2 Bounded Social Short-Link Resolution
 
 - `lib/intake/resolve-source-url.ts` is a server-action-only resolver for `xhslink.com` and `v.douyin.com`. Full Xiaohongshu, Douyin, and generic web URLs return `not_required` without a network request.

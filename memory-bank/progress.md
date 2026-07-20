@@ -1984,3 +1984,19 @@ Documented but not yet implemented in UI:
 - Resolution uses manual redirects, a five-second total timeout, a four-redirect limit, strict approved-host checks, SSRF protections, HEAD-first with bounded GET fallback, and no response-body download.
 - Original pasted URLs remain unchanged for review/save compatibility. Resolved URLs and failure status are temporary review metadata; failed links remain editable and continue to review.
 - No migrations, source-post persistence, scraping, HTML extraction, screenshots, OCR, AI extraction, video handling, image fetching, or native sharing were added.
+
+## V1.1 Milestone 3 Saved Source-Post Persistence
+
+- Added the additive `20260720120000_create_saved_source_posts.sql` migration with `saved_source_posts`, `saved_source_post_places`, indexes, the `updated_at` trigger, authenticated grants, and owner-scoped RLS policies.
+- Added typed source-post domain models and a server-side repository for create, bounded list, get, update-note, delete, link, unlink, and linked-place reads. Browser-supplied user IDs are not accepted as authority; the repository resolves the authenticated user server-side.
+- Added the minimal `先保存帖子，稍后整理` action to the existing review card. It preserves raw pasted/share text, normalized platform, original URL, and optional resolved URL, sets `needs_review`, creates no restaurant, and does not link a place.
+- Added authenticated `/source-posts` and `/source-posts/[id]` routes for the private inbox, original evidence, URLs, status, notes, deletion, and future linked-place display. Added a restrained `待整理` item to the existing navigation menu.
+- Candidate extraction, AI, screenshots, OCR, image uploads, video handling, Storage, native sharing, public sharing, and collaboration remain deferred.
+
+### Validation
+
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `NEXT_PUBLIC_PMTILES_URL=https://example.com/maps/base-v1.pmtiles npm run build` passed without network access.
+- `npm test` passed with `421/421` tests, including source-post capture, migration/RLS, navigation, extraction, AI, map, and privacy coverage.
+- No Supabase migration was applied remotely; no `db push`, `db reset`, or migration-history repair was run.

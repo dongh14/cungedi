@@ -349,6 +349,7 @@ export default async function RestaurantReviewPage({
       <div className="review-layout">
         <ExtractionConfirmationCard
           sourceUrl={normalizedSourceUrl}
+          sourceInput={params.source_input}
           searchParams={params}
           mergedDraft={reviewDraft}
           sourceUrls={sourceUrls}

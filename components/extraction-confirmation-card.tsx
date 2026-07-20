@@ -1,4 +1,5 @@
 import { createRestaurantAction } from "@/app/restaurants/actions";
+import { saveSourcePostForLaterAction } from "@/app/source-posts/actions";
 import { ReviewSaveButton } from "@/components/review-save-button";
 import { AIRefreshControl } from "@/components/ai-refresh-control";
 import { RestaurantFormFields } from "@/components/restaurant-form-fields";
@@ -67,6 +68,7 @@ function getSourceResolutionLabel(status: ReviewSearchParams["source_resolution_
 
 export function ExtractionConfirmationCard({
   sourceUrl,
+  sourceInput,
   searchParams,
   mergedDraft,
   sourceUrls,
@@ -76,6 +78,7 @@ export function ExtractionConfirmationCard({
   hideSave = false,
 }: {
   sourceUrl: string;
+  sourceInput?: string;
   searchParams: ReviewSearchParams;
   mergedDraft: MergedPlaceDraft;
   sourceUrls?: string[];
@@ -144,6 +147,13 @@ export function ExtractionConfirmationCard({
             <div className="review-final-action">
               <p>确认无误后再保存，地点不会自动创建。</p>
               <ReviewSaveButton />
+              <form action={saveSourcePostForLaterAction}>
+                <input type="hidden" name="source_input" value={sourceInput ?? sourceUrl} />
+                <input type="hidden" name="source_url" value={sourceUrl} />
+                {searchParams.resolved_source_url ? <input type="hidden" name="resolved_source_url" value={searchParams.resolved_source_url} /> : null}
+                {searchParams.source_resolution_status ? <input type="hidden" name="source_resolution_status" value={searchParams.source_resolution_status} /> : null}
+                <button type="submit" className="secondary-button w-full">先保存帖子，稍后整理</button>
+              </form>
             </div>
           ) : null}
         </form>
