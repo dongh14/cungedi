@@ -10,6 +10,7 @@ import type { RestaurantInsertInput } from "./types.ts";
 import type { NormalizedExtractionResult } from "./extraction-architecture.ts";
 import { normalizeSelectedCollectionIds } from "./collection-memberships.ts";
 import { resolvePlaceArea } from "../location.ts";
+import type { SourceResolutionStatus } from "../intake/types.ts";
 
 export type RestaurantDraftFormValues = {
   name: string;
@@ -27,7 +28,10 @@ export type RestaurantDraftFormValues = {
 export type ReviewSearchParams = Partial<
   RestaurantDraftFormValues & {
     source_url: string;
-  collection_ids: string | string[];
+    resolved_source_url: string;
+    source_resolution_status: SourceResolutionStatus;
+    source_resolution_redirect_count: string;
+    collection_ids: string | string[];
     manual_evidence: string;
     error: string;
     message: string;

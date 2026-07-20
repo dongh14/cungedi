@@ -1186,6 +1186,13 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Focused details, collection-card, saved-place-card, map-popup, location, and collection-membership tests passed (`25` tests).
 - Interactive authenticated mobile validation was not run in this environment; automated validation did not create or save a place.
 
+## V1.1 Milestone 2 Bounded Social Short-Link Resolution
+
+- `lib/intake/resolve-source-url.ts` is a server-action-only resolver for `xhslink.com` and `v.douyin.com`. Full Xiaohongshu, Douyin, and generic web URLs return `not_required` without a network request.
+- Redirects are followed manually with a five-second total timeout, a maximum of four redirects, conservative resolver headers, no cookies or authorization headers, and immediate response-body cancellation.
+- Redirect destinations must stay within the approved Xiaohongshu or Douyin host family. Credentials, non-HTTP protocols, localhost, private/reserved IPv4 and IPv6 addresses, unrelated hosts, and hostname-suffix tricks are rejected.
+- The add action retains `originalUrl` as the source URL and carries `resolvedUrl`, status, and bounded redirect count only as temporary review state. Failed resolution returns the user to review with `短链接解析失败，仍可继续`.
+
 ## Step 10A Vercel Production Deployment Preparation
 
 ### Environment And Auth

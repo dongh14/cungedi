@@ -22,6 +22,8 @@ import {
 } from "@/lib/restaurants/ai-review-state";
 import { parseSourceIntakeInput } from "@/lib/restaurants/source-intake";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
+import { resolveSourceUrl } from "@/lib/intake/resolve-source-url";
+import type { SourceResolutionStatus } from "@/lib/intake/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { logWorkflowDiagnostic } from "@/lib/restaurants/workflow-diagnostics";
 import { isValidLatitude, isValidLongitude } from "@/lib/map/place-location";
@@ -98,6 +100,9 @@ function buildReviewRestaurantRedirect(
     note: string;
     collectionIds: number[];
     manualEvidence?: string;
+    resolvedSourceUrl?: string;
+    sourceResolutionStatus?: SourceResolutionStatus;
+    sourceResolutionRedirectCount?: number;
   },
   state: {
     error?: string;
@@ -122,6 +127,13 @@ function buildReviewRestaurantRedirect(
       ? { collection_ids: values.collectionIds.join(",") }
       : {}),
     ...(values.manualEvidence ? { manual_evidence: values.manualEvidence } : {}),
+    ...(values.resolvedSourceUrl ? { resolved_source_url: values.resolvedSourceUrl } : {}),
+    ...(values.sourceResolutionStatus
+      ? { source_resolution_status: values.sourceResolutionStatus }
+      : {}),
+    ...(values.sourceResolutionRedirectCount !== undefined
+      ? { source_resolution_redirect_count: String(values.sourceResolutionRedirectCount) }
+      : {}),
   });
 }
 
@@ -197,6 +209,9 @@ function buildReviewCollectionRedirect(
     draftValues?: Record<string, string>;
     manualEvidence?: string;
     sourceInput?: string;
+    resolvedSourceUrl?: string;
+    sourceResolutionStatus?: SourceResolutionStatus;
+    sourceResolutionRedirectCount?: number;
     collectionIds?: number[];
   },
 ) {
@@ -216,6 +231,18 @@ function buildReviewCollectionRedirect(
 
   if (state.sourceInput) {
     params.set("source_input", state.sourceInput);
+  }
+
+  if (state.resolvedSourceUrl) {
+    params.set("resolved_source_url", state.resolvedSourceUrl);
+  }
+
+  if (state.sourceResolutionStatus) {
+    params.set("source_resolution_status", state.sourceResolutionStatus);
+  }
+
+  if (state.sourceResolutionRedirectCount !== undefined) {
+    params.set("source_resolution_redirect_count", String(state.sourceResolutionRedirectCount));
   }
 
   if (state.collectionIds && state.collectionIds.length > 0) {
@@ -258,6 +285,9 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const cuisine = getFormValue(formData, "cuisine");
   const note = getFormValue(formData, "note");
   const manualEvidence = getFormValue(formData, "manual_evidence");
+  const resolvedSourceUrl = getFormValue(formData, "resolved_source_url");
+  const sourceResolutionStatus = getFormValue(formData, "source_resolution_status") as SourceResolutionStatus | "";
+  const sourceResolutionRedirectCount = getFormValue(formData, "source_resolution_redirect_count");
   const collectionIds = normalizeSelectedCollectionIds(
     formData.getAll("collection_ids").map((value) => value.toString()),
   );
@@ -278,6 +308,9 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     note,
     collectionIds,
     manualEvidence,
+    ...(resolvedSourceUrl ? { resolvedSourceUrl } : {}),
+    ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
+    ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
   };
   const redirectToDraft = (error: string): never => {
     if (returnTo === "review" && reviewSourceUrl) {
@@ -330,6 +363,9 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     reviewSourceUrl: reviewSourceUrl || finalSourceUrl,
     manualEvidence,
     intakeInput: sourceInput,
+    ...(resolvedSourceUrl ? { resolvedSourceUrl } : {}),
+    ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
+    ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
   };
 }
 
@@ -452,6 +488,9 @@ function parseReviewDraftForm(formData: FormData) {
   const collectionIds = normalizeSelectedCollectionIds(
     formData.getAll("collection_ids").map((value) => value.toString()),
   );
+  const resolvedSourceUrl = getFormValue(formData, "resolved_source_url");
+  const sourceResolutionStatus = getFormValue(formData, "source_resolution_status") as SourceResolutionStatus | "";
+  const sourceResolutionRedirectCount = getFormValue(formData, "source_resolution_redirect_count");
   const intakeResult = parseSourceIntakeInput(sourceInput);
 
   const redirectValues = {
@@ -466,6 +505,9 @@ function parseReviewDraftForm(formData: FormData) {
     cuisine,
     note,
     collectionIds,
+    ...(resolvedSourceUrl ? { resolvedSourceUrl } : {}),
+    ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
+    ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
   };
 
   if (!intakeResult.ok) {
@@ -514,6 +556,9 @@ export async function createRestaurantAction(formData: FormData) {
       note: restaurant.note ?? "",
       collectionIds: restaurant.collectionIds ?? [],
       manualEvidence: restaurant.manualEvidence ?? "",
+      ...(restaurant.resolvedSourceUrl ? { resolvedSourceUrl: restaurant.resolvedSourceUrl } : {}),
+      ...(restaurant.sourceResolutionStatus ? { sourceResolutionStatus: restaurant.sourceResolutionStatus } : {}),
+      ...(restaurant.sourceResolutionRedirectCount !== undefined ? { sourceResolutionRedirectCount: restaurant.sourceResolutionRedirectCount } : {}),
     };
 
     if (restaurant.returnTo === "review" && restaurant.reviewSourceUrl) {
@@ -645,6 +690,9 @@ export async function createCollectionAction(formData: FormData) {
   const returnTo = getFormValue(formData, "return_to");
   const reviewSourceUrl = extractFirstHttpUrl(getFormValue(formData, "source_url"));
   const sourceInput = getRawFormValue(formData, "source_input");
+  const resolvedSourceUrl = getFormValue(formData, "resolved_source_url");
+  const sourceResolutionStatus = getFormValue(formData, "source_resolution_status") as SourceResolutionStatus | "";
+  const sourceResolutionRedirectCount = getFormValue(formData, "source_resolution_redirect_count");
   const manualEvidence = getFormValue(formData, "manual_evidence");
   const collectionIds = normalizeSelectedCollectionIds(
     formData.getAll("collection_ids").map((value) => value.toString()),
@@ -672,6 +720,9 @@ export async function createCollectionAction(formData: FormData) {
         aiDraftState,
         draftValues,
         sourceInput,
+        ...(resolvedSourceUrl ? { resolvedSourceUrl } : {}),
+        ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
+        ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
         manualEvidence,
         collectionIds,
       }));
@@ -785,6 +836,7 @@ export async function updateRestaurantCollectionsAction(formData: FormData) {
 
 export async function startSourceIntakeAction(formData: FormData) {
   const { sourceUrl, normalizedInput } = parseSourceIntakeForm(formData);
+  const resolution = await resolveSourceUrl(sourceUrl);
 
   logWorkflowDiagnostic({
     event: "intake_started",
@@ -795,6 +847,9 @@ export async function startSourceIntakeAction(formData: FormData) {
     buildRedirect("/restaurants/review", {
       source_url: sourceUrl,
       source_input: normalizedInput.rawInput,
+      source_resolution_status: resolution.resolutionStatus,
+      source_resolution_redirect_count: String(resolution.redirectCount),
+      ...(resolution.resolvedUrl !== sourceUrl ? { resolved_source_url: resolution.resolvedUrl } : {}),
     }),
   );
 }

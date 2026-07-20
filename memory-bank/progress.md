@@ -1977,3 +1977,10 @@ Documented but not yet implemented in UI:
 ### Validation
 - `git diff --check`, `npm run lint`, `npm run build`, and `npm test` passed.
 - Read-only `npx supabase migration list` was included in the release gate; no `db push`, `db reset`, or destructive database command was run.
+
+## V1.1 Milestone 2 Short-Link Resolution Checkpoint
+
+- Added bounded server-side resolution for Xiaohongshu `xhslink.com` and Douyin `v.douyin.com` short links. Full platform URLs and generic web URLs are not fetched automatically.
+- Resolution uses manual redirects, a five-second total timeout, a four-redirect limit, strict approved-host checks, SSRF protections, HEAD-first with bounded GET fallback, and no response-body download.
+- Original pasted URLs remain unchanged for review/save compatibility. Resolved URLs and failure status are temporary review metadata; failed links remain editable and continue to review.
+- No migrations, source-post persistence, scraping, HTML extraction, screenshots, OCR, AI extraction, video handling, image fetching, or native sharing were added.

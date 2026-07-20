@@ -356,8 +356,8 @@ export default async function RestaurantReviewPage({
           aiStatus={aiEnrichment.status}
           refreshParams={refreshParams}
         />
-        {showManualEvidenceRecovery ? <ManualEvidenceRecoveryCard sourceUrl={normalizedSourceUrl} sourceUrls={sourceUrls} sourceInput={params.source_input} value={manualEvidenceText ?? ""} error={recoveryMessage ?? websiteRecoveryPipelines[0]?.result.message} aiDraftState={aiDraftState} selectedCollectionIds={selectedCollectionIds} draftValues={reviewDraftValues} /> : null}
-        <ReviewCollectionSelector collectionOptions={collectionOptions} collectionOptionsError={Boolean(collectionOptionsError)} selectedCollectionIds={selectedCollectionIds} sourceUrl={normalizedSourceUrl} sourceInput={params.source_input} message={params.collection_message ?? params.collection_error} aiDraftState={aiDraftState} draftValues={reviewDraftValues} manualEvidence={manualEvidenceText ?? undefined} />
+        {showManualEvidenceRecovery ? <ManualEvidenceRecoveryCard sourceUrl={normalizedSourceUrl} sourceUrls={sourceUrls} sourceInput={params.source_input} resolvedSourceUrl={params.resolved_source_url} sourceResolutionStatus={params.source_resolution_status} sourceResolutionRedirectCount={params.source_resolution_redirect_count} value={manualEvidenceText ?? ""} error={recoveryMessage ?? websiteRecoveryPipelines[0]?.result.message} aiDraftState={aiDraftState} selectedCollectionIds={selectedCollectionIds} draftValues={reviewDraftValues} /> : null}
+        <ReviewCollectionSelector collectionOptions={collectionOptions} collectionOptionsError={Boolean(collectionOptionsError)} selectedCollectionIds={selectedCollectionIds} sourceUrl={normalizedSourceUrl} sourceInput={params.source_input} resolvedSourceUrl={params.resolved_source_url} sourceResolutionStatus={params.source_resolution_status} sourceResolutionRedirectCount={params.source_resolution_redirect_count} message={params.collection_message ?? params.collection_error} aiDraftState={aiDraftState} draftValues={reviewDraftValues} manualEvidence={manualEvidenceText ?? undefined} />
       </div>
     </AppShell>
   );

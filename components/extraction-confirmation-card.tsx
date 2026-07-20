@@ -48,6 +48,23 @@ function getSourceStatus(
   return "链接无法读取";
 }
 
+function getSourceResolutionLabel(status: ReviewSearchParams["source_resolution_status"]) {
+  switch (status) {
+    case "resolved":
+      return "短链接已解析";
+    case "timeout":
+    case "blocked":
+    case "invalid":
+    case "redirect_limit":
+    case "failed":
+      return "短链接解析失败，仍可继续";
+    case "not_required":
+      return "链接已识别";
+    default:
+      return null;
+  }
+}
+
 export function ExtractionConfirmationCard({
   sourceUrl,
   searchParams,
@@ -73,6 +90,7 @@ export function ExtractionConfirmationCard({
   const sourceResult = extractionResults[0];
   const sourceStatus = getSourceStatus(extractionResults, aiStatus);
   const sourceLabel = getSourceLabel(sourceResult);
+  const sourceResolutionLabel = getSourceResolutionLabel(searchParams.source_resolution_status);
 
   return (
     <SurfaceCard className="form-surface p-4 sm:p-5">
@@ -83,6 +101,9 @@ export function ExtractionConfirmationCard({
           <strong>{sourceStatus}</strong>
           <small>{sourceLabel}</small>
         </div>
+        {sourceResolutionLabel ? (
+          <p className="text-sm text-[var(--ink-soft)]">{sourceResolutionLabel}</p>
+        ) : null}
 
         {searchParams.message ? (
           <div className="review-inline-message review-inline-message-success">{searchParams.message}</div>
@@ -103,6 +124,9 @@ export function ExtractionConfirmationCard({
         <form id="review-save-form" action={createRestaurantAction} className="review-edit-form">
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="review_source_url" value={sourceUrl} />
+          {searchParams.resolved_source_url ? <input type="hidden" name="resolved_source_url" value={searchParams.resolved_source_url} /> : null}
+          {searchParams.source_resolution_status ? <input type="hidden" name="source_resolution_status" value={searchParams.source_resolution_status} /> : null}
+          {searchParams.source_resolution_redirect_count ? <input type="hidden" name="source_resolution_redirect_count" value={searchParams.source_resolution_redirect_count} /> : null}
           {searchParams.manual_evidence ? (
             <input type="hidden" name="manual_evidence" value={searchParams.manual_evidence} />
           ) : null}

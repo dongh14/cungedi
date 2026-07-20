@@ -1,4 +1,5 @@
 import type { RestaurantCategory, RestaurantPrivacy } from "./constants.ts";
+import type { SourceResolutionStatus } from "../intake/types.ts";
 
 export type RestaurantInsertInput = {
   name: string;
@@ -16,6 +17,9 @@ export type RestaurantInsertInput = {
   reviewSourceUrl?: string;
   manualEvidence?: string;
   intakeInput?: string;
+  resolvedSourceUrl?: string;
+  sourceResolutionStatus?: SourceResolutionStatus;
+  sourceResolutionRedirectCount?: number;
 };
 
 export type RestaurantUpdateInput = {
