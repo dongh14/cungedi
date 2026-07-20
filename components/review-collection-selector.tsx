@@ -11,6 +11,7 @@ export function ReviewCollectionSelector({
   collectionOptionsError = false,
   selectedCollectionIds,
   sourceUrl,
+  sourceInput,
   message,
   formId = "review-save-form",
   aiDraftState,
@@ -21,6 +22,7 @@ export function ReviewCollectionSelector({
   collectionOptionsError?: boolean;
   selectedCollectionIds: number[];
   sourceUrl: string;
+  sourceInput?: string;
   message?: string;
   formId?: string;
   aiDraftState?: AIReviewDraftState | null;
@@ -137,6 +139,7 @@ export function ReviewCollectionSelector({
         <form action={createCollectionAction} onSubmit={syncCurrentDraft} className="flex flex-col gap-3 sm:flex-row">
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="source_url" value={sourceUrl} />
+          {sourceInput ? <input type="hidden" name="source_input" value={sourceInput} /> : null}
           {selectedCollectionIds.map((id) => (
             <input key={`selected-collection-${id}`} type="hidden" name="collection_ids" value={id} />
           ))}

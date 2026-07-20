@@ -15,6 +15,7 @@ export type RestaurantInsertInput = {
   returnTo?: "new" | "review";
   reviewSourceUrl?: string;
   manualEvidence?: string;
+  intakeInput?: string;
 };
 
 export type RestaurantUpdateInput = {

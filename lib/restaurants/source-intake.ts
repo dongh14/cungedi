@@ -8,7 +8,7 @@ import {
   type NormalizedExtractionResult,
   type SourceType,
 } from "./extraction-architecture.ts";
-import { extractFirstHttpUrl } from "./source-url.ts";
+import { normalizeIntakeInput } from "../intake/normalize-input.ts";
 
 export type SourceIntake = {
   sourceUrl: string;
@@ -82,16 +82,16 @@ export function buildSourceIntake(sourceUrl: string): SourceIntake {
 }
 
 export function parseSourceIntakeInput(sourceInput: string) {
-  const normalizedInput = sourceInput.trim();
+  const normalizedInput = normalizeIntakeInput(sourceInput);
 
-  if (!normalizedInput) {
+  if (!normalizedInput.rawInput.trim()) {
     return {
       ok: false as const,
       error: "请先粘贴有效的链接，或包含有效链接的分享文案",
     };
   }
 
-  const sourceUrl = extractFirstHttpUrl(normalizedInput);
+  const sourceUrl = normalizedInput.originalUrl;
 
   if (!sourceUrl) {
     return {
@@ -103,5 +103,6 @@ export function parseSourceIntakeInput(sourceInput: string) {
   return {
     ok: true as const,
     intake: buildSourceIntake(sourceUrl),
+    normalizedInput,
   };
 }

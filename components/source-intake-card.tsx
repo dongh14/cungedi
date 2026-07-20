@@ -38,9 +38,12 @@ export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
               htmlFor="source_input"
               className="form-label"
             >
-              请粘贴地点链接
+              粘贴小红书、抖音分享内容或网页链接
               <span className="ml-1 text-[var(--accent)]">*</span>
             </label>
+            <p className="text-xs leading-6 text-[var(--ink-muted)]">
+              支持直接粘贴完整分享文案，无需单独提取链接
+            </p>
             <textarea
               id="source_input"
               name="source_input"
@@ -48,7 +51,7 @@ export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
               required
               defaultValue={searchParams.intake_input ?? ""}
               className="form-control w-full"
-              placeholder="支持小红书、抖音、官方网站或其他网页"
+              placeholder="粘贴小红书、抖音分享内容或网页链接"
             />
           </div>
 

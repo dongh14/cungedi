@@ -4,6 +4,7 @@ import type { AIReviewDraftState } from "@/lib/restaurants/ai-review-state";
 type ManualEvidenceRecoveryCardProps = {
   sourceUrl: string;
   sourceUrls: string[];
+  sourceInput?: string;
   value: string;
   error?: string;
   aiDraftState?: AIReviewDraftState | null;
@@ -14,6 +15,7 @@ type ManualEvidenceRecoveryCardProps = {
 export function ManualEvidenceRecoveryCard({
   sourceUrl,
   sourceUrls,
+  sourceInput,
   value,
   error,
   aiDraftState,
@@ -43,6 +45,7 @@ export function ManualEvidenceRecoveryCard({
 
         <form method="get" action="/restaurants/review" className="space-y-3">
           <input type="hidden" name="source_url" value={sourceUrl} />
+          {sourceInput ? <input type="hidden" name="source_input" value={sourceInput} /> : null}
           {sourceUrls.slice(1).map((url) => (
             <input key={url} type="hidden" name="source_urls" value={url} />
           ))}

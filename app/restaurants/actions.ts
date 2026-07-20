@@ -41,6 +41,10 @@ function getFormValue(formData: FormData, key: string) {
   return formData.get(key)?.toString().trim() ?? "";
 }
 
+function getRawFormValue(formData: FormData, key: string) {
+  return formData.get(key)?.toString() ?? "";
+}
+
 function normalizeOptionalField(value: string) {
   return value ? value : null;
 }
@@ -192,6 +196,7 @@ function buildReviewCollectionRedirect(
     aiDraftState?: AIReviewDraftState | null;
     draftValues?: Record<string, string>;
     manualEvidence?: string;
+    sourceInput?: string;
     collectionIds?: number[];
   },
 ) {
@@ -207,6 +212,10 @@ function buildReviewCollectionRedirect(
 
   if (state.manualEvidence) {
     params.set("manual_evidence", state.manualEvidence);
+  }
+
+  if (state.sourceInput) {
+    params.set("source_input", state.sourceInput);
   }
 
   if (state.collectionIds && state.collectionIds.length > 0) {
@@ -242,7 +251,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const city = getFormValue(formData, "city");
   const country = getFormValue(formData, "country");
   const district = getFormValue(formData, "district");
-  const sourceInput = getFormValue(formData, "source_url");
+  const sourceInput = getRawFormValue(formData, "source_url");
   const privacy = personalOnlyPrivacy;
   const category = getFormValue(formData, "category");
   const address = getFormValue(formData, "address");
@@ -320,6 +329,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     returnTo: returnTo === "review" ? "review" : "new",
     reviewSourceUrl: reviewSourceUrl || finalSourceUrl,
     manualEvidence,
+    intakeInput: sourceInput,
   };
 }
 
@@ -406,7 +416,7 @@ function parseRestaurantUpdateForm(formData: FormData): RestaurantUpdateInput {
 }
 
 function parseSourceIntakeForm(formData: FormData) {
-  const sourceInput = getFormValue(formData, "source_input");
+  const sourceInput = getRawFormValue(formData, "source_input");
   const values = {
     sourceInput,
   };
@@ -424,11 +434,12 @@ function parseSourceIntakeForm(formData: FormData) {
   return {
     sourceInput,
     sourceUrl: result.intake.sourceUrl,
+    normalizedInput: result.normalizedInput,
   };
 }
 
 function parseReviewDraftForm(formData: FormData) {
-  const sourceInput = getFormValue(formData, "source_url");
+  const sourceInput = getRawFormValue(formData, "source_url");
   const name = getFormValue(formData, "name");
   const city = getFormValue(formData, "city");
   const country = getFormValue(formData, "country");
@@ -465,7 +476,7 @@ function parseReviewDraftForm(formData: FormData) {
     sourceUrl: intakeResult.intake.sourceUrl,
     values: {
       ...redirectValues,
-      sourceInput: intakeResult.intake.sourceUrl,
+      sourceInput,
     },
   };
 }
@@ -495,7 +506,7 @@ export async function createRestaurantAction(formData: FormData) {
       city: restaurant.city,
       country: restaurant.country ?? "",
       district: restaurant.district ?? "",
-      sourceInput: restaurant.sourceUrl,
+      sourceInput: restaurant.intakeInput ?? restaurant.sourceUrl,
       privacy: restaurant.privacy,
       category: restaurant.category,
       address: restaurant.address ?? "",
@@ -633,6 +644,7 @@ export async function createCollectionAction(formData: FormData) {
   const name = getFormValue(formData, "name");
   const returnTo = getFormValue(formData, "return_to");
   const reviewSourceUrl = extractFirstHttpUrl(getFormValue(formData, "source_url"));
+  const sourceInput = getRawFormValue(formData, "source_input");
   const manualEvidence = getFormValue(formData, "manual_evidence");
   const collectionIds = normalizeSelectedCollectionIds(
     formData.getAll("collection_ids").map((value) => value.toString()),
@@ -659,6 +671,7 @@ export async function createCollectionAction(formData: FormData) {
         ...state,
         aiDraftState,
         draftValues,
+        sourceInput,
         manualEvidence,
         collectionIds,
       }));
@@ -771,7 +784,7 @@ export async function updateRestaurantCollectionsAction(formData: FormData) {
 }
 
 export async function startSourceIntakeAction(formData: FormData) {
-  const { sourceUrl } = parseSourceIntakeForm(formData);
+  const { sourceUrl, normalizedInput } = parseSourceIntakeForm(formData);
 
   logWorkflowDiagnostic({
     event: "intake_started",
@@ -781,6 +794,7 @@ export async function startSourceIntakeAction(formData: FormData) {
   redirect(
     buildRedirect("/restaurants/review", {
       source_url: sourceUrl,
+      source_input: normalizedInput.rawInput,
     }),
   );
 }
