@@ -41,7 +41,16 @@ function toSavedSourcePost(row: Record<string, unknown>): SavedSourcePost {
 }
 
 function repositoryError(error: unknown) {
-  return error instanceof Error ? error : new Error("source post operation failed");
+  const safeError = new Error("source post operation failed") as Error & { errorCode?: string };
+  const errorCode = typeof error === "object" && error !== null && "code" in error
+    ? String(error.code)
+    : "";
+
+  if (/^[A-Z0-9_]+$/u.test(errorCode)) {
+    safeError.errorCode = errorCode;
+  }
+
+  return safeError;
 }
 
 async function getUserContext() {

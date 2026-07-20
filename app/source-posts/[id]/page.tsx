@@ -8,7 +8,7 @@ import type { SourcePostPlatform, SourcePostProcessingStatus } from "@/lib/sourc
 
 type SourcePostDetailPageProps = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ message?: string; error?: string }>;
+  searchParams?: Promise<{ message?: string; error?: string; saved?: string }>;
 };
 
 function platformLabel(platform: SourcePostPlatform) {
@@ -43,7 +43,7 @@ export default async function SourcePostDetailPage({ params, searchParams }: Sou
       userEmail={user.email}
       userId={user.userId}
       actions={<Link href="/source-posts" className="app-text-link">返回待整理</Link>}
-      message={query.message}
+      message={query.saved === "1" ? "帖子已保存到待整理" : query.message}
     >
       <div className="source-post-detail">
         {query.error || postResult.error ? <div className="inline-error">{query.error ?? "暂时无法读取帖子详情，请稍后再试。"}</div> : null}

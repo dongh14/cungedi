@@ -1,5 +1,5 @@
 import { createRestaurantAction } from "@/app/restaurants/actions";
-import { saveSourcePostForLaterAction } from "@/app/source-posts/actions";
+import { SaveSourcePostButton } from "@/components/save-source-post-button";
 import { ReviewSaveButton } from "@/components/review-save-button";
 import { AIRefreshControl } from "@/components/ai-refresh-control";
 import { RestaurantFormFields } from "@/components/restaurant-form-fields";
@@ -114,6 +114,13 @@ export function ExtractionConfirmationCard({
         {searchParams.error ? (
           <div className="review-inline-message review-inline-message-error">{searchParams.error}</div>
         ) : null}
+        {searchParams.sourcePostError ? (
+          <div className="review-inline-message review-inline-message-error">
+            {searchParams.sourcePostError === "invalid_input"
+              ? "请先粘贴有效的分享内容或来源链接。"
+              : "保存失败，请稍后重试。"}
+          </div>
+        ) : null}
 
         {requiredMissingFields.length > 0 ? (
           <div className="review-missing-note">
@@ -127,6 +134,7 @@ export function ExtractionConfirmationCard({
         <form id="review-save-form" action={createRestaurantAction} className="review-edit-form">
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="review_source_url" value={sourceUrl} />
+          <input type="hidden" name="source_input" value={sourceInput ?? sourceUrl} />
           {searchParams.resolved_source_url ? <input type="hidden" name="resolved_source_url" value={searchParams.resolved_source_url} /> : null}
           {searchParams.source_resolution_status ? <input type="hidden" name="source_resolution_status" value={searchParams.source_resolution_status} /> : null}
           {searchParams.source_resolution_redirect_count ? <input type="hidden" name="source_resolution_redirect_count" value={searchParams.source_resolution_redirect_count} /> : null}
@@ -147,13 +155,7 @@ export function ExtractionConfirmationCard({
             <div className="review-final-action">
               <p>确认无误后再保存，地点不会自动创建。</p>
               <ReviewSaveButton />
-              <form action={saveSourcePostForLaterAction}>
-                <input type="hidden" name="source_input" value={sourceInput ?? sourceUrl} />
-                <input type="hidden" name="source_url" value={sourceUrl} />
-                {searchParams.resolved_source_url ? <input type="hidden" name="resolved_source_url" value={searchParams.resolved_source_url} /> : null}
-                {searchParams.source_resolution_status ? <input type="hidden" name="source_resolution_status" value={searchParams.source_resolution_status} /> : null}
-                <button type="submit" className="secondary-button w-full">先保存帖子，稍后整理</button>
-              </form>
+              <SaveSourcePostButton />
             </div>
           ) : null}
         </form>

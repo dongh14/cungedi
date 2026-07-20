@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getAuthenticatedUser } from "@/lib/auth/require-user";
 import { buildSavedSourcePostCapture } from "@/lib/source-posts/intake";
 import {
   createSavedSourcePost,
@@ -8,20 +9,46 @@ import {
   updateSavedSourcePost,
 } from "@/lib/source-posts/repository";
 import { normalizeIntakeInput } from "@/lib/intake/normalize-input";
+import { logWorkflowDiagnostic } from "@/lib/restaurants/workflow-diagnostics";
 
 function getRawValue(formData: FormData, key: string) {
   return formData.get(key)?.toString() ?? "";
 }
 
-function buildReviewErrorRedirect(sourceInput: string, message: string) {
+function buildReviewErrorRedirect(formData: FormData, errorCode: string) {
+  const sourceInput = getRawValue(formData, "source_input") || getRawValue(formData, "source_url");
   const params = new URLSearchParams({
     source_input: sourceInput,
-    error: message,
+    sourcePostError: errorCode,
   });
 
   const normalized = normalizeIntakeInput(sourceInput);
   if (normalized.originalUrl) {
     params.set("source_url", normalized.originalUrl);
+  }
+
+  for (const field of [
+    "name",
+    "city",
+    "country",
+    "district",
+    "category",
+    "address",
+    "cuisine",
+    "note",
+    "manual_evidence",
+    "resolved_source_url",
+    "source_resolution_status",
+    "source_resolution_redirect_count",
+  ]) {
+    const value = getRawValue(formData, field);
+    if (value) {
+      params.set(field, value);
+    }
+  }
+
+  for (const value of formData.getAll("source_urls")) {
+    params.append("source_urls", value.toString());
   }
 
   return `/restaurants/review?${params.toString()}`;
@@ -32,7 +59,13 @@ export async function saveSourcePostForLaterAction(formData: FormData) {
   const normalized = normalizeIntakeInput(sourceInput);
 
   if (!sourceInput.trim() || normalized.inputKind === "unknown") {
-    redirect(buildReviewErrorRedirect(sourceInput, "请先粘贴有效的分享内容或来源链接。"));
+    redirect(buildReviewErrorRedirect(formData, "invalid_input"));
+  }
+
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
+    redirect(`/login?error=${encodeURIComponent("请先登录后再保存帖子。")}`);
   }
 
   const capture = buildSavedSourcePostCapture(sourceInput, {
@@ -42,10 +75,16 @@ export async function saveSourcePostForLaterAction(formData: FormData) {
   const result = await createSavedSourcePost(capture);
 
   if (result.error || !result.data) {
-    redirect(buildReviewErrorRedirect(sourceInput, "帖子暂时无法保存，请稍后重试。"));
+    logWorkflowDiagnostic({
+      event: "source_post_save_failed",
+      operation: "save_source_post",
+      errorCategory: result.error ? "repository_error" : "not_created",
+      errorCode: result.error?.errorCode,
+    });
+    redirect(buildReviewErrorRedirect(formData, "save_failed"));
   }
 
-  redirect("/source-posts?message=帖子已保存，之后再整理");
+  redirect(`/source-posts/${encodeURIComponent(result.data.id)}?saved=1`);
 }
 
 export async function updateSavedSourcePostNoteAction(formData: FormData) {

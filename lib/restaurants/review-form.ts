@@ -35,6 +35,7 @@ export type ReviewSearchParams = Partial<
     manual_evidence: string;
     error: string;
     message: string;
+    sourcePostError: string;
   }
 >;
 

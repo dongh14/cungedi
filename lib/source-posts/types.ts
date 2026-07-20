@@ -55,5 +55,5 @@ export type SavedSourcePostPlace = {
 
 export type SourcePostRepositoryResult<T> = {
   data: T;
-  error: Error | null;
+  error: (Error & { errorCode?: string }) | null;
 };

@@ -55,6 +55,7 @@ type RestaurantReviewPageProps = {
     ai_reject_understanding?: string;
     manual_evidence?: string;
     ai_refresh?: string;
+    sourcePostError?: string;
   }>;
 };
 
