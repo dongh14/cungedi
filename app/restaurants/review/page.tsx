@@ -35,7 +35,11 @@ import { getCurrentUserCollectionOptions } from "@/lib/restaurants/queries";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 import { getReviewCollectionIds, type ReviewSearchParams } from "@/lib/restaurants/review-form";
 import { logWorkflowDiagnostic } from "@/lib/restaurants/workflow-diagnostics";
-import { buildSourcePostOrganizationDraft } from "@/lib/source-posts/draft";
+import {
+  buildSourcePostOrganizationDraft,
+  selectStrongestSourcePostCandidate,
+} from "@/lib/source-posts/draft";
+import { getValidatedSourcePostCandidates } from "@/lib/source-posts/extraction-schema";
 import { getSavedSourcePostById } from "@/lib/source-posts/repository";
 
 type RestaurantReviewPageProps = {
@@ -120,15 +124,30 @@ export default async function RestaurantReviewPage({
     redirect(`/source-posts/${encodeURIComponent(incomingParams.source_post_id)}?error=${encodeURIComponent("帖子暂时无法读取，请稍后重试。")}`);
   }
 
-  const sourcePostDraft = sourcePost ? buildSourcePostOrganizationDraft(sourcePost) : null;
+  const sourcePostCandidates = sourcePost
+    ? getValidatedSourcePostCandidates(sourcePost.detectedCandidates)
+    : [];
+  const selectedSourcePostCandidate = incomingParams.candidate_id
+    ? sourcePostCandidates.find((candidate) => candidate.id === incomingParams.candidate_id) ?? null
+    : selectStrongestSourcePostCandidate(sourcePostCandidates);
+  const sourcePostDraft = sourcePost
+    ? buildSourcePostOrganizationDraft(sourcePost, selectedSourcePostCandidate)
+    : null;
   const params = sourcePostDraft
     ? {
         ...incomingParams,
         source_url: incomingParams.source_url ?? sourcePostDraft.sourceUrl ?? undefined,
         source_input: incomingParams.source_input ?? sourcePostDraft.sourceInput,
         name: incomingParams.name ?? sourcePostDraft.name ?? undefined,
+        country: incomingParams.country ?? sourcePostDraft.country ?? undefined,
+        city: incomingParams.city ?? sourcePostDraft.city ?? undefined,
+        district: incomingParams.district ?? sourcePostDraft.district ?? undefined,
+        address: incomingParams.address ?? sourcePostDraft.address ?? undefined,
+        category: incomingParams.category ?? sourcePostDraft.category ?? undefined,
+        cuisine: incomingParams.cuisine ?? sourcePostDraft.cuisine ?? undefined,
         note: incomingParams.note ?? sourcePostDraft.note ?? undefined,
         resolved_source_url: incomingParams.resolved_source_url ?? sourcePostDraft.resolvedSourceUrl ?? undefined,
+        candidate_id: incomingParams.candidate_id ?? selectedSourcePostCandidate?.id ?? undefined,
       }
     : incomingParams;
   const { collections: collectionOptions, error: collectionOptionsError } = await getCurrentUserCollectionOptions();

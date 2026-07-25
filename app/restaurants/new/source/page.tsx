@@ -19,8 +19,8 @@ export default async function SourceRestaurantPage({ searchParams }: SourceResta
     <AppShell
       currentPath="/restaurants/new/source"
       eyebrow="添加地点"
-      title="粘贴链接"
-      description="粘贴一条链接，下一步再查看和编辑结果。"
+      title="识别地点"
+      description="粘贴链接或完整分享文案后，系统会自动整理出可编辑地点草稿。"
       userEmail={user.email}
       userId={user.userId}
       actions={<Link href="/restaurants/new" className="app-text-link">返回选择方式</Link>}
@@ -28,7 +28,7 @@ export default async function SourceRestaurantPage({ searchParams }: SourceResta
       <section className="focused-add-step" aria-labelledby="source-add-title">
         <div className="focused-add-step-heading">
           <p className="app-page-eyebrow">添加地点</p>
-          <h2 id="source-add-title">粘贴链接</h2>
+          <h2 id="source-add-title">识别地点</h2>
         </div>
         <SourceIntakeCard searchParams={params} />
       </section>

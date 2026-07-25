@@ -159,7 +159,7 @@ export function ExtractionConfirmationCard({
             <div className="review-final-action">
               <p>确认无误后再保存，地点不会自动创建。</p>
               <ReviewSaveButton />
-              <SaveSourcePostButton />
+              {!sourcePostId ? <SaveSourcePostButton /> : null}
             </div>
           ) : null}
         </form>

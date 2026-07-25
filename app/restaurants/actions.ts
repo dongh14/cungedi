@@ -32,9 +32,29 @@ import type {
   RestaurantUpdateInput,
 } from "@/lib/restaurants/types";
 import {
+  buildSavedSourcePostCapture,
+} from "@/lib/source-posts/intake";
+import {
+  extractSourcePostPlaces,
+} from "@/lib/source-posts/extraction-service";
+import {
+  fetchSourcePageMetadata,
+} from "@/lib/source-posts/metadata-fetcher";
+import {
+  getValidatedSourcePostCandidates,
+} from "@/lib/source-posts/extraction-schema";
+import {
+  selectStrongestSourcePostCandidate,
+} from "@/lib/source-posts/draft";
+import {
+  createSavedSourcePost,
   getSavedSourcePostById,
   linkSourcePostToPlace,
   listLinkedPlacesForSourcePost,
+  updateDetectedCandidates,
+  updateSavedSourcePost,
+  updateSourcePostMetadata,
+  updateSourcePostMetadataStatus,
 } from "@/lib/source-posts/repository";
 
 function buildRedirect(pathname: string, params: Record<string, string>) {
@@ -160,6 +180,20 @@ function buildSourceIntakeRedirect(
     ...(state.sourceMessage ? { source_message: state.sourceMessage } : {}),
     intake_input: values.sourceInput,
   });
+}
+
+function getSourcePostAccessibleMetadata(
+  metadata: Awaited<ReturnType<typeof fetchSourcePageMetadata>> | null,
+) {
+  if (!metadata) {
+    return undefined;
+  }
+
+  return {
+    title: metadata.ogTitle ?? metadata.title,
+    description: metadata.ogDescription ?? metadata.description,
+    siteName: metadata.ogSiteName,
+  };
 }
 
 function buildEditRestaurantRedirect(
@@ -390,6 +424,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
     ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
     ...(sourcePostId ? { sourcePostId } : {}),
+    ...(candidateId ? { candidateId } : {}),
   };
 }
 
@@ -585,6 +620,7 @@ export async function createRestaurantAction(formData: FormData) {
             note: restaurant.note ?? "",
             collectionIds: restaurant.collectionIds ?? [],
             sourcePostId: restaurant.sourcePostId,
+            ...(restaurant.candidateId ? { candidateId: restaurant.candidateId } : {}),
             ...(restaurant.resolvedSourceUrl ? { resolvedSourceUrl: restaurant.resolvedSourceUrl } : {}),
             ...(restaurant.sourceResolutionStatus ? { sourceResolutionStatus: restaurant.sourceResolutionStatus } : {}),
             ...(restaurant.sourceResolutionRedirectCount !== undefined ? { sourceResolutionRedirectCount: restaurant.sourceResolutionRedirectCount } : {}),
@@ -625,6 +661,7 @@ export async function createRestaurantAction(formData: FormData) {
       collectionIds: restaurant.collectionIds ?? [],
       manualEvidence: restaurant.manualEvidence ?? "",
       ...(restaurant.sourcePostId ? { sourcePostId: restaurant.sourcePostId } : {}),
+      ...(restaurant.candidateId ? { candidateId: restaurant.candidateId } : {}),
       ...(restaurant.resolvedSourceUrl ? { resolvedSourceUrl: restaurant.resolvedSourceUrl } : {}),
       ...(restaurant.sourceResolutionStatus ? { sourceResolutionStatus: restaurant.sourceResolutionStatus } : {}),
       ...(restaurant.sourceResolutionRedirectCount !== undefined ? { sourceResolutionRedirectCount: restaurant.sourceResolutionRedirectCount } : {}),
@@ -924,19 +961,96 @@ export async function updateRestaurantCollectionsAction(formData: FormData) {
 export async function startSourceIntakeAction(formData: FormData) {
   const { sourceUrl, normalizedInput } = parseSourceIntakeForm(formData);
   const resolution = await resolveSourceUrl(sourceUrl);
+  const sourceInput = normalizedInput.rawInput;
 
   logWorkflowDiagnostic({
     event: "intake_started",
     sourceUrls: [sourceUrl],
   });
 
+  const capture = buildSavedSourcePostCapture(sourceInput, {
+    resolvedUrl: resolution.resolvedUrl,
+    resolutionStatus: resolution.resolutionStatus,
+  });
+  const sourcePostResult = await createSavedSourcePost({
+    ...capture,
+    processingStatus: "processing",
+  });
+
+  if (sourcePostResult.error || !sourcePostResult.data) {
+    redirect(
+      buildSourceIntakeRedirect(
+        { sourceInput },
+        { sourceError: "暂时无法保存这条来源，请稍后重试。" },
+      ),
+    );
+  }
+
+  const sourcePost = sourcePostResult.data;
+  const metadataUrl = sourcePost.resolvedUrl ?? sourcePost.originalUrl;
+  let metadata: Awaited<ReturnType<typeof fetchSourcePageMetadata>> | null = null;
+
+  if (metadataUrl) {
+    metadata = await fetchSourcePageMetadata(metadataUrl, sourcePost.platform);
+    const metadataSaved = metadata.status === "blocked" || metadata.status === "timeout" || metadata.status === "failed"
+      ? await updateSourcePostMetadataStatus(sourcePost.id, metadata.status)
+      : await updateSourcePostMetadata(sourcePost.id, metadata);
+
+    if (metadataSaved.error) {
+      metadata = null;
+    }
+  }
+
+  const extraction = await extractSourcePostPlaces({
+    sourcePostId: sourcePost.id,
+    platform: sourcePost.platform,
+    originalText: sourcePost.originalText,
+    originalUrl: sourcePost.originalUrl,
+    resolvedUrl: sourcePost.resolvedUrl,
+    accessibleMetadata: getSourcePostAccessibleMetadata(metadata),
+  });
+
+  let candidateId: string | undefined;
+  let reviewMessage = "已自动解析地点信息，请在保存前确认并修改。";
+
+  if (extraction.status === "success" && extraction.result && extraction.result.extractionStatus !== "failed") {
+    const candidatesResult = await updateDetectedCandidates(sourcePost.id, extraction.result.candidates, "needs_review");
+
+    if (candidatesResult.error) {
+      await updateSavedSourcePost(sourcePost.id, { processingStatus: "failed" });
+      reviewMessage = "自动识别已完成，但暂时无法保存候选结果，请补充地点信息后保存。";
+    } else {
+      const validatedCandidates = candidatesResult.data
+        ? getValidatedSourcePostCandidates(candidatesResult.data.detectedCandidates)
+        : extraction.result.candidates;
+      const strongestCandidate = selectStrongestSourcePostCandidate(validatedCandidates);
+
+      if (strongestCandidate) {
+        candidateId = strongestCandidate.id;
+        reviewMessage = "已自动识别地点草稿，请确认后保存。";
+      } else if (extraction.result.candidates.length === 0) {
+        reviewMessage = "已保存来源并完成自动解析，请补充地点信息后保存。";
+      }
+    }
+  } else {
+    await updateSavedSourcePost(sourcePost.id, { processingStatus: "failed" });
+    reviewMessage = extraction.status === "unavailable"
+      ? "AI 识别暂未配置，已保留来源证据，请补充地点信息后保存。"
+      : "自动识别暂时失败，已保留来源证据，请补充地点信息后保存。";
+  }
+
   redirect(
     buildRedirect("/restaurants/review", {
-      source_url: sourceUrl,
-      source_input: normalizedInput.rawInput,
+      source_post_id: sourcePost.id,
+      ...(candidateId ? { candidate_id: candidateId } : {}),
+      source_input: sourceInput,
+      source_url: sourcePost.originalUrl ?? sourcePost.resolvedUrl ?? sourceUrl,
       source_resolution_status: resolution.resolutionStatus,
       source_resolution_redirect_count: String(resolution.redirectCount),
-      ...(resolution.resolvedUrl !== sourceUrl ? { resolved_source_url: resolution.resolvedUrl } : {}),
+      ...(sourcePost.resolvedUrl && sourcePost.resolvedUrl !== sourceUrl
+        ? { resolved_source_url: sourcePost.resolvedUrl }
+        : {}),
+      message: reviewMessage,
     }),
   );
 }

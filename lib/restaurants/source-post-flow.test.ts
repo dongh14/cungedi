@@ -63,6 +63,25 @@ test("source-post organization preserves context and uses the existing review fo
   assert.match(restaurantsAction, /该帖子已关联到此地点/u);
 });
 
+test("default paste intake auto-saves source posts, runs bounded extraction, and opens review directly", () => {
+  const intakeCard = read("components/source-intake-card.tsx");
+  const intakePage = read("app/restaurants/new/source/page.tsx");
+  const restaurantActions = read("app/restaurants/actions.ts");
+  const intakeActionSection = restaurantActions.split("export async function startSourceIntakeAction")[1] ?? "";
+
+  assert.match(intakeCard, /识别地点/u);
+  assert.match(intakeCard, /粘贴小红书、抖音分享文案或网页链接/u);
+  assert.match(intakeCard, /粘贴后将自动识别地点信息，你可以在保存前修改/u);
+  assert.match(intakePage, /自动整理出可编辑地点草稿/u);
+  assert.match(restaurantActions, /createSavedSourcePost/u);
+  assert.match(restaurantActions, /fetchSourcePageMetadata/u);
+  assert.match(restaurantActions, /extractSourcePostPlaces/u);
+  assert.match(restaurantActions, /updateDetectedCandidates/u);
+  assert.match(restaurantActions, /source_post_id/u);
+  assert.match(restaurantActions, /candidate_id/u);
+  assert.doesNotMatch(intakeActionSection, /buildRestaurantInsertPayload|from\("restaurants"\)/u);
+});
+
 test("source-post organization keeps failure recovery visible and does not add extraction features", () => {
   const actions = read("app/source-posts/actions.ts");
   const restaurantActions = read("app/restaurants/actions.ts");

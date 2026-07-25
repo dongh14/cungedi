@@ -1,3 +1,4 @@
+import type { CanonicalPlaceCategory } from "@/lib/restaurants/constants";
 import type { SavedSourcePost } from "./types";
 import type { SourcePostPlaceCandidate } from "./extraction-types";
 
@@ -6,6 +7,12 @@ export type SourcePostOrganizationDraft = {
   sourceUrl: string | null;
   resolvedSourceUrl: string | null;
   name: string | null;
+  country: string | null;
+  city: string | null;
+  district: string | null;
+  address: string | null;
+  category: CanonicalPlaceCategory | null;
+  cuisine: string | null;
   note: string | null;
 };
 
@@ -30,6 +37,54 @@ function getNameCandidate(originalText: string | null) {
   return null;
 }
 
+function getCandidateConfidenceRank(confidence: SourcePostPlaceCandidate["confidence"]) {
+  switch (confidence) {
+    case "high":
+      return 3;
+    case "medium":
+      return 2;
+    case "low":
+      return 1;
+  }
+}
+
+function getCandidateCompletenessScore(candidate: SourcePostPlaceCandidate) {
+  return [
+    candidate.name,
+    candidate.city,
+    candidate.country,
+    candidate.district,
+    candidate.address,
+    candidate.category,
+    candidate.subcategory,
+  ].filter(Boolean).length;
+}
+
+export function selectStrongestSourcePostCandidate(
+  candidates: SourcePostPlaceCandidate[],
+) {
+  const ranked = [...candidates].sort((left, right) =>
+    getCandidateConfidenceRank(right.confidence) - getCandidateConfidenceRank(left.confidence) ||
+    getCandidateCompletenessScore(right) - getCandidateCompletenessScore(left) ||
+    right.evidence.length - left.evidence.length,
+  );
+  const strongest = ranked[0];
+
+  if (!strongest) {
+    return null;
+  }
+
+  const hasUsableLocation = Boolean(strongest.city || strongest.district || strongest.address);
+  const hasUsableClassification = Boolean(strongest.category || strongest.subcategory);
+  const confidenceRank = getCandidateConfidenceRank(strongest.confidence);
+
+  if (!strongest.name || confidenceRank < 2 || (!hasUsableLocation && !hasUsableClassification)) {
+    return null;
+  }
+
+  return strongest;
+}
+
 export function buildSourcePostOrganizationDraft(
   post: SavedSourcePost,
   candidate?: SourcePostPlaceCandidate | null,
@@ -39,6 +94,12 @@ export function buildSourcePostOrganizationDraft(
     sourceUrl: post.originalUrl ?? post.resolvedUrl,
     resolvedSourceUrl: post.resolvedUrl,
     name: candidate?.name ?? getNameCandidate(post.originalText),
+    country: candidate?.country ?? null,
+    city: candidate?.city ?? null,
+    district: candidate?.district ?? null,
+    address: candidate?.address ?? null,
+    category: candidate?.category ?? null,
+    cuisine: candidate?.subcategory ?? null,
     note: candidate?.note ?? post.originalText?.trim() ?? null,
   };
 }

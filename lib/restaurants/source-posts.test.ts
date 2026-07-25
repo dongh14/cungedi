@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildSourcePostOrganizationDraft } from "../source-posts/draft.ts";
+import {
+  buildSourcePostOrganizationDraft,
+  selectStrongestSourcePostCandidate,
+} from "../source-posts/draft.ts";
 import { buildSavedSourcePostCapture, getSourcePostStatusAfterLinkChange } from "../source-posts/intake.ts";
 
 test("saved source-post capture preserves raw shared text and separates resolved URLs", () => {
@@ -58,5 +61,58 @@ test("source-post organization derives a conservative name and keeps raw evidenc
   assert.equal(draft.sourceInput, rawText);
   assert.equal(draft.sourceUrl, "http://xhslink.com/o/example");
   assert.equal(draft.resolvedSourceUrl, "https://www.xiaohongshu.com/explore/example");
+  assert.equal(draft.city, null);
+  assert.equal(draft.category, null);
   assert.equal(draft.note, rawText);
+});
+
+test("source-post organization prefers the strongest conservative candidate", () => {
+  const strongest = selectStrongestSourcePostCandidate([
+    {
+      id: "low",
+      name: "某个地方",
+      country: null,
+      city: null,
+      district: null,
+      address: null,
+      category: "美食",
+      subcategory: null,
+      note: null,
+      confidence: "low",
+      evidence: ["提到了一家店"],
+      warnings: [],
+    },
+    {
+      id: "high",
+      name: "樱木町寿司店",
+      country: "日本",
+      city: "横滨",
+      district: "樱木町",
+      address: null,
+      category: "美食",
+      subcategory: "日料",
+      note: "适合晚餐",
+      confidence: "high",
+      evidence: ["横滨樱木町推荐一家寿司店", "适合预约晚餐"],
+      warnings: [],
+    },
+  ]);
+
+  assert.equal(strongest?.id, "high");
+  assert.equal(selectStrongestSourcePostCandidate([
+    {
+      id: "weak",
+      name: null,
+      country: null,
+      city: null,
+      district: null,
+      address: null,
+      category: null,
+      subcategory: null,
+      note: null,
+      confidence: "medium",
+      evidence: ["有一家店"],
+      warnings: [],
+    },
+  ]), null);
 });
