@@ -1186,6 +1186,26 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - Focused details, collection-card, saved-place-card, map-popup, location, and collection-membership tests passed (`25` tests).
 - Interactive authenticated mobile validation was not run in this environment; automated validation did not create or save a place.
 
+## V1.1 Milestone 4 Source-Post Organization Architecture
+
+### Organization Flow
+
+- The source-post detail page is the entry point. `organizeSavedSourcePostAction` verifies the authenticated owner through the source-post repository, advances `captured` to `needs_review`, and routes to `/restaurants/review?source_post_id={id}`.
+- The review page loads the source post server-side by ID and derives a bounded organization draft. It reuses the existing extraction/review form and save action rather than introducing a second place editor. Original text remains editable note/evidence; the URL fields preserve original and resolved references separately.
+- `buildSourcePostOrganizationDraft` only derives a name from a clearly meaningful first line. City, category, address, coordinates, and other weak fields remain empty unless existing deterministic review data already provides them.
+
+### Linking And Status
+
+- The normal `createRestaurantAction` accepts an optional validated `source_post_id`. It verifies source-post ownership before insertion, checks for an existing link to prevent repeated-submission duplicates, creates the private place, and calls the existing owner-scoped link repository operation.
+- A successful link inserts/upserts `saved_source_post_places`, sets the source post to `saved`, and routes to the new place detail page. If the place insert succeeds but linking fails, the user is returned to the source-post detail with a sanitized recovery message and created-place context; no relationship failure is hidden.
+- `linkSavedSourcePostToPlaceAction` verifies both source-post ownership and selected-place ownership before using the idempotent join operation. `unlinkSavedSourcePostFromPlaceAction` verifies the same boundaries and lets the repository count remaining links, returning the status to `needs_review` when the last link is removed.
+- Valid manual status editing is limited to `needs_review`, `processing`, and `failed`; `saved` is derived from linked places. Notes remain editable through the existing owner-scoped update operation.
+
+### Security And Scope
+
+- Browser-supplied IDs are never treated as authority. Every read, create-with-context, link, unlink, update, and delete path resolves the authenticated user on the server; Supabase owner-scoped RLS protects both source posts and restaurants as a second boundary.
+- The organization milestone does not add migrations or alter the saved-place schema. Extraction, AI, OCR, screenshot/image intake, video handling, scraping, native sharing, public sharing, and bulk candidate extraction remain deliberately deferred.
+
 ## V1.1 Saved Source-Post Persistence
 
 - `public.saved_source_posts` is a private, owner-scoped evidence inbox separate from `public.restaurants`. It preserves copied Xiaohongshu, Douyin, or web share content before a place exists.

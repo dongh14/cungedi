@@ -213,6 +213,21 @@ export async function linkSourcePostToPlace(sourcePostId: string, restaurantId: 
   return { linked: !statusError, error: statusError ? repositoryError(statusError) : null };
 }
 
+export async function getSourcePostPlaceCount(sourcePostId: string) {
+  const context = await getUserContext();
+
+  if (!context) {
+    return { count: 0, error: null };
+  }
+
+  const { count, error } = await context.supabase
+    .from("saved_source_post_places")
+    .select("source_post_id", { count: "exact", head: true })
+    .eq("source_post_id", sourcePostId);
+
+  return { count: count ?? 0, error: error ? repositoryError(error) : null };
+}
+
 export async function unlinkSourcePostFromPlace(sourcePostId: string, restaurantId: number) {
   const context = await getUserContext();
 

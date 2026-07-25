@@ -2000,3 +2000,20 @@ Documented but not yet implemented in UI:
 - `NEXT_PUBLIC_PMTILES_URL=https://example.com/maps/base-v1.pmtiles npm run build` passed without network access.
 - `npm test` passed with `421/421` tests, including source-post capture, migration/RLS, navigation, extraction, AI, map, and privacy coverage.
 - No Supabase migration was applied remotely; no `db push`, `db reset`, or migration-history repair was run.
+
+## V1.1 Milestone 4 Source-Post Organization
+
+- Added the owner-scoped `整理为地点` flow from `/source-posts/[id]` into the existing editable `/restaurants/review` form. The source-post ID stays in validated hidden state and is re-checked server-side before a place can be created.
+- Organization pre-fills only conservative evidence: a deterministic first-line name candidate when available, the original pasted text as editable notes/evidence, the original source URL, and the resolved URL. No scraping, OCR, screenshots, video processing, bulk candidates, or new AI extraction was added.
+- Place creation with a source-post context creates the private restaurant, idempotently checks existing links, links the new place through `saved_source_post_places`, marks the source post `saved`, and redirects to the new place detail page. Link failure remains visible with recovery context rather than being swallowed.
+- Added `关联已有地点` with an owner-scoped selectable list, idempotent join creation, and `取消关联`. Removing the last link returns the source post to `needs_review`.
+- Source-post detail now supports `编辑备注`, valid manual status updates, organization, existing-place linking, deletion, linked-place display, and visible success/error feedback. Non-owner source posts or places are not revealed through these actions; Supabase RLS remains the second enforcement layer.
+- Repeated organization submissions detect an existing linked place and redirect to it instead of creating another place. Normal place creation without `source_post_id` remains unchanged.
+
+### Validation
+
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `npm run build` passed with the repository's safe production-style PMTiles environment value.
+- `npm test` passed with `428/428` tests.
+- No migration, `db push`, `db reset`, external network, screenshot/OCR, or AI extraction operation was run.

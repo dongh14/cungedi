@@ -31,6 +31,11 @@ import type {
   RestaurantInsertInput,
   RestaurantUpdateInput,
 } from "@/lib/restaurants/types";
+import {
+  getSavedSourcePostById,
+  linkSourcePostToPlace,
+  listLinkedPlacesForSourcePost,
+} from "@/lib/source-posts/repository";
 
 function buildRedirect(pathname: string, params: Record<string, string>) {
   const searchParams = new URLSearchParams(params);
@@ -103,6 +108,7 @@ function buildReviewRestaurantRedirect(
     resolvedSourceUrl?: string;
     sourceResolutionStatus?: SourceResolutionStatus;
     sourceResolutionRedirectCount?: number;
+    sourcePostId?: string;
   },
   state: {
     error?: string;
@@ -134,6 +140,7 @@ function buildReviewRestaurantRedirect(
     ...(values.sourceResolutionRedirectCount !== undefined
       ? { source_resolution_redirect_count: String(values.sourceResolutionRedirectCount) }
       : {}),
+    ...(values.sourcePostId ? { source_post_id: values.sourcePostId } : {}),
   });
 }
 
@@ -213,6 +220,7 @@ function buildReviewCollectionRedirect(
     sourceResolutionStatus?: SourceResolutionStatus;
     sourceResolutionRedirectCount?: number;
     collectionIds?: number[];
+    sourcePostId?: string;
   },
 ) {
   const params = new URLSearchParams({ source_url: sourceUrl });
@@ -247,6 +255,10 @@ function buildReviewCollectionRedirect(
 
   if (state.collectionIds && state.collectionIds.length > 0) {
     params.set("collection_ids", state.collectionIds.join(","));
+  }
+
+  if (state.sourcePostId) {
+    params.set("source_post_id", state.sourcePostId);
   }
 
   for (const [field, value] of Object.entries(state.draftValues ?? {})) {
@@ -288,6 +300,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const resolvedSourceUrl = getFormValue(formData, "resolved_source_url");
   const sourceResolutionStatus = getFormValue(formData, "source_resolution_status") as SourceResolutionStatus | "";
   const sourceResolutionRedirectCount = getFormValue(formData, "source_resolution_redirect_count");
+  const sourcePostId = getFormValue(formData, "source_post_id");
   const collectionIds = normalizeSelectedCollectionIds(
     formData.getAll("collection_ids").map((value) => value.toString()),
   );
@@ -311,6 +324,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     ...(resolvedSourceUrl ? { resolvedSourceUrl } : {}),
     ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
     ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
+    ...(sourcePostId ? { sourcePostId } : {}),
   };
   const redirectToDraft = (error: string): never => {
     if (returnTo === "review" && reviewSourceUrl) {
@@ -366,6 +380,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     ...(resolvedSourceUrl ? { resolvedSourceUrl } : {}),
     ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
     ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
+    ...(sourcePostId ? { sourcePostId } : {}),
   };
 }
 
@@ -534,6 +549,50 @@ export async function createRestaurantAction(formData: FormData) {
     redirect(buildRedirect("/login", { error: "请先登录后再创建地点。" }));
   }
 
+  if (restaurant.sourcePostId) {
+    const sourcePostResult = await getSavedSourcePostById(restaurant.sourcePostId);
+    if (!sourcePostResult.data) {
+      redirect(buildRedirect("/restaurants/review", {
+        source_post_id: restaurant.sourcePostId,
+        error: "来源帖子无法读取，请返回待整理列表重试。",
+      }));
+    }
+
+    const linkedPlacesResult = await listLinkedPlacesForSourcePost(restaurant.sourcePostId);
+    if (linkedPlacesResult.error) {
+      redirect(
+        buildReviewRestaurantRedirect(
+          {
+            sourceUrl: restaurant.reviewSourceUrl ?? restaurant.sourceUrl,
+            name: restaurant.name,
+            city: restaurant.city,
+            country: restaurant.country ?? "",
+            district: restaurant.district ?? "",
+            sourceInput: restaurant.intakeInput ?? restaurant.sourceUrl,
+            privacy: restaurant.privacy,
+            category: restaurant.category,
+            address: restaurant.address ?? "",
+            cuisine: restaurant.cuisine ?? "",
+            note: restaurant.note ?? "",
+            collectionIds: restaurant.collectionIds ?? [],
+            sourcePostId: restaurant.sourcePostId,
+            ...(restaurant.resolvedSourceUrl ? { resolvedSourceUrl: restaurant.resolvedSourceUrl } : {}),
+            ...(restaurant.sourceResolutionStatus ? { sourceResolutionStatus: restaurant.sourceResolutionStatus } : {}),
+            ...(restaurant.sourceResolutionRedirectCount !== undefined ? { sourceResolutionRedirectCount: restaurant.sourceResolutionRedirectCount } : {}),
+          },
+          { error: "暂时无法确认来源帖子是否已整理，请稍后重试。" },
+        ),
+      );
+    }
+
+    const existingPlace = linkedPlacesResult.data[0];
+    if (existingPlace) {
+      redirect(buildRedirect(`/restaurants/${existingPlace.restaurantId}`, {
+        message: "该帖子已关联到此地点。",
+      }));
+    }
+  }
+
   const { data, error } = await supabase
     .from("restaurants")
     .insert(buildRestaurantInsertPayload(user.id, restaurant))
@@ -556,6 +615,7 @@ export async function createRestaurantAction(formData: FormData) {
       note: restaurant.note ?? "",
       collectionIds: restaurant.collectionIds ?? [],
       manualEvidence: restaurant.manualEvidence ?? "",
+      ...(restaurant.sourcePostId ? { sourcePostId: restaurant.sourcePostId } : {}),
       ...(restaurant.resolvedSourceUrl ? { resolvedSourceUrl: restaurant.resolvedSourceUrl } : {}),
       ...(restaurant.sourceResolutionStatus ? { sourceResolutionStatus: restaurant.sourceResolutionStatus } : {}),
       ...(restaurant.sourceResolutionRedirectCount !== undefined ? { sourceResolutionRedirectCount: restaurant.sourceResolutionRedirectCount } : {}),
@@ -578,6 +638,16 @@ export async function createRestaurantAction(formData: FormData) {
     redirect(buildNewRestaurantRedirect(redirectValues, safeSaveError));
   }
 
+  if (restaurant.sourcePostId) {
+    const linkResult = await linkSourcePostToPlace(restaurant.sourcePostId, data.id);
+    if (!linkResult.linked) {
+      redirect(buildRedirect(`/source-posts/${restaurant.sourcePostId}`, {
+        error: "地点已创建，但来源帖子关联失败，请稍后重试。",
+        created_place: String(data.id),
+      }));
+    }
+  }
+
   if (restaurant.collectionIds && restaurant.collectionIds.length > 0) {
     const { error: collectionError } = await supabase
       .from("restaurant_collections")
@@ -598,12 +668,16 @@ export async function createRestaurantAction(formData: FormData) {
     }
   }
 
-  redirect(
-    buildRedirect("/restaurants", {
-      message: "地点已成功保存。",
-      created: String(data.id),
-    }),
-  );
+  if (restaurant.sourcePostId) {
+    redirect(buildRedirect(`/restaurants/${data.id}`, {
+      message: "已创建地点并关联来源帖子。",
+    }));
+  }
+
+  redirect(buildRedirect("/restaurants", {
+    message: "地点已成功保存。",
+    created: String(data.id),
+  }));
 }
 
 export async function updateRestaurantAction(formData: FormData) {
@@ -693,6 +767,7 @@ export async function createCollectionAction(formData: FormData) {
   const resolvedSourceUrl = getFormValue(formData, "resolved_source_url");
   const sourceResolutionStatus = getFormValue(formData, "source_resolution_status") as SourceResolutionStatus | "";
   const sourceResolutionRedirectCount = getFormValue(formData, "source_resolution_redirect_count");
+  const sourcePostId = getFormValue(formData, "source_post_id");
   const manualEvidence = getFormValue(formData, "manual_evidence");
   const collectionIds = normalizeSelectedCollectionIds(
     formData.getAll("collection_ids").map((value) => value.toString()),
@@ -723,6 +798,7 @@ export async function createCollectionAction(formData: FormData) {
         ...(resolvedSourceUrl ? { resolvedSourceUrl } : {}),
         ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
         ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
+        ...(sourcePostId ? { sourcePostId } : {}),
         manualEvidence,
         collectionIds,
       }));

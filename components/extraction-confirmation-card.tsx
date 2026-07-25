@@ -69,6 +69,7 @@ function getSourceResolutionLabel(status: ReviewSearchParams["source_resolution_
 export function ExtractionConfirmationCard({
   sourceUrl,
   sourceInput,
+  sourcePostId,
   searchParams,
   mergedDraft,
   sourceUrls,
@@ -79,6 +80,7 @@ export function ExtractionConfirmationCard({
 }: {
   sourceUrl: string;
   sourceInput?: string;
+  sourcePostId?: string;
   searchParams: ReviewSearchParams;
   mergedDraft: MergedPlaceDraft;
   sourceUrls?: string[];
@@ -135,6 +137,7 @@ export function ExtractionConfirmationCard({
           <input type="hidden" name="return_to" value="review" />
           <input type="hidden" name="review_source_url" value={sourceUrl} />
           <input type="hidden" name="source_input" value={sourceInput ?? sourceUrl} />
+          {sourcePostId ? <input type="hidden" name="source_post_id" value={sourcePostId} /> : null}
           {searchParams.resolved_source_url ? <input type="hidden" name="resolved_source_url" value={searchParams.resolved_source_url} /> : null}
           {searchParams.source_resolution_status ? <input type="hidden" name="source_resolution_status" value={searchParams.source_resolution_status} /> : null}
           {searchParams.source_resolution_redirect_count ? <input type="hidden" name="source_resolution_redirect_count" value={searchParams.source_resolution_redirect_count} /> : null}

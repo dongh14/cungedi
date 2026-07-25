@@ -35,6 +35,8 @@ import { getCurrentUserCollectionOptions } from "@/lib/restaurants/queries";
 import { extractFirstHttpUrl } from "@/lib/restaurants/source-url";
 import { getReviewCollectionIds, type ReviewSearchParams } from "@/lib/restaurants/review-form";
 import { logWorkflowDiagnostic } from "@/lib/restaurants/workflow-diagnostics";
+import { buildSourcePostOrganizationDraft } from "@/lib/source-posts/draft";
+import { getSavedSourcePostById } from "@/lib/source-posts/repository";
 
 type RestaurantReviewPageProps = {
   searchParams?: Promise<ReviewSearchParams & {
@@ -108,13 +110,36 @@ export default async function RestaurantReviewPage({
 }: RestaurantReviewPageProps) {
   noStore();
   const user = await requireAuthenticatedUser();
-  const params = (await searchParams) ?? {};
+  const incomingParams = (await searchParams) ?? {};
+  const sourcePost = incomingParams.source_post_id
+    ? (await getSavedSourcePostById(incomingParams.source_post_id)).data
+    : null;
+
+  if (incomingParams.source_post_id && !sourcePost) {
+    redirect(`/source-posts/${encodeURIComponent(incomingParams.source_post_id)}?error=${encodeURIComponent("帖子暂时无法读取，请稍后重试。")}`);
+  }
+
+  const sourcePostDraft = sourcePost ? buildSourcePostOrganizationDraft(sourcePost) : null;
+  const params = sourcePostDraft
+    ? {
+        ...incomingParams,
+        source_url: incomingParams.source_url ?? sourcePostDraft.sourceUrl ?? undefined,
+        source_input: incomingParams.source_input ?? sourcePostDraft.sourceInput,
+        name: incomingParams.name ?? sourcePostDraft.name ?? undefined,
+        note: incomingParams.note ?? sourcePostDraft.note ?? undefined,
+        resolved_source_url: incomingParams.resolved_source_url ?? sourcePostDraft.resolvedSourceUrl ?? undefined,
+      }
+    : incomingParams;
   const { collections: collectionOptions, error: collectionOptionsError } = await getCurrentUserCollectionOptions();
   const selectedCollectionIds = getReviewCollectionIds(params.collection_ids);
   const sourceUrls = getReviewSourceUrls(params);
   const normalizedSourceUrl = sourceUrls[0] ?? null;
 
   if (!normalizedSourceUrl) {
+    if (sourcePost) {
+      redirect(`/source-posts/${encodeURIComponent(sourcePost.id)}?error=${encodeURIComponent("该帖子没有可用来源链接，请手动添加地点。")}`);
+    }
+
     redirect(
       `/restaurants/new/source?source_error=${encodeURIComponent(
         "请先粘贴有效的来源链接或分享文案。",
@@ -351,6 +376,7 @@ export default async function RestaurantReviewPage({
         <ExtractionConfirmationCard
           sourceUrl={normalizedSourceUrl}
           sourceInput={params.source_input}
+          sourcePostId={params.source_post_id}
           searchParams={params}
           mergedDraft={reviewDraft}
           sourceUrls={sourceUrls}
@@ -359,7 +385,7 @@ export default async function RestaurantReviewPage({
           refreshParams={refreshParams}
         />
         {showManualEvidenceRecovery ? <ManualEvidenceRecoveryCard sourceUrl={normalizedSourceUrl} sourceUrls={sourceUrls} sourceInput={params.source_input} resolvedSourceUrl={params.resolved_source_url} sourceResolutionStatus={params.source_resolution_status} sourceResolutionRedirectCount={params.source_resolution_redirect_count} value={manualEvidenceText ?? ""} error={recoveryMessage ?? websiteRecoveryPipelines[0]?.result.message} aiDraftState={aiDraftState} selectedCollectionIds={selectedCollectionIds} draftValues={reviewDraftValues} /> : null}
-        <ReviewCollectionSelector collectionOptions={collectionOptions} collectionOptionsError={Boolean(collectionOptionsError)} selectedCollectionIds={selectedCollectionIds} sourceUrl={normalizedSourceUrl} sourceInput={params.source_input} resolvedSourceUrl={params.resolved_source_url} sourceResolutionStatus={params.source_resolution_status} sourceResolutionRedirectCount={params.source_resolution_redirect_count} message={params.collection_message ?? params.collection_error} aiDraftState={aiDraftState} draftValues={reviewDraftValues} manualEvidence={manualEvidenceText ?? undefined} />
+        <ReviewCollectionSelector collectionOptions={collectionOptions} collectionOptionsError={Boolean(collectionOptionsError)} selectedCollectionIds={selectedCollectionIds} sourceUrl={normalizedSourceUrl} sourceInput={params.source_input} resolvedSourceUrl={params.resolved_source_url} sourceResolutionStatus={params.source_resolution_status} sourceResolutionRedirectCount={params.source_resolution_redirect_count} sourcePostId={params.source_post_id} message={params.collection_message ?? params.collection_error} aiDraftState={aiDraftState} draftValues={reviewDraftValues} manualEvidence={manualEvidenceText ?? undefined} />
       </div>
     </AppShell>
   );

@@ -48,3 +48,27 @@ test("save-for-later keeps authentication and distinct URL fields", () => {
   assert.match(repository, /processing_status: input\.processingStatus \?\? "captured"/u);
   assert.match(repository, /detected_candidates: Array\.isArray/u);
 });
+
+test("source-post organization preserves context and uses the existing review form", () => {
+  const detail = read("app/source-posts/[id]/page.tsx");
+  const review = read("app/restaurants/review/page.tsx");
+  const restaurantsAction = read("app/restaurants/actions.ts");
+
+  assert.match(detail, /整理为地点/u);
+  assert.match(detail, /关联已有地点/u);
+  assert.match(detail, /unlinkSavedSourcePostFromPlaceAction/u);
+  assert.match(review, /source_post_id/u);
+  assert.match(restaurantsAction, /getSavedSourcePostById/u);
+  assert.match(restaurantsAction, /linkSourcePostToPlace/u);
+  assert.match(restaurantsAction, /该帖子已关联到此地点/u);
+});
+
+test("source-post organization keeps failure recovery visible and does not add extraction features", () => {
+  const actions = read("app/source-posts/actions.ts");
+  const restaurantActions = read("app/restaurants/actions.ts");
+  const page = read("app/source-posts/[id]/page.tsx");
+
+  assert.match(restaurantActions, /地点已创建，但来源帖子关联失败，请稍后重试/u);
+  assert.match(actions, /processingStatus: "needs_review"/u);
+  assert.doesNotMatch(page, /OCR|截图上传|视频处理|AI提取/u);
+});

@@ -20,6 +20,7 @@ export type RestaurantInsertInput = {
   resolvedSourceUrl?: string;
   sourceResolutionStatus?: SourceResolutionStatus;
   sourceResolutionRedirectCount?: number;
+  sourcePostId?: string;
 };
 
 export type RestaurantUpdateInput = {
