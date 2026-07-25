@@ -51,7 +51,7 @@ export function buildSourcePostExtractionEvidence(input: SourcePostExtractionInp
 }
 
 export const sourcePostExtractionSystemPrompt = `Return only one valid JSON object. Do not use markdown or explanations. Follow the schema exactly and return no additional fields.
-Use only the supplied evidence. Identify physical places only when supported by the text or supplied metadata. A copied share sentence can be evidence, but a URL is only a source identifier unless metadata is supplied. Do not claim to have opened or read any URL.
+Use only the supplied evidence. Identify physical places only when supported by the text or supplied page metadata. Page title and page description may be used as evidence, but they may be incomplete or promotional. A copied share sentence can be evidence, but a URL is only a source identifier unless metadata is supplied. Do not claim to have opened or read any URL.
 Return multiple candidates only when multiple specific places are clearly supported. Do not create candidates for a neighborhood, city, cuisine, event, or generic recommendation topic. Do not infer exact addresses, countries, or cities from ambiguous names or URL slugs. Use null for unsupported fields.
 Preserve Chinese, Japanese, English, or local-language names when supported. Categories must be only 美食, 景点, 住宿, 购物, 娱乐, or 其他. Mark weak inferences low confidence. Every candidate needs short evidence excerpts or grounded paraphrases and concise warnings.
 Use extractionStatus=insufficient_evidence when no specific place can be identified. Never invent information and never return hidden reasoning.`;

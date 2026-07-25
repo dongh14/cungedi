@@ -2034,3 +2034,21 @@ Documented but not yet implemented in UI:
 - `NEXT_PUBLIC_PMTILES_URL=https://example.com/maps/base-v1.pmtiles npm run build` passed without network access.
 - `npm test` passed with `435/435` tests, including strict candidate validation, bounded prompt packaging, provider failure handling, explicit extraction actions, candidate review contracts, and all existing extraction/source-post coverage.
 - No Supabase migration, `db push`, `db reset`, external API call, scraping, OCR, image upload, video processing, commit, or push was run.
+
+## V1.1 Milestone 6 Public Metadata Retrieval
+
+- Added a server-only public metadata fetcher for user-provided Xiaohongshu, Douyin, and generic web URLs. Retrieval is explicit from `/source-posts/[id]` through `读取公开信息`; normal source-post page rendering and builds never fetch URLs.
+- Added manual redirect handling with a maximum of four redirects, an approximately six-second total timeout, a 512 KB response cap, HTML/XHTML-only responses, conservative Accept/User-Agent headers, no cookies, no authorization headers, no forwarded request headers, no JavaScript execution, and no asset crawling.
+- Added SSRF protections for localhost, `.local`, loopback, private/reserved IPv4 and IPv6, credentials, unsupported protocols, invalid URLs, private redirect targets, and unapproved platform redirect targets. HTTP 401/403/429 and challenge/login pages are surfaced as blocked/unavailable states.
+- Metadata parsing is limited to title, description, Open Graph title/description/site name/image, and canonical URL. Relative canonical/image URLs are resolved and validated; image URLs are stored only as future metadata evidence and are not fetched, proxied, uploaded, or rendered as place images.
+- Added the additive, unapplied migration `20260725120000_add_source_post_metadata.sql` with compact `source_metadata`, `metadata_status`, and `metadata_fetched_at` fields plus JSON/status checks. Existing source-post RLS and public access behavior are unchanged; no migration was applied.
+- Stored metadata is validated before persistence and reused by the explicit AI extraction action. Open Graph title/description/site name take priority over plain metadata, original share text remains available, unavailable metadata never blocks extraction, and no place is automatically created.
+- Added safe source-metadata workflow diagnostics using host-only URLs, status, operation, duration, and found-field counts. Raw HTML, descriptions, share text, response headers, cookies, user IDs, credentials, model input/output, and secrets are excluded.
+
+### Validation
+
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `NEXT_PUBLIC_PMTILES_URL=https://example.com/maps/base-v1.pmtiles npm run build` passed without network access.
+- `npm test` passed with `444/444` tests, including metadata URL safety, parser, persistence migration, action, and AI evidence tests.
+- No migration, `db push`, `db reset`, live network request, scraping, image/video fetch, commit, or push was performed.

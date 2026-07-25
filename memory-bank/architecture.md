@@ -1737,3 +1737,25 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 ### Validation
 - `git diff --check`, `npm run lint`, and the production-style `npm run build` passed.
 - `npm test` passed with `435/435` tests. The suite includes source-post candidate schema/prompt/service tests, explicit action/UI contracts, and all prior extraction, AI, persistence, map, auth, and privacy tests.
+
+## V1.1 Milestone 6 Public Metadata Architecture
+
+### Retrieval Boundary
+- `lib/source-posts/metadata-fetcher.ts` is a server-only, explicit-action fetcher. It chooses the source post's `resolved_url` before `original_url`, validates public HTTP(S) targets, follows redirects manually, and never returns raw HTML.
+- `lib/source-posts/metadata-schema.ts` owns public URL validation and compact metadata validation. It rejects credentials, non-HTTP protocols, localhost, `.local`, loopback, private/reserved IPv4/IPv6, unsafe canonical/image URLs, invalid statuses, and unbounded strings/warnings.
+- The fetcher allows only HTML/XHTML, uses a six-second total deadline, four redirect maximum, 512 KB body cap, bounded stream reads, explicit HTML Accept headers, and a conservative User-Agent. It does not send cookies or authorization, execute scripts, follow assets, crawl links, or use browser automation. Platform source posts remain restricted to approved Xiaohongshu/Douyin host families; generic web redirects remain public-host-only.
+- 401/403/429 responses and challenge/login pages are blocked or unavailable rather than treated as extraction success. Timeout, invalid response, oversized body, non-HTML response, redirect failure, and missing metadata remain recoverable states.
+
+### Metadata Shape And Persistence
+- `lib/source-posts/metadata-types.ts` defines `SourcePageMetadata`: requested/final URL, platform, title, description, Open Graph title/description/site name/image URL, canonical URL, status, and short warnings. Empty values are null; no response headers, cookies, HTML, binary data, or security payloads are part of the shape.
+- `20260725120000_add_source_post_metadata.sql` is additive and currently unapplied. It adds `source_metadata jsonb`, `metadata_status`, and `metadata_fetched_at` to `saved_source_posts`, with object/status checks only. It does not alter RLS, grants, existing migrations, or source-post rows.
+- The repository maps and validates metadata explicitly. Successful, partial, unavailable, and invalid results replace the compact metadata package; technical blocked/timeout/failed results update status while preserving prior valid metadata where possible.
+
+### AI Integration
+- `fetchSavedSourcePostMetadataAction` is separate from `extractSavedSourcePostPlacesAction`; retrieving metadata never invokes DeepSeek and never creates a restaurant. The source-post detail page shows `读取公开信息`, `正在读取…`, and safe success/partial/unavailable/failure feedback.
+- The extraction action reuses validated stored metadata only. It passes `ogTitle ?? title`, `ogDescription ?? description`, and `ogSiteName` as bounded evidence alongside the original share text and URLs. `ogImageUrl` is deliberately excluded from text extraction and is not fetched.
+- The versioned AI prompt states that page metadata may be incomplete/promotional, that it is supplied evidence rather than page access, and that unsupported fields remain null. Manual review and the existing explicit place-save flow remain the final authority.
+
+### Privacy And Deferred Work
+- Development diagnostics expose only sanitized source hosts, operation/status, duration, and metadata field counts. They do not include raw HTML, metadata text, share text, query-bearing URLs, cookies, authorization, user IDs, model content, or secrets.
+- Full article/post scraping, JSON application state, comments, creator profiles, screenshots, OCR, video/audio processing, image downloading, image proxying, storage upload, native sharing, and authenticated scraping remain excluded. Image URL preservation is reserved for a future image milestone.

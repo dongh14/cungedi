@@ -1,6 +1,8 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSourcePostStatusAfterLinkChange } from "./intake";
 import { getValidatedSourcePostCandidates } from "./extraction-schema";
+import { validateSourcePageMetadata } from "./metadata-schema";
+import type { SourceMetadataStatus, SourcePageMetadata } from "./metadata-types";
 import type { SourcePostPlaceCandidate } from "./extraction-types";
 import type {
   CreateSavedSourcePostInput,
@@ -15,7 +17,7 @@ import type {
 const MAX_PAGE_SIZE = 50;
 
 const sourcePostSelect =
-  "id, user_id, platform, original_url, resolved_url, original_text, source_image_path, processing_status, detected_candidates, user_note, created_at, updated_at";
+  "id, user_id, platform, original_url, resolved_url, original_text, source_image_path, processing_status, detected_candidates, source_metadata, metadata_status, metadata_fetched_at, user_note, created_at, updated_at";
 
 function isSourcePostPlatform(value: unknown): value is SourcePostPlatform {
   return value === "xiaohongshu" || value === "douyin" || value === "web" || value === "unknown";
@@ -23,6 +25,10 @@ function isSourcePostPlatform(value: unknown): value is SourcePostPlatform {
 
 function isSourcePostStatus(value: unknown): value is SourcePostProcessingStatus {
   return value === "captured" || value === "processing" || value === "needs_review" || value === "saved" || value === "failed";
+}
+
+function isSourceMetadataStatus(value: unknown): value is SourceMetadataStatus {
+  return value === "success" || value === "partial" || value === "unavailable" || value === "blocked" || value === "timeout" || value === "invalid" || value === "failed";
 }
 
 function toSavedSourcePost(row: Record<string, unknown>): SavedSourcePost {
@@ -36,6 +42,9 @@ function toSavedSourcePost(row: Record<string, unknown>): SavedSourcePost {
     sourceImagePath: typeof row.source_image_path === "string" ? row.source_image_path : null,
     processingStatus: isSourcePostStatus(row.processing_status) ? row.processing_status : "captured",
     detectedCandidates: Array.isArray(row.detected_candidates) ? row.detected_candidates : [],
+    sourceMetadata: validateSourcePageMetadata(row.source_metadata),
+    metadataStatus: isSourceMetadataStatus(row.metadata_status) ? row.metadata_status : "unavailable",
+    metadataFetchedAt: typeof row.metadata_fetched_at === "string" ? row.metadata_fetched_at : null,
     userNote: typeof row.user_note === "string" ? row.user_note : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
@@ -191,6 +200,56 @@ export async function updateDetectedCandidates(
       detected_candidates: candidates,
       processing_status: processingStatus,
     })
+    .eq("id", id)
+    .select(sourcePostSelect)
+    .maybeSingle();
+
+  return {
+    data: data ? toSavedSourcePost(data as Record<string, unknown>) : null,
+    error: error ? repositoryError(error) : null,
+  };
+}
+
+export async function updateSourcePostMetadata(
+  id: string,
+  metadata: SourcePageMetadata,
+) {
+  const context = await getUserContext();
+
+  if (!context) {
+    return { data: null, error: null };
+  }
+
+  const { data, error } = await context.supabase
+    .from("saved_source_posts")
+    .update({
+      source_metadata: metadata,
+      metadata_status: metadata.status,
+      metadata_fetched_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(sourcePostSelect)
+    .maybeSingle();
+
+  return {
+    data: data ? toSavedSourcePost(data as Record<string, unknown>) : null,
+    error: error ? repositoryError(error) : null,
+  };
+}
+
+export async function updateSourcePostMetadataStatus(
+  id: string,
+  status: SourceMetadataStatus,
+) {
+  const context = await getUserContext();
+
+  if (!context) {
+    return { data: null, error: null };
+  }
+
+  const { data, error } = await context.supabase
+    .from("saved_source_posts")
+    .update({ metadata_status: status, metadata_fetched_at: new Date().toISOString() })
     .eq("id", id)
     .select(sourcePostSelect)
     .maybeSingle();

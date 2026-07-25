@@ -8,7 +8,8 @@ export type WorkflowDiagnosticEvent =
   | "review_ready"
   | "suggestion_applied"
   | "save_failed"
-  | "source_post_save_failed";
+  | "source_post_save_failed"
+  | "source_metadata_fetched";
 
 type WorkflowDiagnosticInput = {
   event: WorkflowDiagnosticEvent;
@@ -21,6 +22,8 @@ type WorkflowDiagnosticInput = {
   operation?: string;
   errorCategory?: string;
   errorCode?: string;
+  metadataStatus?: string;
+  metadataFieldsFound?: number;
 };
 
 function sanitizeWorkflowPayload(input: WorkflowDiagnosticInput) {
@@ -37,6 +40,8 @@ function sanitizeWorkflowPayload(input: WorkflowDiagnosticInput) {
     ...(input.operation ? { operation: input.operation } : {}),
     ...(input.errorCategory ? { errorCategory: input.errorCategory } : {}),
     ...(input.errorCode ? { errorCode: input.errorCode } : {}),
+    ...(input.metadataStatus ? { metadataStatus: input.metadataStatus } : {}),
+    ...(typeof input.metadataFieldsFound === "number" ? { metadataFieldsFound: input.metadataFieldsFound } : {}),
   };
 }
 

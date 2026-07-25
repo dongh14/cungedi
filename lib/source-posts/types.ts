@@ -1,3 +1,5 @@
+import type { SourcePageMetadata, SourceMetadataStatus } from "./metadata-types";
+
 export type SourcePostPlatform =
   | "xiaohongshu"
   | "douyin"
@@ -21,6 +23,9 @@ export type SavedSourcePost = {
   sourceImagePath: string | null;
   processingStatus: SourcePostProcessingStatus;
   detectedCandidates: unknown[];
+  sourceMetadata: SourcePageMetadata | null;
+  metadataStatus: SourceMetadataStatus;
+  metadataFetchedAt: string | null;
   userNote: string | null;
   createdAt: string;
   updatedAt: string;

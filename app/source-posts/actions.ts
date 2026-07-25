@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "@/lib/auth/require-user";
 import { buildSavedSourcePostCapture } from "@/lib/source-posts/intake";
 import { extractSourcePostPlaces } from "@/lib/source-posts/extraction-service";
+import { fetchSourcePageMetadata } from "@/lib/source-posts/metadata-fetcher";
 import {
   createSavedSourcePost,
   deleteSavedSourcePost,
@@ -11,6 +12,8 @@ import {
   linkSourcePostToPlace,
   unlinkSourcePostFromPlace,
   updateDetectedCandidates,
+  updateSourcePostMetadata,
+  updateSourcePostMetadataStatus,
   updateSavedSourcePost,
 } from "@/lib/source-posts/repository";
 import { getValidatedSourcePostCandidates } from "@/lib/source-posts/extraction-schema";
@@ -19,6 +22,7 @@ import { logWorkflowDiagnostic } from "@/lib/restaurants/workflow-diagnostics";
 import { getCurrentUserRestaurantById } from "@/lib/restaurants/queries";
 
 const activeSourcePostExtractions = new Set<string>();
+const activeSourcePostMetadataFetches = new Set<string>();
 
 function getRawValue(formData: FormData, key: string) {
   return formData.get(key)?.toString() ?? "";
@@ -175,6 +179,13 @@ export async function extractSavedSourcePostPlacesAction(formData: FormData) {
       originalText: postResult.data.originalText,
       originalUrl: postResult.data.originalUrl,
       resolvedUrl: postResult.data.resolvedUrl,
+      accessibleMetadata: postResult.data.sourceMetadata
+        ? {
+            title: postResult.data.sourceMetadata.ogTitle ?? postResult.data.sourceMetadata.title,
+            description: postResult.data.sourceMetadata.ogDescription ?? postResult.data.sourceMetadata.description,
+            siteName: postResult.data.sourceMetadata.ogSiteName,
+          }
+        : undefined,
     });
 
     if (extraction.status === "success" && extraction.result) {
@@ -196,6 +207,52 @@ export async function extractSavedSourcePostPlacesAction(formData: FormData) {
     redirect(`/source-posts/${encodeURIComponent(id)}?extraction=${extraction.status}`);
   } finally {
     activeSourcePostExtractions.delete(id);
+  }
+}
+
+export async function fetchSavedSourcePostMetadataAction(formData: FormData) {
+  const id = getRawValue(formData, "source_post_id");
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
+    redirect(`/login?error=${encodeURIComponent("请先登录后再读取公开信息。")}`);
+  }
+
+  if (!id || activeSourcePostMetadataFetches.has(id)) {
+    redirect(`/source-posts/${encodeURIComponent(id)}?metadata=failed`);
+  }
+
+  const postResult = await getSavedSourcePostById(id);
+  if (!postResult.data) {
+    redirect(`/source-posts/${encodeURIComponent(id)}?metadata=failed`);
+  }
+
+  const requestedUrl = postResult.data.resolvedUrl ?? postResult.data.originalUrl;
+  if (!requestedUrl) {
+    redirect(`/source-posts/${encodeURIComponent(id)}?metadata=unavailable`);
+  }
+
+  activeSourcePostMetadataFetches.add(id);
+  try {
+    const startedAt = Date.now();
+    const metadata = await fetchSourcePageMetadata(requestedUrl, postResult.data.platform);
+    logWorkflowDiagnostic({
+      event: "source_metadata_fetched",
+      operation: "read_source_metadata",
+      sourceUrls: [requestedUrl],
+      sourceType: postResult.data.platform,
+      metadataStatus: metadata.status,
+      metadataFieldsFound: [metadata.title, metadata.description, metadata.ogTitle, metadata.ogDescription, metadata.ogSiteName, metadata.ogImageUrl, metadata.canonicalUrl].filter(Boolean).length,
+      durationMs: Date.now() - startedAt,
+    });
+    const shouldPreservePrevious = metadata.status === "blocked" || metadata.status === "timeout" || metadata.status === "failed";
+    const savedResult = shouldPreservePrevious
+      ? await updateSourcePostMetadataStatus(id, metadata.status)
+      : await updateSourcePostMetadata(id, metadata);
+
+    redirect(`/source-posts/${encodeURIComponent(id)}?metadata=${savedResult.error || !savedResult.data ? "failed" : metadata.status}`);
+  } finally {
+    activeSourcePostMetadataFetches.delete(id);
   }
 }
 

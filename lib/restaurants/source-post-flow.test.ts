@@ -88,3 +88,18 @@ test("source-post extraction is explicit, bounded, and review-only", () => {
   assert.match(service, /maxOutputTokens: 600/u);
   assert.doesNotMatch(service, /createRestaurantAction|from\(["']restaurants/u);
 });
+
+test("source-post metadata retrieval is explicit and feeds only validated metadata into AI", () => {
+  const actions = read("app/source-posts/actions.ts");
+  const page = read("app/source-posts/[id]/page.tsx");
+  const button = read("components/source-post-metadata-button.tsx");
+  const repository = read("lib/source-posts/repository.ts");
+
+  assert.match(actions, /fetchSavedSourcePostMetadataAction/u);
+  assert.match(actions, /resolvedUrl \?\? postResult\.data\.originalUrl/u);
+  assert.match(actions, /fetchSourcePageMetadata/u);
+  assert.match(button, /读取公开信息/u);
+  assert.match(button, /正在读取/u);
+  assert.match(repository, /source_metadata: metadata/u);
+  assert.doesNotMatch(actions, /extractSourcePostPlaces\(.*fetch/u);
+});

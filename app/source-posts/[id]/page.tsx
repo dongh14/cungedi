@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   deleteSavedSourcePostAction,
   extractSavedSourcePostPlacesAction,
+  fetchSavedSourcePostMetadataAction,
   ignoreSourcePostCandidateAction,
   linkSavedSourcePostToPlaceAction,
   organizeSavedSourcePostAction,
@@ -12,6 +13,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { SourcePostCandidateSelector } from "@/components/source-post-candidate-selector";
 import { SourcePostExtractionButton } from "@/components/source-post-extraction-button";
+import { SourcePostMetadataButton } from "@/components/source-post-metadata-button";
 import { requireAuthenticatedUser } from "@/lib/auth/require-user";
 import { getCurrentUserRestaurants } from "@/lib/restaurants/queries";
 import { getValidatedSourcePostCandidates } from "@/lib/source-posts/extraction-schema";
@@ -21,7 +23,7 @@ import type { SourcePostPlatform, SourcePostProcessingStatus } from "@/lib/sourc
 
 type SourcePostDetailPageProps = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ message?: string; error?: string; saved?: string; created_place?: string; extraction?: string }>;
+  searchParams?: Promise<{ message?: string; error?: string; saved?: string; created_place?: string; extraction?: string; metadata?: string }>;
 };
 
 function platformLabel(platform: SourcePostPlatform) {
@@ -87,6 +89,15 @@ export default async function SourcePostDetailPage({ params, searchParams }: Sou
           : query.extraction === "failed"
             ? "识别失败，请稍后重试。"
             : undefined;
+  const metadataMessage = query.metadata === "success"
+    ? "已读取公开页面信息"
+    : query.metadata === "partial"
+      ? "仅获取到部分公开信息"
+      : query.metadata === "unavailable"
+        ? "该链接未提供可读取的公开信息"
+        : query.metadata === "blocked" || query.metadata === "timeout" || query.metadata === "failed" || query.metadata === "invalid"
+          ? "读取失败，仍可使用分享文字识别"
+          : undefined;
 
   return (
     <AppShell
@@ -97,7 +108,7 @@ export default async function SourcePostDetailPage({ params, searchParams }: Sou
       userEmail={user.email}
       userId={user.userId}
       actions={<Link href="/source-posts" className="app-text-link">返回待整理</Link>}
-      message={query.saved === "1" ? "帖子已保存到待整理" : query.message ?? extractionMessage}
+      message={query.saved === "1" ? "帖子已保存到待整理" : query.message ?? metadataMessage ?? extractionMessage}
     >
       <div className="source-post-detail">
         {query.error || postResult.error || linkedPlacesResult.error ? <div className="inline-error">{query.error ?? "暂时无法读取帖子详情，请稍后再试。"}</div> : null}
@@ -155,6 +166,24 @@ export default async function SourcePostDetailPage({ params, searchParams }: Sou
                   </div>
                 </article>
               ))}
+            </div>
+          ) : null}
+        </section>
+
+        <section className="form-surface p-4 sm:p-5" aria-labelledby="source-post-metadata-title">
+          <h2 id="source-post-metadata-title" className="text-lg font-bold">公开页面信息</h2>
+          <p className="detail-muted mt-2">只读取页面公开元数据，不会抓取正文或下载图片。</p>
+          <form action={fetchSavedSourcePostMetadataAction} className="mt-3">
+            <input type="hidden" name="source_post_id" value={post.id} />
+            <SourcePostMetadataButton />
+          </form>
+          {post.sourceMetadata ? (
+            <div className="mt-4 grid gap-2 text-sm leading-6 text-[var(--ink-soft)]">
+              {post.sourceMetadata.ogTitle || post.sourceMetadata.title ? <p>页面标题：{post.sourceMetadata.ogTitle ?? post.sourceMetadata.title}</p> : null}
+              {post.sourceMetadata.ogDescription || post.sourceMetadata.description ? <p>页面描述：{post.sourceMetadata.ogDescription ?? post.sourceMetadata.description}</p> : null}
+              {post.sourceMetadata.ogSiteName ? <p>网站名称：{post.sourceMetadata.ogSiteName}</p> : null}
+              {post.sourceMetadata.canonicalUrl ? <p>规范链接：{post.sourceMetadata.canonicalUrl}</p> : null}
+              {post.sourceMetadata.warnings.length > 0 ? <p className="text-amber-700">{post.sourceMetadata.warnings.join("、")}</p> : null}
             </div>
           ) : null}
         </section>

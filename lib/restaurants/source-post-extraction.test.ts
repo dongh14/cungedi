@@ -114,6 +114,30 @@ test("valid model output returns validated candidates without creating a place",
   assert.equal(result.result?.candidates[0].category, "美食");
 });
 
+test("validated page metadata is compact AI evidence and images are not sent", async () => {
+  let userPrompt = "";
+  const result = await extractSourcePostPlaces({
+    ...input,
+    accessibleMetadata: {
+      title: "页面标题",
+      description: "页面描述",
+      siteName: "网站名称",
+    },
+  }, {
+    apiKey: "test-key",
+    fetchImpl: async (url, init) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      userPrompt = body.messages[1].content;
+      return mockFetch(responseBody())(url, init);
+    },
+  });
+
+  assert.equal(result.status, "success");
+  assert.match(userPrompt, /页面标题/u);
+  assert.match(userPrompt, /页面描述/u);
+  assert.doesNotMatch(userPrompt, /ogImage|cover\.jpg/u);
+});
+
 test("empty evidence skips the provider and returns insufficient evidence", async () => {
   let requestCount = 0;
   const result = await extractSourcePostPlaces({
