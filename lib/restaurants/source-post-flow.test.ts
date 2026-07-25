@@ -65,21 +65,50 @@ test("source-post organization preserves context and uses the existing review fo
 
 test("default paste intake auto-saves source posts, runs bounded extraction, and opens review directly", () => {
   const intakeCard = read("components/source-intake-card.tsx");
+  const intakeButton = read("components/source-intake-submit-button.tsx");
   const intakePage = read("app/restaurants/new/source/page.tsx");
   const restaurantActions = read("app/restaurants/actions.ts");
+  const extractionService = read("lib/source-posts/extraction-service.ts");
   const intakeActionSection = restaurantActions.split("export async function startSourceIntakeAction")[1] ?? "";
 
   assert.match(intakeCard, /识别地点/u);
   assert.match(intakeCard, /粘贴小红书、抖音分享文案或网页链接/u);
   assert.match(intakeCard, /粘贴后将自动识别地点信息，你可以在保存前修改/u);
+  assert.match(intakeButton, /useFormStatus/u);
+  assert.match(intakeButton, /disabled=\{pending\}/u);
+  assert.match(intakeButton, /正在识别/u);
+  assert.match(intakeButton, /aria-busy=\{pending\}/u);
   assert.match(intakePage, /自动整理出可编辑地点草稿/u);
   assert.match(restaurantActions, /createSavedSourcePost/u);
   assert.match(restaurantActions, /fetchSourcePageMetadata/u);
   assert.match(restaurantActions, /extractSourcePostPlaces/u);
   assert.match(restaurantActions, /updateDetectedCandidates/u);
+  assert.match(extractionService, /maxOutputTokens: 900/u);
   assert.match(restaurantActions, /source_post_id/u);
   assert.match(restaurantActions, /candidate_id/u);
   assert.doesNotMatch(intakeActionSection, /buildRestaurantInsertPayload|from\("restaurants"\)/u);
+});
+
+test("source intake preserves saved source posts and falls back safely when DeepSeek output is truncated or invalid", () => {
+  const restaurantActions = read("app/restaurants/actions.ts");
+  const extractionService = read("lib/source-posts/extraction-service.ts");
+  const deepSeekProvider = read("lib/restaurants/deepseek-provider.ts");
+
+  assert.match(deepSeekProvider, /finishReason === "length"/u);
+  assert.match(deepSeekProvider, /responseValidation: "truncated"/u);
+  assert.match(extractionService, /failureReason\?: "length" \| "invalid_json" \| "invalid_response" \| "provider_error"/u);
+  assert.match(extractionService, /已读取来源，但部分信息未能自动识别，请检查后补充。/u);
+  assert.match(restaurantActions, /processingStatus: extraction\.failureReason === "length" \|\| extraction\.failureReason === "invalid_json" \|\| extraction\.failureReason === "invalid_response"/u);
+  assert.match(restaurantActions, /source_post_id: sourcePost\.id/u);
+});
+
+test("source-post review reads persisted draft state and does not rerun DeepSeek automatically on refresh", () => {
+  const review = read("app/restaurants/review/page.tsx");
+
+  assert.match(review, /const isSourcePostReview = Boolean\(params\.source_post_id\)/u);
+  assert.match(review, /const shouldAutoRunAIEnrichment = !isSourcePostReview \|\| manualEvidenceText !== null \|\| isForcedReanalysis/u);
+  assert.match(review, /!shouldAutoRunAIEnrichment/u);
+  assert.match(review, /来源草稿已就绪，可直接检查并补充后保存。/u);
 });
 
 test("source-post organization keeps failure recovery visible and does not add extraction features", () => {
@@ -104,7 +133,7 @@ test("source-post extraction is explicit, bounded, and review-only", () => {
   assert.match(button, /AI 识别地点/u);
   assert.match(page, /编辑并保存为地点/u);
   assert.match(actions, /候选地点已忽略/u);
-  assert.match(service, /maxOutputTokens: 600/u);
+  assert.match(service, /maxOutputTokens: 900/u);
   assert.doesNotMatch(service, /createRestaurantAction|from\(["']restaurants/u);
 });
 

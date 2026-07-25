@@ -203,6 +203,33 @@ export async function requestDeepSeekJson(
       : undefined;
     const content = payload.choices?.[0]?.message?.content;
 
+    if (finishReason === "length") {
+      logDeepSeekDiagnostic({
+        event: "provider_failure",
+        operation: request.operation,
+        model: config.model,
+        promptVersion: request.promptVersion,
+        sourceUrls,
+        httpStatus: response.status,
+        finishReason,
+        durationMs: Date.now() - startedAt,
+        responseValidation: "truncated",
+        error: serializeSafeError({
+          operation: request.operation,
+          safeMessage: "DeepSeek response was truncated.",
+          httpStatus: response.status,
+          retryable: true,
+        }),
+      });
+      return {
+        status: "failed",
+        content: null,
+        httpStatus: response.status,
+        finishReason,
+        message: "DeepSeek response was truncated.",
+      };
+    }
+
     if (typeof content !== "string") {
       logDeepSeekDiagnostic({
         event: "provider_failure",

@@ -1017,8 +1017,8 @@ export async function startSourceIntakeAction(formData: FormData) {
     const candidatesResult = await updateDetectedCandidates(sourcePost.id, extraction.result.candidates, "needs_review");
 
     if (candidatesResult.error) {
-      await updateSavedSourcePost(sourcePost.id, { processingStatus: "failed" });
-      reviewMessage = "自动识别已完成，但暂时无法保存候选结果，请补充地点信息后保存。";
+      await updateSavedSourcePost(sourcePost.id, { processingStatus: "needs_review" });
+      reviewMessage = "已读取来源，但部分信息未能自动识别，请检查后补充。";
     } else {
       const validatedCandidates = candidatesResult.data
         ? getValidatedSourcePostCandidates(candidatesResult.data.detectedCandidates)
@@ -1029,14 +1029,18 @@ export async function startSourceIntakeAction(formData: FormData) {
         candidateId = strongestCandidate.id;
         reviewMessage = "已自动识别地点草稿，请确认后保存。";
       } else if (extraction.result.candidates.length === 0) {
-        reviewMessage = "已保存来源并完成自动解析，请补充地点信息后保存。";
+        reviewMessage = "已读取来源，但部分信息未能自动识别，请检查后补充。";
       }
     }
   } else {
-    await updateSavedSourcePost(sourcePost.id, { processingStatus: "failed" });
+    await updateSavedSourcePost(sourcePost.id, {
+      processingStatus: extraction.failureReason === "length" || extraction.failureReason === "invalid_json" || extraction.failureReason === "invalid_response"
+        ? "needs_review"
+        : "failed",
+    });
     reviewMessage = extraction.status === "unavailable"
       ? "AI 识别暂未配置，已保留来源证据，请补充地点信息后保存。"
-      : "自动识别暂时失败，已保留来源证据，请补充地点信息后保存。";
+      : "已读取来源，但部分信息未能自动识别，请检查后补充。";
   }
 
   redirect(

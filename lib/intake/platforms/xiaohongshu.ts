@@ -1,5 +1,6 @@
 const xiaohongshuHosts = new Set([
   "xhslink.com",
+  "xhslink.cn",
   "www.xiaohongshu.com",
   "xiaohongshu.com",
 ]);
@@ -11,6 +12,7 @@ export function isXiaohongshuUrl(value: string) {
     return (
       xiaohongshuHosts.has(hostname) ||
       hostname.endsWith(".xhslink.com") ||
+      hostname.endsWith(".xhslink.cn") ||
       hostname.endsWith(".xiaohongshu.com")
     );
   } catch {

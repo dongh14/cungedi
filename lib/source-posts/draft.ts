@@ -16,6 +16,25 @@ export type SourcePostOrganizationDraft = {
   note: string | null;
 };
 
+function cleanMetadataTitle(value: string | null | undefined) {
+  const normalized = value?.trim() ?? "";
+  if (!normalized) {
+    return null;
+  }
+
+  const candidate = normalized
+    .split(/[|｜\-—_]/u, 1)[0]
+    .replace(/[【】[\]()（）]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+  if (!candidate || candidate.length > 80 || /小红书|抖音|网页|官网|official|site/iu.test(candidate)) {
+    return null;
+  }
+
+  return candidate;
+}
+
 function getNameCandidate(originalText: string | null) {
   const lines = (originalText ?? "")
     .split(/\r?\n/u)
@@ -89,17 +108,22 @@ export function buildSourcePostOrganizationDraft(
   post: SavedSourcePost,
   candidate?: SourcePostPlaceCandidate | null,
 ): SourcePostOrganizationDraft {
+  const metadataTitle = cleanMetadataTitle(
+    post.sourceMetadata?.ogTitle ?? post.sourceMetadata?.title ?? null,
+  );
+  const metadataDescription = post.sourceMetadata?.ogDescription ?? post.sourceMetadata?.description ?? null;
+
   return {
     sourceInput: post.originalText?.trim() || post.originalUrl || post.resolvedUrl || "",
     sourceUrl: post.originalUrl ?? post.resolvedUrl,
     resolvedSourceUrl: post.resolvedUrl,
-    name: candidate?.name ?? getNameCandidate(post.originalText),
+    name: candidate?.name ?? getNameCandidate(post.originalText) ?? metadataTitle,
     country: candidate?.country ?? null,
     city: candidate?.city ?? null,
     district: candidate?.district ?? null,
     address: candidate?.address ?? null,
     category: candidate?.category ?? null,
     cuisine: candidate?.subcategory ?? null,
-    note: candidate?.note ?? post.originalText?.trim() ?? null,
+    note: candidate?.note ?? post.originalText?.trim() ?? metadataDescription?.trim() ?? null,
   };
 }

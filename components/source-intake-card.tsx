@@ -1,5 +1,6 @@
 import { startSourceIntakeAction } from "@/app/restaurants/actions";
 import { AppIcon } from "@/components/app-icon";
+import { SourceIntakeSubmitButton } from "@/components/source-intake-submit-button";
 import { SurfaceCard } from "@/components/surface-card";
 
 type SourceIntakeCardProps = {
@@ -55,12 +56,7 @@ export function SourceIntakeCard({ searchParams }: SourceIntakeCardProps) {
             />
           </div>
 
-          <button
-            type="submit"
-            className="primary-button w-full"
-          >
-            识别地点
-          </button>
+          <SourceIntakeSubmitButton />
         </form>
       </div>
     </SurfaceCard>

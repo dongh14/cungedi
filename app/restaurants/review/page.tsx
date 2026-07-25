@@ -219,6 +219,8 @@ export default async function RestaurantReviewPage({
     ...(params.note !== undefined ? { notes: params.note } : {}),
   });
   const isForcedReanalysis = params.ai_refresh === "1";
+  const isSourcePostReview = Boolean(params.source_post_id);
+  const shouldAutoRunAIEnrichment = !isSourcePostReview || manualEvidenceText !== null || isForcedReanalysis;
   const storedAIState = isForcedReanalysis ? null : parseAIReviewDraftState(params);
   const requestedAcceptedAIFields = isForcedReanalysis
     ? []
@@ -258,6 +260,12 @@ export default async function RestaurantReviewPage({
           storedAIState.confidence,
           storedAIState.reasoningSummary,
         )
+    : !shouldAutoRunAIEnrichment
+      ? {
+          status: "no_changes" as const,
+          message: "来源草稿已就绪，可直接检查并补充后保存。",
+          proposal: null,
+        }
     : await runAIEnrichment(
         {
           mergedPlaceDraft: mergedDraft,

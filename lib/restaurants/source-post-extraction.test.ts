@@ -95,6 +95,7 @@ test("prompt packages bounded evidence without private source-post IDs or URL qu
   assert.ok(evidence.length <= maxSourcePostExtractionInputCharacters);
   assert.doesNotMatch(prompt, /post-private-id/u);
   assert.doesNotMatch(prompt, /private-token/u);
+  assert.doesNotMatch(prompt, /originalUrl|resolvedUrl/u);
   assert.match(prompt, /supplied input/u);
 });
 
@@ -172,6 +173,24 @@ test("invalid JSON and invalid candidates fail safely", async () => {
   assert.equal(invalidJson.result, null);
   assert.equal(invalidCandidate.status, "failed");
   assert.equal(invalidCandidate.result, null);
+  assert.match(invalidJson.message, /部分信息未能自动识别/u);
+});
+
+test("truncated length responses are treated as recoverable failures", async () => {
+  const result = await extractSourcePostPlaces(input, {
+    apiKey: "test-key",
+    fetchImpl: async () => new Response(JSON.stringify({
+      choices: [{ finish_reason: "length", message: { content: "{\"candidates\":[" } }],
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.result, null);
+  assert.equal(result.failureReason, "length");
+  assert.match(result.message, /已读取来源，但部分信息未能自动识别/u);
 });
 
 test("provider errors are returned safely and never create candidates", async () => {

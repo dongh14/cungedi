@@ -117,6 +117,7 @@ function isValidSubdomain(hostname: string, root: string) {
 function isApprovedXiaohongshuDestination(hostname: string) {
   return (
     hostname === "xhslink.com" ||
+    hostname === "xhslink.cn" ||
     hostname === "xiaohongshu.com" ||
     hostname === "www.xiaohongshu.com" ||
     isValidSubdomain(hostname, "xiaohongshu.com")
@@ -153,6 +154,10 @@ function getShortPlatform(url: URL): ShortPlatform | null {
     return "xiaohongshu";
   }
 
+  if (hostname === "xhslink.cn") {
+    return "xiaohongshu";
+  }
+
   if (hostname === shortPlatformHosts.douyin) {
     return "douyin";
   }
@@ -173,7 +178,7 @@ function isApprovedDestination(url: URL, platform: ShortPlatform) {
 }
 
 function looksLikePlatformHostname(hostname: string) {
-  return /(?:xhslink\.com|xiaohongshu\.com|douyin\.com)/iu.test(hostname);
+  return /(?:xhslink\.(?:com|cn)|xiaohongshu\.com|douyin\.com)/iu.test(hostname);
 }
 
 function getMaxRedirects(value: number | undefined) {

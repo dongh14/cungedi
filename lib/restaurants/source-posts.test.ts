@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { normalizeIntakeInput } from "../intake/normalize-input.ts";
 import {
   buildSourcePostOrganizationDraft,
   selectStrongestSourcePostCandidate,
@@ -19,6 +20,13 @@ test("saved source-post capture preserves raw shared text and separates resolved
   assert.equal(capture.originalText, rawInput);
   assert.equal(capture.processingStatus, "needs_review");
   assert.deepEqual(capture.detectedCandidates, []);
+});
+
+test("xiaohongshu intake recognizes xhslink.cn as a supported source host", () => {
+  const normalized = normalizeIntakeInput("https://xhslink.cn/a/example");
+
+  assert.equal(normalized.platform, "xiaohongshu");
+  assert.equal(normalized.originalUrl, "https://xhslink.cn/a/example");
 });
 
 test("failed resolution keeps the original source and does not invent a resolved URL", () => {
@@ -64,6 +72,42 @@ test("source-post organization derives a conservative name and keeps raw evidenc
   assert.equal(draft.city, null);
   assert.equal(draft.category, null);
   assert.equal(draft.note, rawText);
+});
+
+test("source-post organization falls back to compact metadata when no candidate or usable share name exists", () => {
+  const draft = buildSourcePostOrganizationDraft({
+    id: "post-2",
+    userId: "user-1",
+    platform: "web",
+    originalUrl: "https://example.com/post",
+    resolvedUrl: "https://example.com/post",
+    originalText: "复制这段内容即可查看详情",
+    sourceImagePath: null,
+    processingStatus: "needs_review",
+    detectedCandidates: [],
+    sourceMetadata: {
+      requestedUrl: "https://example.com/post",
+      finalUrl: "https://example.com/post",
+      platform: "web",
+      title: "樱木町寿司店 | 官方页面",
+      description: "横滨樱木町的一家预约制寿司店。",
+      ogTitle: null,
+      ogDescription: null,
+      ogSiteName: "Example",
+      ogImageUrl: null,
+      canonicalUrl: null,
+      status: "partial",
+      warnings: [],
+    },
+    metadataStatus: "partial",
+    metadataFetchedAt: null,
+    userNote: null,
+    createdAt: "2026-07-20T00:00:00Z",
+    updatedAt: "2026-07-20T00:00:00Z",
+  });
+
+  assert.equal(draft.name, "樱木町寿司店");
+  assert.equal(draft.note, "复制这段内容即可查看详情");
 });
 
 test("source-post organization prefers the strongest conservative candidate", () => {
