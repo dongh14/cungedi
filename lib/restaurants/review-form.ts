@@ -33,6 +33,7 @@ export type ReviewSearchParams = Partial<
     source_resolution_redirect_count: string;
     collection_ids: string | string[];
     source_post_id: string;
+    candidate_id: string;
     manual_evidence: string;
     error: string;
     message: string;

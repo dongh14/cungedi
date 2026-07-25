@@ -2017,3 +2017,20 @@ Documented but not yet implemented in UI:
 - `npm run build` passed with the repository's safe production-style PMTiles environment value.
 - `npm test` passed with `428/428` tests.
 - No migration, `db push`, `db reset`, external network, screenshot/OCR, or AI extraction operation was run.
+
+## V1.1 Milestone 5 AI-Assisted Source-Post Extraction
+
+- Added a provider-independent source-post extraction boundary with `SourcePostExtractionInput`, strict `SourcePostPlaceCandidate`, and `SourcePostExtractionResult` types. Runtime validation accepts at most eight candidates, requires grounded evidence, normalizes canonical categories/subcategories, ignores model-provided IDs in favor of server-generated IDs, and rejects extra or malformed fields.
+- Added versioned, evidence-only prompt packaging. Only the saved post platform, bounded original text, sanitized original/resolved URLs, and optional accessible metadata are eligible for the DeepSeek request. The prompt explicitly forbids URL fetching claims, invented location/contact facts, non-physical candidates, hidden reasoning, and unsupported categories.
+- Reused the existing server-only DeepSeek configuration, JSON-only request format, 600-token output limit, timeout, model configuration, and redacted diagnostics. Extraction is explicit from `/source-posts/[id]`; no AI request runs on detail-page load, and no scraping, OCR, screenshot, image, video, or native-share processing was added.
+- Added the `AI 识别地点` action with duplicate protection and `processing` state. Valid success or insufficient-evidence results are persisted only to the existing `detected_candidates` JSON field with `needs_review`; unavailable, malformed, provider, or persistence failures become `failed` while preserving previously validated candidates on technical failure.
+- Added candidate review UI with name, location, category/subcategory, confidence, evidence, warnings, multi-select one-by-one organization, edit-through-existing-review, and ignore actions. Candidate review preserves the owner-scoped source-post ID, candidate ID, original source context, and resolved URL; place creation still requires the existing editable review form and explicit save.
+- No AI path creates a restaurant or writes directly to place tables. Manual edits remain the final source of truth, existing source-post RLS/repository boundaries remain in force, and re-extraction remains recoverable after a failure.
+
+### Validation
+
+- `git diff --check` passed.
+- `npm run lint` passed.
+- `NEXT_PUBLIC_PMTILES_URL=https://example.com/maps/base-v1.pmtiles npm run build` passed without network access.
+- `npm test` passed with `435/435` tests, including strict candidate validation, bounded prompt packaging, provider failure handling, explicit extraction actions, candidate review contracts, and all existing extraction/source-post coverage.
+- No Supabase migration, `db push`, `db reset`, external API call, scraping, OCR, image upload, video processing, commit, or push was run.

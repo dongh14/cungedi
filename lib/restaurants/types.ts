@@ -21,6 +21,7 @@ export type RestaurantInsertInput = {
   sourceResolutionStatus?: SourceResolutionStatus;
   sourceResolutionRedirectCount?: number;
   sourcePostId?: string;
+  candidateId?: string;
 };
 
 export type RestaurantUpdateInput = {

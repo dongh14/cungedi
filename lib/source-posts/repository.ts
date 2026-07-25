@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSourcePostStatusAfterLinkChange } from "./intake";
+import { getValidatedSourcePostCandidates } from "./extraction-schema";
+import type { SourcePostPlaceCandidate } from "./extraction-types";
 import type {
   CreateSavedSourcePostInput,
   SavedSourcePost,
@@ -169,6 +171,46 @@ export async function updateSavedSourcePost(
   return {
     data: data ? toSavedSourcePost(data as Record<string, unknown>) : null,
     error: error ? repositoryError(error) : null,
+  };
+}
+
+export async function updateDetectedCandidates(
+  id: string,
+  candidates: SourcePostPlaceCandidate[],
+  processingStatus: "needs_review" | "failed" = "needs_review",
+) {
+  const context = await getUserContext();
+
+  if (!context) {
+    return { data: null, error: null };
+  }
+
+  const { data, error } = await context.supabase
+    .from("saved_source_posts")
+    .update({
+      detected_candidates: candidates,
+      processing_status: processingStatus,
+    })
+    .eq("id", id)
+    .select(sourcePostSelect)
+    .maybeSingle();
+
+  return {
+    data: data ? toSavedSourcePost(data as Record<string, unknown>) : null,
+    error: error ? repositoryError(error) : null,
+  };
+}
+
+export async function clearDetectedCandidates(id: string) {
+  return updateDetectedCandidates(id, [], "needs_review");
+}
+
+export async function getValidatedDetectedCandidates(id: string) {
+  const result = await getSavedSourcePostById(id);
+
+  return {
+    data: result.data ? getValidatedSourcePostCandidates(result.data.detectedCandidates) : [],
+    error: result.error,
   };
 }
 

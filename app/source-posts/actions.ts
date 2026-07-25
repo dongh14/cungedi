@@ -3,17 +3,22 @@
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "@/lib/auth/require-user";
 import { buildSavedSourcePostCapture } from "@/lib/source-posts/intake";
+import { extractSourcePostPlaces } from "@/lib/source-posts/extraction-service";
 import {
   createSavedSourcePost,
   deleteSavedSourcePost,
   getSavedSourcePostById,
   linkSourcePostToPlace,
   unlinkSourcePostFromPlace,
+  updateDetectedCandidates,
   updateSavedSourcePost,
 } from "@/lib/source-posts/repository";
+import { getValidatedSourcePostCandidates } from "@/lib/source-posts/extraction-schema";
 import { normalizeIntakeInput } from "@/lib/intake/normalize-input";
 import { logWorkflowDiagnostic } from "@/lib/restaurants/workflow-diagnostics";
 import { getCurrentUserRestaurantById } from "@/lib/restaurants/queries";
+
+const activeSourcePostExtractions = new Set<string>();
 
 function getRawValue(formData: FormData, key: string) {
   return formData.get(key)?.toString() ?? "";
@@ -133,6 +138,93 @@ export async function organizeSavedSourcePostAction(formData: FormData) {
   }
 
   redirect(`/restaurants/review?source_post_id=${encodeURIComponent(id)}`);
+}
+
+export async function extractSavedSourcePostPlacesAction(formData: FormData) {
+  const id = getRawValue(formData, "source_post_id");
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
+    redirect(`/login?error=${encodeURIComponent("请先登录后再识别地点。")}`);
+  }
+
+  if (!id || activeSourcePostExtractions.has(id)) {
+    redirect(`/source-posts/${encodeURIComponent(id)}?extraction=already_running`);
+  }
+
+  const postResult = await getSavedSourcePostById(id);
+  if (!postResult.data) {
+    redirect(`/source-posts/${encodeURIComponent(id)}?extraction=failed`);
+  }
+
+  if (postResult.data.processingStatus === "processing") {
+    redirect(`/source-posts/${encodeURIComponent(id)}?extraction=already_running`);
+  }
+
+  activeSourcePostExtractions.add(id);
+
+  try {
+    const processingResult = await updateSavedSourcePost(id, { processingStatus: "processing" });
+    if (processingResult.error || !processingResult.data) {
+      redirect(`/source-posts/${encodeURIComponent(id)}?extraction=failed`);
+    }
+
+    const extraction = await extractSourcePostPlaces({
+      sourcePostId: postResult.data.id,
+      platform: postResult.data.platform,
+      originalText: postResult.data.originalText,
+      originalUrl: postResult.data.originalUrl,
+      resolvedUrl: postResult.data.resolvedUrl,
+    });
+
+    if (extraction.status === "success" && extraction.result) {
+      if (extraction.result.extractionStatus === "failed") {
+        await updateSavedSourcePost(id, { processingStatus: "failed" });
+        redirect(`/source-posts/${encodeURIComponent(id)}?extraction=failed`);
+      }
+
+      const savedResult = await updateDetectedCandidates(id, extraction.result.candidates, "needs_review");
+      if (savedResult.error || !savedResult.data) {
+        await updateSavedSourcePost(id, { processingStatus: "failed" });
+        redirect(`/source-posts/${encodeURIComponent(id)}?extraction=failed`);
+      }
+
+      redirect(`/source-posts/${encodeURIComponent(id)}?extraction=${extraction.result.extractionStatus}`);
+    }
+
+    await updateSavedSourcePost(id, { processingStatus: "failed" });
+    redirect(`/source-posts/${encodeURIComponent(id)}?extraction=${extraction.status}`);
+  } finally {
+    activeSourcePostExtractions.delete(id);
+  }
+}
+
+export async function ignoreSourcePostCandidateAction(formData: FormData) {
+  const id = getRawValue(formData, "source_post_id");
+  const candidateId = getRawValue(formData, "candidate_id");
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
+    redirect(`/login?error=${encodeURIComponent("请先登录后再整理帖子。")}`);
+  }
+
+  const postResult = await getSavedSourcePostById(id);
+  if (!postResult.data) {
+    redirect(`/source-posts/${encodeURIComponent(id)}?error=${encodeURIComponent("帖子暂时无法读取，请稍后重试。")}`);
+  }
+
+  const candidates = getValidatedSourcePostCandidates(postResult.data.detectedCandidates);
+  const remainingCandidates = candidates.filter((candidate) => candidate.id !== candidateId);
+  if (remainingCandidates.length === candidates.length) {
+    redirect(`/source-posts/${encodeURIComponent(id)}?error=${encodeURIComponent("候选地点不存在或已处理。")}`);
+  }
+
+  const result = await updateDetectedCandidates(id, remainingCandidates, "needs_review");
+  redirect(`/source-posts/${encodeURIComponent(id)}?${new URLSearchParams(
+    result.error || !result.data
+      ? { error: "候选地点暂时无法忽略，请稍后重试。" }
+      : { message: "候选地点已忽略" },
+  ).toString()}`);
 }
 
 export async function linkSavedSourcePostToPlaceAction(formData: FormData) {

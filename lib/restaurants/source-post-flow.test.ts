@@ -72,3 +72,19 @@ test("source-post organization keeps failure recovery visible and does not add e
   assert.match(actions, /processingStatus: "needs_review"/u);
   assert.doesNotMatch(page, /OCR|截图上传|视频处理|AI提取/u);
 });
+
+test("source-post extraction is explicit, bounded, and review-only", () => {
+  const actions = read("app/source-posts/actions.ts");
+  const page = read("app/source-posts/[id]/page.tsx");
+  const button = read("components/source-post-extraction-button.tsx");
+  const service = read("lib/source-posts/extraction-service.ts");
+
+  assert.match(actions, /extractSavedSourcePostPlacesAction/u);
+  assert.match(actions, /processingStatus: "processing"/u);
+  assert.match(actions, /updateDetectedCandidates/u);
+  assert.match(button, /AI 识别地点/u);
+  assert.match(page, /编辑并保存为地点/u);
+  assert.match(actions, /候选地点已忽略/u);
+  assert.match(service, /maxOutputTokens: 600/u);
+  assert.doesNotMatch(service, /createRestaurantAction|from\(["']restaurants/u);
+});

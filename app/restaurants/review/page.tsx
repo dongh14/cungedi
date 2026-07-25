@@ -58,6 +58,7 @@ type RestaurantReviewPageProps = {
     manual_evidence?: string;
     ai_refresh?: string;
     sourcePostError?: string;
+    candidate_id?: string;
   }>;
 };
 
@@ -385,7 +386,7 @@ export default async function RestaurantReviewPage({
           refreshParams={refreshParams}
         />
         {showManualEvidenceRecovery ? <ManualEvidenceRecoveryCard sourceUrl={normalizedSourceUrl} sourceUrls={sourceUrls} sourceInput={params.source_input} resolvedSourceUrl={params.resolved_source_url} sourceResolutionStatus={params.source_resolution_status} sourceResolutionRedirectCount={params.source_resolution_redirect_count} value={manualEvidenceText ?? ""} error={recoveryMessage ?? websiteRecoveryPipelines[0]?.result.message} aiDraftState={aiDraftState} selectedCollectionIds={selectedCollectionIds} draftValues={reviewDraftValues} /> : null}
-        <ReviewCollectionSelector collectionOptions={collectionOptions} collectionOptionsError={Boolean(collectionOptionsError)} selectedCollectionIds={selectedCollectionIds} sourceUrl={normalizedSourceUrl} sourceInput={params.source_input} resolvedSourceUrl={params.resolved_source_url} sourceResolutionStatus={params.source_resolution_status} sourceResolutionRedirectCount={params.source_resolution_redirect_count} sourcePostId={params.source_post_id} message={params.collection_message ?? params.collection_error} aiDraftState={aiDraftState} draftValues={reviewDraftValues} manualEvidence={manualEvidenceText ?? undefined} />
+        <ReviewCollectionSelector collectionOptions={collectionOptions} collectionOptionsError={Boolean(collectionOptionsError)} selectedCollectionIds={selectedCollectionIds} sourceUrl={normalizedSourceUrl} sourceInput={params.source_input} resolvedSourceUrl={params.resolved_source_url} sourceResolutionStatus={params.source_resolution_status} sourceResolutionRedirectCount={params.source_resolution_redirect_count} sourcePostId={params.source_post_id} candidateId={params.candidate_id} message={params.collection_message ?? params.collection_error} aiDraftState={aiDraftState} draftValues={reviewDraftValues} manualEvidence={manualEvidenceText ?? undefined} />
       </div>
     </AppShell>
   );

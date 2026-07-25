@@ -1,4 +1,5 @@
 import type { SavedSourcePost } from "./types";
+import type { SourcePostPlaceCandidate } from "./extraction-types";
 
 export type SourcePostOrganizationDraft = {
   sourceInput: string;
@@ -29,12 +30,15 @@ function getNameCandidate(originalText: string | null) {
   return null;
 }
 
-export function buildSourcePostOrganizationDraft(post: SavedSourcePost): SourcePostOrganizationDraft {
+export function buildSourcePostOrganizationDraft(
+  post: SavedSourcePost,
+  candidate?: SourcePostPlaceCandidate | null,
+): SourcePostOrganizationDraft {
   return {
     sourceInput: post.originalText?.trim() || post.originalUrl || post.resolvedUrl || "",
     sourceUrl: post.originalUrl ?? post.resolvedUrl,
     resolvedSourceUrl: post.resolvedUrl,
-    name: getNameCandidate(post.originalText),
-    note: post.originalText?.trim() || null,
+    name: candidate?.name ?? getNameCandidate(post.originalText),
+    note: candidate?.note ?? post.originalText?.trim() ?? null,
   };
 }

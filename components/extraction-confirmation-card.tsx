@@ -138,6 +138,7 @@ export function ExtractionConfirmationCard({
           <input type="hidden" name="review_source_url" value={sourceUrl} />
           <input type="hidden" name="source_input" value={sourceInput ?? sourceUrl} />
           {sourcePostId ? <input type="hidden" name="source_post_id" value={sourcePostId} /> : null}
+          {searchParams.candidate_id ? <input type="hidden" name="candidate_id" value={searchParams.candidate_id} /> : null}
           {searchParams.resolved_source_url ? <input type="hidden" name="resolved_source_url" value={searchParams.resolved_source_url} /> : null}
           {searchParams.source_resolution_status ? <input type="hidden" name="source_resolution_status" value={searchParams.source_resolution_status} /> : null}
           {searchParams.source_resolution_redirect_count ? <input type="hidden" name="source_resolution_redirect_count" value={searchParams.source_resolution_redirect_count} /> : null}

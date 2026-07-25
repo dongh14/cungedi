@@ -44,6 +44,28 @@ export type DeepSeekProviderOptions = {
   thinkingMode?: boolean;
 };
 
+export type DeepSeekJsonRequest = {
+  operation: string;
+  promptVersion: string;
+  systemPrompt: string;
+  userPrompt: string;
+  sourceUrls?: string[];
+  maxOutputTokens?: number;
+  timeoutMs?: number;
+  apiKey?: string;
+  model?: string;
+  endpoint?: string;
+  fetchImpl?: typeof fetch;
+};
+
+export type DeepSeekJsonResponse = {
+  status: "success" | "unavailable" | "failed";
+  content: string | null;
+  httpStatus?: number;
+  finishReason?: string;
+  message: string;
+};
+
 type DeepSeekWireResponse = {
   status: "suggestions_available" | "no_changes" | "failed";
   factualSuggestions: {
@@ -83,6 +105,167 @@ function getConfig(options: DeepSeekProviderOptions) {
     cacheStore: options.cacheStore,
     fetchImpl: options.fetchImpl ?? fetch,
   };
+}
+
+export async function requestDeepSeekJson(
+  request: DeepSeekJsonRequest,
+): Promise<DeepSeekJsonResponse> {
+  const config = getConfig(request);
+  const sourceUrls = request.sourceUrls ?? [];
+
+  if (!config.apiKey) {
+    logDeepSeekDiagnostic({
+      event: "provider_failure",
+      operation: request.operation,
+      model: config.model,
+      promptVersion: request.promptVersion,
+      sourceUrls,
+      responseValidation: "unavailable",
+      error: serializeSafeError({
+        operation: request.operation,
+        safeMessage: "DeepSeek provider is not configured.",
+        retryable: false,
+      }),
+    });
+    return {
+      status: "unavailable",
+      content: null,
+      message: "DeepSeek provider is not configured.",
+    };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), request.timeoutMs ?? defaultDeepSeekTimeoutMs);
+  const startedAt = Date.now();
+  let responseStatus: number | undefined;
+  let finishReason: string | undefined;
+
+  logDeepSeekDiagnostic({
+    event: "provider_call",
+    operation: request.operation,
+    model: config.model,
+    promptVersion: request.promptVersion,
+    sourceUrls,
+  });
+
+  try {
+    const response = await config.fetchImpl(config.endpoint, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: config.model,
+        temperature: 0.1,
+        max_tokens: request.maxOutputTokens ?? defaultDeepSeekMaxOutputTokens,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: request.systemPrompt },
+          { role: "user", content: request.userPrompt },
+        ],
+      }),
+      signal: controller.signal,
+    });
+    responseStatus = response.status;
+
+    if (!response.ok) {
+      logDeepSeekDiagnostic({
+        event: "provider_failure",
+        operation: request.operation,
+        model: config.model,
+        promptVersion: request.promptVersion,
+        sourceUrls,
+        httpStatus: response.status,
+        durationMs: Date.now() - startedAt,
+        responseValidation: "http_error",
+        error: serializeSafeError({
+          operation: request.operation,
+          safeMessage: "DeepSeek request failed.",
+          httpStatus: response.status,
+          retryable: response.status === 429 || response.status >= 500,
+        }),
+      });
+      return {
+        status: "failed",
+        content: null,
+        httpStatus: response.status,
+        message: "DeepSeek request failed.",
+      };
+    }
+
+    const payload = (await response.json()) as {
+      choices?: Array<{ finish_reason?: unknown; message?: { content?: unknown } }>;
+    };
+    finishReason = typeof payload.choices?.[0]?.finish_reason === "string"
+      ? payload.choices[0].finish_reason
+      : undefined;
+    const content = payload.choices?.[0]?.message?.content;
+
+    if (typeof content !== "string") {
+      logDeepSeekDiagnostic({
+        event: "provider_failure",
+        operation: request.operation,
+        model: config.model,
+        promptVersion: request.promptVersion,
+        sourceUrls,
+        httpStatus: response.status,
+        finishReason,
+        durationMs: Date.now() - startedAt,
+        responseValidation: "invalid",
+        error: serializeSafeError({
+          operation: request.operation,
+          safeMessage: "DeepSeek returned no JSON content.",
+          httpStatus: response.status,
+          retryable: false,
+        }),
+      });
+      return { status: "failed", content: null, httpStatus: response.status, finishReason, message: "DeepSeek returned no JSON content." };
+    }
+
+    logDeepSeekDiagnostic({
+      event: "provider_success",
+      operation: request.operation,
+      model: config.model,
+      promptVersion: request.promptVersion,
+      sourceUrls,
+      httpStatus: response.status,
+      finishReason,
+      durationMs: Date.now() - startedAt,
+      responseValidation: "received",
+    });
+    return { status: "success", content, httpStatus: response.status, finishReason, message: "DeepSeek response received." };
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === "AbortError";
+    logDeepSeekDiagnostic({
+      event: "provider_failure",
+      operation: request.operation,
+      model: config.model,
+      promptVersion: request.promptVersion,
+      sourceUrls,
+      ...(responseStatus !== undefined ? { httpStatus: responseStatus } : {}),
+      ...(finishReason ? { finishReason } : {}),
+      durationMs: Date.now() - startedAt,
+      responseValidation: timedOut ? "timeout" : "failed",
+      error: serializeSafeError({
+        operation: request.operation,
+        error,
+        safeMessage: timedOut ? "DeepSeek request timed out." : "DeepSeek request failed.",
+        httpStatus: responseStatus,
+        retryable: true,
+      }),
+    });
+    return {
+      status: "failed",
+      content: null,
+      ...(responseStatus !== undefined ? { httpStatus: responseStatus } : {}),
+      ...(finishReason ? { finishReason } : {}),
+      message: timedOut ? "DeepSeek request timed out." : "DeepSeek request failed.",
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function isConfidence(value: unknown): value is AIEnrichmentConfidence {

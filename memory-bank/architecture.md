@@ -1712,3 +1712,28 @@ The actual local PMTiles archive is intentionally not committed and is expected 
 - `npm run build` passed.
 - Focused homepage, navigation, category, place-card, collection-card, and collection-membership tests passed (`14` tests).
 - Interactive authenticated mobile validation was not run in this environment; automated validation did not create or save a place.
+
+## V1.1 Milestone 5 Source-Post Extraction Architecture
+
+### Evidence And Validation Boundary
+- `lib/source-posts/extraction-types.ts` defines the source-post extraction contract. The input carries the platform, raw original text, original/resolved URLs, and optional accessible metadata; it does not imply that a URL was fetched or that a social platform was opened.
+- `lib/source-posts/extraction-prompt.ts` provides the versioned `source-post-place-extraction-v1` prompt and a bounded evidence serializer. URLs are sanitized to host/path context, text and metadata are length-limited, and source-post IDs/user identity are not included in the model context.
+- `lib/source-posts/extraction-schema.ts` is the runtime trust boundary. It permits only the exact candidate/result keys, six canonical top-level categories, high/medium/low confidence, up to eight candidates, non-empty evidence, bounded strings/lists, and server-generated candidate IDs. Invalid JSON, extra fields, unsupported categories, missing evidence, and oversized candidate sets are rejected.
+
+### Provider And Action Flow
+- `lib/source-posts/extraction-service.ts` reuses `requestDeepSeekJson` from the existing server-only DeepSeek provider. It skips empty evidence, sends one bounded JSON request only after an explicit user action, validates the response before persistence, and returns safe unavailable/failed/insufficient-evidence states.
+- `app/source-posts/actions.ts` owns the explicit `AI 识别地点` server action. It verifies the authenticated owner through the existing repository, prevents duplicate processing, transitions `processing -> needs_review` for valid or insufficient results, and transitions technical/provider/validation failures to `failed` without automatically creating a place.
+- `lib/source-posts/repository.ts` persists validated candidates only in the existing `saved_source_posts.detected_candidates` JSON field. Existing candidates are preserved when a technical re-extraction fails. No new migration or place schema field is required for this milestone.
+
+### Candidate Review Boundary
+- `app/source-posts/[id]/page.tsx` renders only validated candidates and shows confidence, evidence, warnings, normalized location/category fields, edit, ignore, and explicit extraction controls. `components/source-post-candidate-selector.tsx` supports selecting multiple candidates while opening the existing review flow one candidate at a time.
+- Candidate review links include the owner-scoped `source_post_id` and server-generated `candidate_id`, plus editable candidate values. `candidate_id` is carried through the review form and collection-creation redirect so draft navigation does not lose context. The final place still comes from `createRestaurantAction` after manual review; no candidate is auto-saved.
+- Source-post original/resolved URLs and raw original text remain source evidence only. The extraction path does not fetch, scrape, download, OCR, transcribe, or process social media media, and it does not expose model reasoning.
+
+### Operational Safety
+- DeepSeek calls use the established model/environment configuration, JSON-object response mode, low temperature, 600-token output cap, timeout, server-only API key, host-safe diagnostics, and no raw evidence logging. A missing provider returns unavailable without a network request.
+- Supabase authentication, owner-scoped RLS, source-post status semantics, saved-place schema, collections, map, deterministic extraction, source merging, and manual save behavior are unchanged.
+
+### Validation
+- `git diff --check`, `npm run lint`, and the production-style `npm run build` passed.
+- `npm test` passed with `435/435` tests. The suite includes source-post candidate schema/prompt/service tests, explicit action/UI contracts, and all prior extraction, AI, persistence, map, auth, and privacy tests.

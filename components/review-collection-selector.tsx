@@ -16,6 +16,7 @@ export function ReviewCollectionSelector({
   sourceResolutionStatus,
   sourceResolutionRedirectCount,
   sourcePostId,
+  candidateId,
   message,
   formId = "review-save-form",
   aiDraftState,
@@ -31,6 +32,7 @@ export function ReviewCollectionSelector({
   sourceResolutionStatus?: string;
   sourceResolutionRedirectCount?: string;
   sourcePostId?: string;
+  candidateId?: string;
   message?: string;
   formId?: string;
   aiDraftState?: AIReviewDraftState | null;
@@ -152,6 +154,7 @@ export function ReviewCollectionSelector({
           {sourceResolutionStatus ? <input type="hidden" name="source_resolution_status" value={sourceResolutionStatus} /> : null}
           {sourceResolutionRedirectCount ? <input type="hidden" name="source_resolution_redirect_count" value={sourceResolutionRedirectCount} /> : null}
           {sourcePostId ? <input type="hidden" name="source_post_id" value={sourcePostId} /> : null}
+          {candidateId ? <input type="hidden" name="candidate_id" value={candidateId} /> : null}
           {selectedCollectionIds.map((id) => (
             <input key={`selected-collection-${id}`} type="hidden" name="collection_ids" value={id} />
           ))}

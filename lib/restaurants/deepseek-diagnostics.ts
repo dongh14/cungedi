@@ -22,6 +22,7 @@ export type DeepSeekDiagnosticEvent =
 
 type DiagnosticInput = {
   event: DeepSeekDiagnosticEvent;
+  operation?: string;
   cacheKey?: string;
   model?: string;
   promptVersion?: string;
@@ -105,6 +106,7 @@ function shortCacheKey(cacheKey: string) {
 
 function sanitizeDiagnostic(input: DiagnosticInput) {
   return {
+    ...(input.operation ? { operation: input.operation } : {}),
     ...(input.cacheKey ? { cacheKeyPrefix: shortCacheKey(input.cacheKey) } : {}),
     ...(input.model ? { model: input.model } : {}),
     ...(input.promptVersion ? { promptVersion: input.promptVersion } : {}),

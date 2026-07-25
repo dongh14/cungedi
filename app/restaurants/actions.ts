@@ -109,6 +109,7 @@ function buildReviewRestaurantRedirect(
     sourceResolutionStatus?: SourceResolutionStatus;
     sourceResolutionRedirectCount?: number;
     sourcePostId?: string;
+    candidateId?: string;
   },
   state: {
     error?: string;
@@ -141,6 +142,7 @@ function buildReviewRestaurantRedirect(
       ? { source_resolution_redirect_count: String(values.sourceResolutionRedirectCount) }
       : {}),
     ...(values.sourcePostId ? { source_post_id: values.sourcePostId } : {}),
+    ...(values.candidateId ? { candidate_id: values.candidateId } : {}),
   });
 }
 
@@ -221,6 +223,7 @@ function buildReviewCollectionRedirect(
     sourceResolutionRedirectCount?: number;
     collectionIds?: number[];
     sourcePostId?: string;
+    candidateId?: string;
   },
 ) {
   const params = new URLSearchParams({ source_url: sourceUrl });
@@ -259,6 +262,10 @@ function buildReviewCollectionRedirect(
 
   if (state.sourcePostId) {
     params.set("source_post_id", state.sourcePostId);
+  }
+
+  if (state.candidateId) {
+    params.set("candidate_id", state.candidateId);
   }
 
   for (const [field, value] of Object.entries(state.draftValues ?? {})) {
@@ -301,6 +308,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
   const sourceResolutionStatus = getFormValue(formData, "source_resolution_status") as SourceResolutionStatus | "";
   const sourceResolutionRedirectCount = getFormValue(formData, "source_resolution_redirect_count");
   const sourcePostId = getFormValue(formData, "source_post_id");
+  const candidateId = getFormValue(formData, "candidate_id");
   const collectionIds = normalizeSelectedCollectionIds(
     formData.getAll("collection_ids").map((value) => value.toString()),
   );
@@ -325,6 +333,7 @@ function parseRestaurantForm(formData: FormData): RestaurantInsertInput {
     ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
     ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
     ...(sourcePostId ? { sourcePostId } : {}),
+    ...(candidateId ? { candidateId } : {}),
   };
   const redirectToDraft = (error: string): never => {
     if (returnTo === "review" && reviewSourceUrl) {
@@ -768,6 +777,7 @@ export async function createCollectionAction(formData: FormData) {
   const sourceResolutionStatus = getFormValue(formData, "source_resolution_status") as SourceResolutionStatus | "";
   const sourceResolutionRedirectCount = getFormValue(formData, "source_resolution_redirect_count");
   const sourcePostId = getFormValue(formData, "source_post_id");
+  const candidateId = getFormValue(formData, "candidate_id");
   const manualEvidence = getFormValue(formData, "manual_evidence");
   const collectionIds = normalizeSelectedCollectionIds(
     formData.getAll("collection_ids").map((value) => value.toString()),
@@ -799,6 +809,7 @@ export async function createCollectionAction(formData: FormData) {
         ...(sourceResolutionStatus ? { sourceResolutionStatus } : {}),
         ...(sourceResolutionRedirectCount ? { sourceResolutionRedirectCount: Number(sourceResolutionRedirectCount) } : {}),
         ...(sourcePostId ? { sourcePostId } : {}),
+        ...(candidateId ? { candidateId } : {}),
         manualEvidence,
         collectionIds,
       }));
